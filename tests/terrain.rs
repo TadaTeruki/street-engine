@@ -1,9 +1,9 @@
 use std::f64::consts::PI;
 
-use citymodelgen::generator::{NetworkConfig, NetworkGenerator};
-use citymodelgen::geom::Site2D;
-use citymodelgen::interface::{ElevationModel, PopulationDensityModel};
-use citymodelgen::model::Network;
+use city_engine::generator::{NetworkConfig, NetworkGenerator};
+use city_engine::geom::Site2D;
+use city_engine::interface::{ElevationModel, PopulationDensityModel};
+use city_engine::model::Network;
 use fastlem::core::{parameters::TopographicalParameters, traits::Model};
 use fastlem::lem::generator::TerrainGenerator;
 use fastlem::models::surface::builder::TerrainModel2DBulider;
