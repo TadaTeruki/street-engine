@@ -1,5 +1,4 @@
-#[derive(Clone, Copy)]
-pub struct Site2D {
-    pub x: f64,
-    pub y: f64,
-}
+pub mod generator;
+pub mod geom;
+pub mod interface;
+pub mod model;
