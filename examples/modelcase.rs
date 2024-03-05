@@ -48,8 +48,7 @@ impl PopulationDensityModel for MapModel {
     }
 }
 
-#[test]
-fn test_terrain() {
+fn main() {
     let node_num = 50000;
     let seed = 0;
     let bound_min = Site2D {
@@ -59,7 +58,7 @@ fn test_terrain() {
     let bound_max = Site2D { x: 100.0, y: 50.0 };
     let img_width = 1000;
     let img_height = 500;
-    let filename = "terrain.png";
+    let filename = "modelcase.png";
 
     let (terrain, is_outlet, graph) = create_terrain(node_num, seed, bound_min, bound_max);
 
@@ -186,7 +185,7 @@ fn write_to_image(
     pixmap.save_png(filename).unwrap();
 }
 
-// The following functions are not part of the test
+// The below functions are for generating other data
 
 fn create_terrain(
     node_num: usize,
@@ -349,8 +348,8 @@ fn generate_terrain(
                     + octaved_perlin(&perlin, x * 1.2, y * 1.2, octaves, 0.5).abs()))
             .max(0.0)
             .powi(5)
-                * 2.0
-                + 0.2;
+                * 2.5
+                + 0.1;
 
             let noise_is_outlet = (octaved_perlin(&perlin, x * 1.0, y * 1.0, octaves, 0.5) * 0.5
                 + 0.5)
