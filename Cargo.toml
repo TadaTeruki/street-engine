@@ -7,10 +7,10 @@ edition = "2021"
 
 [dependencies]
 rstar = "0.12.0"
+rand = "0.8.5"
 
 [dev-dependencies]
 fastlem = "0.1.4"
-rand = "0.8.5"
 noise = "0.8"
 naturalneighbor = "1.2.1"
 terrain-graph = "1.0.1"

@@ -50,7 +50,7 @@ impl PopulationDensityModel for MapModel {
 
 fn main() {
     let node_num = 50000;
-    let seed = 0;
+    let seed = 14;
     let bound_min = Site2D {
         x: -100.0,
         y: -50.0,
@@ -80,12 +80,15 @@ fn main() {
     };
 
     let constructor = NetworkGenerator::new(
+        seed as u64,
         &model,
         &model,
         NetworkConfig {
             max_straight_angle: PI / 4.0,
             road_length: 0.4,
             road_comparison_step: 10,
+            road_evaluation: |population_density, _| population_density,
+            road_branch_probability_by_evaluation: |_| 0.01,
         },
     )
     .add_origin(Site2D { x: 0.0, y: 0.0 }, 1.57)
