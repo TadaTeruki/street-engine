@@ -16,12 +16,12 @@ impl Default for Node {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct NetworkTreeObject {
+struct NetworkSiteTreeObject {
     pub site: Site2D,
     pub id: usize,
 }
 
-impl rstar::RTreeObject for NetworkTreeObject {
+impl rstar::RTreeObject for NetworkSiteTreeObject {
     type Envelope = rstar::AABB<[f64; 2]>;
 
     fn envelope(&self) -> Self::Envelope {
@@ -29,7 +29,7 @@ impl rstar::RTreeObject for NetworkTreeObject {
     }
 }
 
-impl rstar::PointDistance for NetworkTreeObject {
+impl rstar::PointDistance for NetworkSiteTreeObject {
     fn distance_2(&self, point: &[f64; 2]) -> f64 {
         self.site.distance(&Site2D::new(point[0], point[1]))
     }
@@ -39,7 +39,7 @@ impl rstar::PointDistance for NetworkTreeObject {
 pub struct Network {
     nodes: Vec<Node>,
     connection: Vec<Vec<usize>>,
-    search_tree: rstar::RTree<NetworkTreeObject>,
+    site_search_tree: rstar::RTree<NetworkSiteTreeObject>,
 }
 
 impl Network {
@@ -47,7 +47,7 @@ impl Network {
         Self {
             nodes: Vec::new(),
             connection: Vec::new(),
-            search_tree: rstar::RTree::new(),
+            site_search_tree: rstar::RTree::new(),
         }
     }
 
@@ -55,7 +55,7 @@ impl Network {
         let id = self.nodes.len();
         self.nodes.push(node);
         self.connection.push(Vec::new());
-        self.search_tree.insert(NetworkTreeObject {
+        self.site_search_tree.insert(NetworkSiteTreeObject {
             site: node.site,
             id,
         });
@@ -67,11 +67,80 @@ impl Network {
         self.connection[to].push(from);
     }
 
-    pub(super) fn get_nearest_node(&self, site: Site2D) -> Option<usize> {
-        self.search_tree
+    pub(super) fn remove_connection(&mut self, from: usize, to: usize) {
+        self.connection[from].retain(|&id| id != to);
+        self.connection[to].retain(|&id| id != from);
+    }
+
+    fn get_nearest_node(&self, site: Site2D) -> Option<usize> {
+        self.site_search_tree
             .nearest_neighbor_iter(&[site.x, site.y])
             .next()
             .map(|nearest| nearest.id)
+    }
+
+    pub fn get_nearest_node_in_distance(&self, site: Site2D, distance: f64) -> Option<usize> {
+        let nearest = self.get_nearest_node(site)?;
+        if self.nodes.get(nearest)?.site.distance(&site) < distance {
+            Some(nearest)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_crossing_connection(
+        &self,
+        backward_site: Site2D,
+        forward_site: Site2D,
+        merge_distance: f64,
+        connection_length: f64,
+    ) -> Option<(Site2D, usize, usize)> {
+        let half_search_range = 2.0_f64.sqrt();
+        let envelope = rstar::AABB::from_corners(
+            [
+                forward_site.x - connection_length * half_search_range,
+                forward_site.y - connection_length * half_search_range,
+            ],
+            [
+                forward_site.x + connection_length * half_search_range,
+                forward_site.y + connection_length * half_search_range,
+            ],
+        );
+
+        self.site_search_tree
+            .locate_in_envelope(&envelope)
+            .flat_map(|node| {
+                self.connection[node.id]
+                    .iter()
+                    .map(move |&to| (node.id, to))
+            })
+            .filter_map(|(from, to)| {
+                let from_site = &self.nodes[from].site;
+                let to_site = &self.nodes[to].site;
+                if let Some(cross_site) =
+                    forward_site.get_intersection(&backward_site, from_site, to_site)
+                {
+                    return Some((cross_site, from, to, cross_site.distance(&forward_site)));
+                }
+
+                if let Some(nearest_site) =
+                    forward_site.get_nearest_point_on_line_segment(from_site, to_site)
+                {
+                    let distance = nearest_site.distance(&forward_site);
+                    if distance < merge_distance {
+                        return Some((nearest_site, from, to, distance));
+                    }
+                }
+                None
+            })
+            .min_by(|(_, _, _, distance), (_, _, _, other_distance)| {
+                distance.partial_cmp(other_distance).unwrap()
+            })
+            .map(|(cross_site, from, to, _)| (cross_site, from, to))
+    }
+
+    pub fn get_node(&self, id: usize) -> Option<Node> {
+        self.nodes.get(id).cloned()
     }
 
     pub fn nodes(&self) -> &[Node] {

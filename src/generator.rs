@@ -6,8 +6,14 @@ use crate::geom::Site2D;
 use crate::interface::{ElevationModel, PopulationDensityModel};
 use crate::model::{Network, Node};
 
+enum CandidateNodeType {
+    New(Node),
+    Existing(usize),
+    Branch(Node, usize, usize),
+}
+
 struct NodeCandidate {
-    pub node: Node,
+    pub node: CandidateNodeType,
     pub parent_id: usize,
     pub evaluation: f64,
 }
@@ -44,6 +50,7 @@ pub struct NetworkConfig {
     pub road_comparison_step: usize,
     pub road_evaluation: fn(f64, f64) -> f64,
     pub road_branch_probability_by_evaluation: fn(f64) -> f64,
+    pub merge_node_distance: f64,
 }
 
 pub struct NetworkGenerator<'a, EM, PM>
@@ -83,6 +90,9 @@ where
     fn evaluate_site(&self, site: Site2D) -> Option<f64> {
         let population_density = self.population_density_model.get_population_density(site)?;
         let elevation = self.elevation_model.get_elevation(site)?;
+        if elevation < 1e-2 {
+            return None;
+        }
         Some((self.config.road_evaluation)(population_density, elevation))
     }
 
@@ -118,7 +128,11 @@ where
         self
     }
 
-    fn search_next_node_position(&self, site: Site2D, angle: f64) -> Option<(Node, f64)> {
+    fn search_next_node_position(
+        &self,
+        site: Site2D,
+        angle: f64,
+    ) -> Option<(CandidateNodeType, f64)> {
         let mut next_node = None;
         let mut next_evaluation = None;
         for i in 0..self.config.road_comparison_step {
@@ -143,9 +157,106 @@ where
             }
         }
         if let (Some(next_node), Some(next_evaluation)) = (next_node, next_evaluation) {
-            Some((next_node, next_evaluation))
+            // if there are existing node, return existing node
+            if let Some(id) = self
+                .network
+                .get_nearest_node_in_distance(next_node.site, self.config.merge_node_distance)
+            {
+                return Some((CandidateNodeType::Existing(id), next_evaluation));
+            }
+
+            // if there are crossing connection, return branch node
+            if let Some(crossing) = self.network.get_crossing_connection(
+                site,
+                next_node.site,
+                self.config.merge_node_distance,
+                self.config.road_length,
+            ) {
+                let (crossing_site, id1, id2) = crossing;
+                //let angle = (crossing_site.y - site.y).atan2(crossing_site.x - site.x);
+                return Some((
+                    CandidateNodeType::Branch(
+                        Node {
+                            site: crossing_site,
+                            angle,
+                        },
+                        id1,
+                        id2,
+                    ),
+                    next_evaluation,
+                ));
+            }
+
+            Some((CandidateNodeType::New(next_node), next_evaluation))
         } else {
             None
+        }
+    }
+
+    fn apply_new_candidate_node(&mut self, candidate: NodeCandidate) {
+        match candidate.node {
+            CandidateNodeType::New(node) => {
+                let id = self.network.add_new_node(node);
+                self.network.connect_nodes(candidate.parent_id, id);
+
+                // add straight node to open list
+                if let Some((straight_node, straight_evaluation)) =
+                    self.search_next_node_position(node.site, node.angle)
+                {
+                    let candidate_straight = NodeCandidate {
+                        node: straight_node,
+                        parent_id: id,
+                        evaluation: straight_evaluation,
+                    };
+                    self.node_open.push(candidate_straight);
+                }
+
+                let branch_probability =
+                    (self.config.road_branch_probability_by_evaluation)(candidate.evaluation);
+
+                let branch_left = branch_probability > self.rng.gen::<f64>();
+                let branch_right = branch_probability > self.rng.gen::<f64>();
+
+                // add left node to open list
+                if branch_left {
+                    if let Some((left_node, left_evaluation)) = self.search_next_node_position(
+                        node.site,
+                        node.angle - std::f64::consts::PI / 2.0,
+                    ) {
+                        let candidate_left = NodeCandidate {
+                            node: left_node,
+                            parent_id: id,
+                            evaluation: left_evaluation,
+                        };
+                        self.node_open.push(candidate_left);
+                    }
+                }
+
+                // add right node to open list
+                if branch_right {
+                    if let Some((right_node, right_evaluation)) = self.search_next_node_position(
+                        node.site,
+                        node.angle + std::f64::consts::PI / 2.0,
+                    ) {
+                        let candidate_right = NodeCandidate {
+                            node: right_node,
+                            parent_id: id,
+                            evaluation: right_evaluation,
+                        };
+                        self.node_open.push(candidate_right);
+                    }
+                }
+            }
+            CandidateNodeType::Existing(id) => {
+                self.network.connect_nodes(candidate.parent_id, id);
+            }
+            CandidateNodeType::Branch(node, id1, id2) => {
+                let id = self.network.add_new_node(node);
+                self.network.connect_nodes(candidate.parent_id, id);
+                self.network.connect_nodes(id, id1);
+                self.network.connect_nodes(id, id2);
+                self.network.remove_connection(id1, id2);
+            }
         }
     }
 
@@ -160,58 +271,44 @@ where
             }
         };
 
-        // add next node to network
-        let next_id = self.network.add_new_node(next.node);
-        // connect next node to parent
-        self.network.connect_nodes(next.parent_id, next_id);
+        let next_node_site = match next.node {
+            CandidateNodeType::New(node) => node.site,
+            CandidateNodeType::Existing(id) => {
+                if let Some(node) = self.network.get_node(id) {
+                    node.site
+                } else {
+                    return self;
+                }
+            }
+            CandidateNodeType::Branch(node, _, _) => node.site,
+        };
 
-        // add straight node to open list
-        if let Some((straight_node, straight_evaluation)) =
-            self.search_next_node_position(next.node.site, next.node.angle)
+        let next_node_angle = match next.node {
+            CandidateNodeType::New(node) => node.angle,
+            CandidateNodeType::Existing(id) => {
+                if let Some(node) = self.network.get_node(id) {
+                    node.angle
+                } else {
+                    return self;
+                }
+            }
+            CandidateNodeType::Branch(node, _, _) => node.angle,
+        };
+
+        let next = if let Some((new_next, new_evaluation)) =
+            self.search_next_node_position(next_node_site, next_node_angle)
         {
-            let candidate_straight = NodeCandidate {
-                node: straight_node,
-                parent_id: next_id,
-                evaluation: straight_evaluation,
-            };
-            self.node_open.push(candidate_straight);
-        }
-
-        let branch_probability =
-            (self.config.road_branch_probability_by_evaluation)(next.evaluation);
-
-        let branch_left = branch_probability > self.rng.gen::<f64>();
-        let branch_right = branch_probability > self.rng.gen::<f64>();
-
-        // add left node to open list
-        if branch_left {
-            if let Some((left_node, left_evaluation)) = self.search_next_node_position(
-                next.node.site,
-                next.node.angle - std::f64::consts::PI / 2.0,
-            ) {
-                let candidate_left = NodeCandidate {
-                    node: left_node,
-                    parent_id: next_id,
-                    evaluation: left_evaluation,
-                };
-                self.node_open.push(candidate_left);
+            NodeCandidate {
+                node: new_next,
+                parent_id: next.parent_id,
+                evaluation: new_evaluation,
             }
-        }
+        } else {
+            return self;
+        };
 
-        // add right node to open list
-        if branch_right {
-            if let Some((right_node, right_evaluation)) = self.search_next_node_position(
-                next.node.site,
-                next.node.angle + std::f64::consts::PI / 2.0,
-            ) {
-                let candidate_right = NodeCandidate {
-                    node: right_node,
-                    parent_id: next_id,
-                    evaluation: right_evaluation,
-                };
-                self.node_open.push(candidate_right);
-            }
-        }
+        // apply
+        self.apply_new_candidate_node(next);
 
         self
     }

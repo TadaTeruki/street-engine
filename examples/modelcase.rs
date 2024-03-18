@@ -49,15 +49,15 @@ impl PopulationDensityModel for MapModel {
 }
 
 fn main() {
-    let node_num = 50000;
+    let node_num = 20000;
     let seed = 14;
     let bound_min = Site2D {
         x: -100.0,
         y: -50.0,
     };
     let bound_max = Site2D { x: 100.0, y: 50.0 };
-    let img_width = 1000;
-    let img_height = 500;
+    let img_width = 2000;
+    let img_height = 1000;
     let filename = "modelcase.png";
 
     let (terrain, is_outlet, graph) = create_terrain(node_num, seed, bound_min, bound_max);
@@ -84,11 +84,12 @@ fn main() {
         &model,
         &model,
         NetworkConfig {
-            max_straight_angle: PI / 4.0,
+            max_straight_angle: PI / 128.0,
             road_length: 0.4,
-            road_comparison_step: 10,
+            road_comparison_step: 3,
             road_evaluation: |population_density, _| population_density,
-            road_branch_probability_by_evaluation: |_| 0.01,
+            road_branch_probability_by_evaluation: |_| 0.4,
+            merge_node_distance: 0.2,
         },
     )
     .add_origin(Site2D { x: 0.0, y: 0.0 }, 1.57)
@@ -162,7 +163,7 @@ fn write_to_image(
     }
 
     let stroke = Stroke {
-        width: 1.0,
+        width: 1.3,
         ..Default::default()
     };
 
@@ -180,7 +181,8 @@ fn write_to_image(
                 path.line_to(x_b as f32, y_b as f32);
                 path.finish().unwrap()
             };
-            paint.set_color_rgba8(0, 0, 0, 255);
+
+            paint.set_color_rgba8(0, 0, 0, 50);
             pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
         });
     });
