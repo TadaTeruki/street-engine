@@ -12,7 +12,7 @@ use fastlem::models::surface::terrain::Terrain2D;
 use naturalneighbor::Interpolator;
 use noise::{NoiseFn, Perlin};
 use terrain_graph::edge_attributed_undirected::EdgeAttributedUndirectedGraph;
-use tiny_skia::{Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
+use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
 
 struct MapModel {
     pub elevations: Vec<f64>,
@@ -56,8 +56,8 @@ fn main() {
         y: -50.0,
     };
     let bound_max = Site2D { x: 100.0, y: 50.0 };
-    let img_width = 2000;
-    let img_height = 1000;
+    let img_width = 3000;
+    let img_height = 1500;
     let filename = "modelcase.png";
 
     let (terrain, is_outlet, graph) = create_terrain(node_num, seed, bound_min, bound_max);
@@ -85,15 +85,20 @@ fn main() {
         &model,
         NetworkConfig {
             max_straight_angle: PI / 128.0,
-            road_length: 0.4,
+            road_length: 0.8,
             road_comparison_step: 3,
-            road_evaluation: |population_density, _| population_density,
-            road_branch_probability_by_evaluation: |_| 0.4,
-            merge_node_distance: 0.2,
+            road_evaluation: |population_density, elevation| {
+                if elevation < 1e-2 {
+                    return None;
+                }
+                Some(population_density)
+            },
+            road_branch_probability_by_evaluation: |_| 0.5,
+            merge_node_distance: 0.4,
         },
     )
     .add_origin(Site2D { x: 0.0, y: 0.0 }, 1.57)
-    .iterate_n_times(1000);
+    .iterate_n_times(500);
 
     let network = constructor.snapshot();
 
@@ -168,7 +173,32 @@ fn write_to_image(
     };
 
     (0..network.nodes().len()).for_each(|i| {
+        // draw node
+        let site = network.nodes()[i].site;
+        let x = (site.x - bound_min.x) / (bound_max.x - bound_min.x) * img_width as f64;
+        let y = (site.y - bound_min.y) / (bound_max.y - bound_min.y) * img_height as f64;
+        let r = 2.0;
+        let path = {
+            let mut path = PathBuilder::new();
+            path.push_circle(x as f32, y as f32, r as f32);
+            path.finish().unwrap()
+        };
+        paint.set_color_rgba8(255, 255, 255, 100);
+        pixmap.fill_path(
+            &path,
+            &paint,
+            FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
+        paint.set_color_rgba8(100, 100, 100, 100);
+        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+
         network.for_each_neighbor(i, |j| {
+            if i > j {
+                return;
+            }
+
             let site_a = network.nodes()[i].site;
             let site_b = network.nodes()[j].site;
             let x_a = (site_a.x - bound_min.x) / (bound_max.x - bound_min.x) * img_width as f64;
@@ -182,7 +212,7 @@ fn write_to_image(
                 path.finish().unwrap()
             };
 
-            paint.set_color_rgba8(0, 0, 0, 50);
+            paint.set_color_rgba8(0, 0, 0, 80);
             pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
         });
     });
