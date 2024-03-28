@@ -126,6 +126,67 @@ where
         self
     }
 
+
+    fn search_intersection(
+        &self,
+        next_node: Node,
+        next_evaluation: f64,
+        parent_id: Option<usize>,
+        site: Site2D,
+        angle: f64,
+    ) -> Option<(CandidateNodeType, f64)> {
+        let candidate_intersecting = |crossing: (Site2D, usize, usize)| {
+            let (crossing_site, id1, id2) = crossing;
+            Some((
+                CandidateNodeType::Intersect(
+                    Node {
+                        site: crossing_site,
+                        angle,
+                    },
+                    id1,
+                    id2,
+                ),
+                next_evaluation,
+            ))
+        };
+
+        // if there are existing node, return existing node
+        if let Some(id) = self.network.get_nearest_node_in_distance(
+            site,
+            next_node.site,
+            self.config.merge_node_distance*0.5,
+        ) {
+            return Some((CandidateNodeType::Existing(id), next_evaluation));
+        }
+
+        // if there are crossing edge, return branch node
+        if let Some(crossing) = self.network.get_intersection(
+            site,
+            next_node.site,
+            self.config.road_length,
+            self.config.road_length,
+            parent_id,
+            IntersectionType::Cross,
+        ) {
+            return candidate_intersecting(crossing);
+        }
+        
+        // if there are nearest edge, return branch node
+        if let Some(nearest) = self.network.get_intersection(
+            site,
+            next_node.site,
+            self.config.merge_node_distance,
+            self.config.road_length,
+            parent_id,
+            IntersectionType::Nearest,
+        ) {
+            return candidate_intersecting(nearest);
+        }
+
+        None
+    }
+
+
     fn search_next_node_position(
         &self,
         site: Site2D,
@@ -156,55 +217,13 @@ where
             }
         }
         if let (Some(next_node), Some(next_evaluation)) = (next_node, next_evaluation) {
-            let candidate_intersecting = |crossing: (Site2D, usize, usize)| {
-                let (crossing_site, id1, id2) = crossing;
-                Some((
-                    CandidateNodeType::Intersect(
-                        Node {
-                            site: crossing_site,
-                            angle,
-                        },
-                        id1,
-                        id2,
-                    ),
-                    next_evaluation,
-                ))
-            };
-
-            // if there are existing node, return existing node
-            if let Some(id) = self.network.get_nearest_node_in_distance(
-                site,
-                next_node.site,
-                self.config.merge_node_distance,
-            ) {
-                return Some((CandidateNodeType::Existing(id), next_evaluation));
+            if let Some((next_node, next_evaluation)) =
+                self.search_intersection(next_node, next_evaluation, parent_id, site, angle)
+            {
+                Some((next_node, next_evaluation))
+            } else {
+                Some((CandidateNodeType::New(next_node), next_evaluation))
             }
-
-            // if there are crossing connection, return branch node
-            if let Some(crossing) = self.network.get_intersection(
-                site,
-                next_node.site,
-                self.config.merge_node_distance,
-                self.config.road_length,
-                parent_id,
-                IntersectionType::Nearest,
-            ) {
-                return candidate_intersecting(crossing);
-            }
-
-            // if there are crossing connection, return branch node
-            if let Some(crossing) = self.network.get_intersection(
-                site,
-                next_node.site,
-                self.config.merge_node_distance,
-                self.config.road_length,
-                parent_id,
-                IntersectionType::Cross,
-            ) {
-                return candidate_intersecting(crossing);
-            }
-
-            Some((CandidateNodeType::New(next_node), next_evaluation))
         } else {
             None
         }
