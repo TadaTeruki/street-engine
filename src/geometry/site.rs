@@ -1,8 +1,8 @@
 /// Representation of a site in 2D space.
 #[derive(Debug, Copy, Clone)]
-pub struct Site2D {
-    pub x: f64,
-    pub y: f64,
+struct Site2D {
+    x: f64,
+    y: f64,
 }
 
 impl PartialEq for Site2D {
@@ -15,22 +15,31 @@ impl Eq for Site2D {}
 
 impl Site2D {
     /// Create a site from x and y coordinates.
-    pub fn new(x: f64, y: f64) -> Self {
+    fn new(x: f64, y: f64) -> Self {
         Self { x, y }
     }
 
     /// Calculate the euclidean distance to the other site.
-    pub fn distance(&self, other: &Self) -> f64 {
+    fn distance(&self, other: &Self) -> f64 {
         ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
     }
 
+    /// Calculate the site moved by the angle and distance.
+    fn extend(&self, angle: f64, distance: f64) -> Self {
+        let x = self.x + angle.cos() * distance;
+        let y = self.y + angle.sin() * distance;
+        Self::new(x, y)
+    }
+
+    /// Calculate the angle to the other site.
+    fn get_angle(&self, other: &Self) -> f64 {
+        let dx = other.x - self.x;
+        let dy = other.y - self.y;
+        dy.atan2(dx)
+    }
+
     /// Calculate the intersection of two line segments.
-    pub fn get_intersection(
-        &self,
-        end0: &Self,
-        start1: &Self,
-        end1: &Self,
-    ) -> Option<Self> {
+    fn get_intersection(&self, end0: &Self, start1: &Self, end1: &Self) -> Option<Self> {
         let (x0, y0) = (self.x, self.y);
         let (x1, y1) = (end0.x, end0.y);
         let (x2, y2) = (start1.x, start1.y);
@@ -65,7 +74,7 @@ impl Site2D {
 
     /// Calculate the perpendicular projection of the site on the line segment.
     /// If the projection is outside the line segment, return None.
-    pub fn get_projection_on_line_segment(&self, start: &Self, end: &Self) -> Option<Self> {
+    fn get_projection_on_line_segment(&self, start: &Self, end: &Self) -> Option<Self> {
         let (x0, y0) = (self.x, self.y);
         let (x1, y1) = (start.x, start.y);
         let (x2, y2) = (end.x, end.y);
