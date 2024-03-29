@@ -1,19 +1,19 @@
-/// Representation of a site in 2D space.
+/// Representation of a 2D site.
 #[derive(Debug, Copy, Clone)]
-struct Site2D {
-    x: f64,
-    y: f64,
+pub struct Site {
+    pub x: f64,
+    pub y: f64,
 }
 
-impl PartialEq for Site2D {
+impl PartialEq for Site {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
     }
 }
 
-impl Eq for Site2D {}
+impl Eq for Site {}
 
-impl Site2D {
+impl Site {
     /// Create a site from x and y coordinates.
     fn new(x: f64, y: f64) -> Self {
         Self { x, y }
@@ -69,7 +69,7 @@ impl Site2D {
         }
         let x = (b1 * c2 - b2 * c1) / denom;
         let y = (a2 * c1 - a1 * c2) / denom;
-        Some(Site2D::new(x, y))
+        Some(Site::new(x, y))
     }
 
     /// Calculate the perpendicular projection of the site on the line segment.
@@ -89,7 +89,7 @@ impl Site2D {
             return None;
         }
         let proj = (x1 + b.0 * distance, y1 + b.1 * distance);
-        Some(Site2D::new(proj.0, proj.1))
+        Some(Site::new(proj.0, proj.1))
     }
 }
 
@@ -99,49 +99,49 @@ mod tests {
 
     #[test]
     fn test_distance() {
-        let site1 = Site2D::new(0.0, 0.0);
-        let site2 = Site2D::new(3.0, 4.0);
+        let site1 = Site::new(0.0, 0.0);
+        let site2 = Site::new(3.0, 4.0);
         assert_eq!(site1.distance(&site2), 5.0);
     }
 
     #[test]
     fn test_get_projection_on_line_segment() {
-        let site = Site2D::new(1.0, 3.0);
-        let start = Site2D::new(1.0, 1.0);
-        let end = Site2D::new(3.0, 3.0);
+        let site = Site::new(1.0, 3.0);
+        let start = Site::new(1.0, 1.0);
+        let end = Site::new(3.0, 3.0);
 
         let projection = site.get_projection_on_line_segment(&start, &end);
-        assert_eq!(projection, Some(Site2D::new(2.0, 2.0)));
+        assert_eq!(projection, Some(Site::new(2.0, 2.0)));
 
-        let site = Site2D::new(1.0, 3.0);
-        let start = Site2D::new(1.0, 1.0);
-        let end = Site2D::new(2.0, 2.0);
+        let site = Site::new(1.0, 3.0);
+        let start = Site::new(1.0, 1.0);
+        let end = Site::new(2.0, 2.0);
 
         let projection = site.get_projection_on_line_segment(&start, &end);
-        assert_eq!(projection, Some(Site2D::new(2.0, 2.0)));
+        assert_eq!(projection, Some(Site::new(2.0, 2.0)));
 
-        let site = Site2D::new(1.0, 3.0);
-        let start = Site2D::new(1.0, 1.0);
-        let end = Site2D::new(1.0, 2.0);
+        let site = Site::new(1.0, 3.0);
+        let start = Site::new(1.0, 1.0);
+        let end = Site::new(1.0, 2.0);
 
         let projection = site.get_projection_on_line_segment(&start, &end);
         assert_eq!(projection, None);
     }
     #[test]
     fn test_get_intersection() {
-        let start0 = Site2D::new(1.0, 1.0);
-        let end0 = Site2D::new(3.0, 3.0);
-        let start1 = Site2D::new(1.0, 3.0);
-        let end1 = Site2D::new(3.0, 1.0);
-        let start2 = Site2D::new(-1.0, 0.0);
-        let end2 = Site2D::new(0.0, -1.0);
+        let start0 = Site::new(1.0, 1.0);
+        let end0 = Site::new(3.0, 3.0);
+        let start1 = Site::new(1.0, 3.0);
+        let end1 = Site::new(3.0, 1.0);
+        let start2 = Site::new(-1.0, 0.0);
+        let end2 = Site::new(0.0, -1.0);
         assert_eq!(
             start0.get_intersection(&end0, &start1, &end1),
-            Some(Site2D::new(2.0, 2.0))
+            Some(Site::new(2.0, 2.0))
         );
         assert_eq!(
             start1.get_intersection(&end1, &start0, &end0),
-            Some(Site2D::new(2.0, 2.0))
+            Some(Site::new(2.0, 2.0))
         );
         assert_eq!(start0.get_intersection(&end0, &start2, &end2), None);
         assert_eq!(start2.get_intersection(&end2, &start0, &end0), None);
