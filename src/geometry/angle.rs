@@ -1,6 +1,6 @@
 /// Provides calculation of angles.
 #[derive(Debug, Clone, Copy)]
-struct Angle(f64);
+pub struct Angle(f64);
 
 impl PartialEq for Angle {
     fn eq(&self, other: &Self) -> bool {
@@ -12,8 +12,13 @@ impl Eq for Angle {}
 
 impl Angle {
     /// Create an angle from the radian.
-    fn new(radian: f64) -> Self {
+    pub fn new(radian: f64) -> Self {
         Self(radian).normalize()
+    }
+
+    /// Get the radian.
+    pub fn radian(&self) -> f64 {
+        self.0
     }
 
     /// Normalize to the range of (-PI, PI].
