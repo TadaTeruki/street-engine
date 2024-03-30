@@ -1,3 +1,7 @@
+use std::hash::{Hash, Hasher};
+
+use rstar::{PointDistance, RTreeObject, AABB};
+
 use super::angle::Angle;
 
 /// Representation of a 2D site.
@@ -14,6 +18,27 @@ impl PartialEq for Site {
 }
 
 impl Eq for Site {}
+
+impl Hash for Site {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.x.to_bits());
+        state.write_u64(self.y.to_bits());
+    }
+}
+
+impl RTreeObject for Site {
+    type Envelope = AABB<[f64; 2]>;
+
+    fn envelope(&self) -> Self::Envelope {
+        AABB::from_point([self.x, self.y])
+    }
+}
+
+impl PointDistance for Site {
+    fn distance_2(&self, point: &[f64; 2]) -> f64 {
+        ((self.x - point[0]).powi(2) + (self.y - point[1]).powi(2)).sqrt()
+    }
+}
 
 impl Site {
     /// Create a site from x and y coordinates.

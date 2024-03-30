@@ -1,10 +1,10 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_set::Iter, HashMap, HashSet},
     hash::Hash,
 };
 
 /// Undirected graph.
-struct UndirectedGraph<T>
+pub struct UndirectedGraph<T>
 where
     T: Eq + Hash + Copy,
 {
@@ -15,13 +15,13 @@ impl<T> UndirectedGraph<T>
 where
     T: Eq + Hash + Copy,
 {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             edges: HashMap::new(),
         }
     }
 
-    fn add_edge(&mut self, a: T, b: T) {
+    pub fn add_edge(&mut self, a: T, b: T) {
         self.edges.entry(a).or_insert_with(HashSet::new).insert(b);
         self.edges.entry(b).or_insert_with(HashSet::new).insert(a);
     }
@@ -30,7 +30,7 @@ where
         self.edges.get(&a).map_or(false, |set| set.contains(&b))
     }
 
-    fn remove_edge(&mut self, a: T, b: T) {
+    pub fn remove_edge(&mut self, a: T, b: T) {
         if let Some(set) = self.edges.get_mut(&a) {
             set.remove(&b);
             if set.is_empty() {
@@ -52,6 +52,10 @@ where
     fn size(&self) -> usize {
         self.edges.values().map(|set| set.len()).sum::<usize>() / 2
     }
+
+    pub fn neighbors_iter(&self, node: T) -> Option<Iter<T>> {
+        self.edges.get(&node).map(|set| set.iter())
+    }
 }
 
 #[cfg(test)]
@@ -66,6 +70,11 @@ mod tests {
         graph.add_edge(85, 103);
         graph.add_edge(85, 32);
         graph.add_edge(67, 25);
+
+        let mut iter = graph.neighbors_iter(103).unwrap();
+        assert_eq!(iter.next(), Some(&25));
+        assert_eq!(iter.next(), Some(&85));
+        assert_eq!(iter.next(), None);
 
         assert_eq!(graph.order(), 5);
         assert_eq!(graph.size(), 4);
