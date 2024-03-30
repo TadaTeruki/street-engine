@@ -1,3 +1,5 @@
+use rstar::{PointDistance, RTreeObject};
+
 use super::site::Site;
 
 /// Representation of a rectangle.
@@ -30,7 +32,7 @@ impl Rect {
     }
 }
 
-impl rstar::RTreeObject for Rect {
+impl RTreeObject for Rect {
     type Envelope = rstar::AABB<[f64; 2]>;
 
     fn envelope(&self) -> Self::Envelope {
@@ -41,7 +43,7 @@ impl rstar::RTreeObject for Rect {
     }
 }
 
-impl rstar::PointDistance for Rect {
+impl PointDistance for Rect {
     fn distance_2(&self, point: &[f64; 2]) -> f64 {
         let x = point[0].max(self.x).min(self.x + self.width);
         let y = point[1].max(self.y).min(self.y + self.height);

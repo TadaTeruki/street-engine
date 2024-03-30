@@ -1,12 +1,20 @@
+use rstar::{PointDistance, RTreeObject};
+
 use super::site::Site;
 
 /// Representation of a line segment.
 #[derive(Debug, Copy, Clone)]
-struct LineSegment(Site, Site);
+pub struct LineSegment(Site, Site);
+
+impl PartialEq for LineSegment {
+    fn eq(&self, other: &Self) -> bool {
+        (self.0 == other.0 && self.1 == other.1) || (self.0 == other.1 && self.1 == other.0)
+    }
+}
 
 impl LineSegment {
     /// Create a line segment from two sites.
-    fn new(start: Site, end: Site) -> Self {
+    pub fn new(start: Site, end: Site) -> Self {
         Self(start, end)
     }
 
@@ -63,6 +71,32 @@ impl LineSegment {
         }
         let proj = (x1 + b.0 * distance, y1 + b.1 * distance);
         Some(Site::new(proj.0, proj.1))
+    }
+}
+
+impl RTreeObject for LineSegment {
+    type Envelope = rstar::AABB<[f64; 2]>;
+
+    fn envelope(&self) -> Self::Envelope {
+        rstar::AABB::from_corners([self.0.x, self.0.y], [self.1.x, self.1.y])
+    }
+}
+
+impl PointDistance for LineSegment {
+    fn distance_2(&self, point: &[f64; 2]) -> f64 {
+        let site = Site::new(point[0], point[1]);
+        let proj = self.get_projection(&site);
+        if let Some(proj) = proj {
+            let dx = proj.x - site.x;
+            let dy = proj.y - site.y;
+            dx * dx + dy * dy
+        } else {
+            let start = Site::new(self.0.x, self.0.y);
+            let end = Site::new(self.1.x, self.1.y);
+            let d0 = start.distance(&Site::new(point[0], point[1]));
+            let d1 = end.distance(&Site::new(point[0], point[1]));
+            d0.min(d1)
+        }
     }
 }
 

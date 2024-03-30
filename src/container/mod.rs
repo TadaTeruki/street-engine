@@ -1,1 +1,2 @@
-pub mod undirected;
+mod network;
+mod undirected;

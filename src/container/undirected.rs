@@ -22,11 +22,14 @@ where
     }
 
     pub fn add_edge(&mut self, a: T, b: T) {
+        if self.has_edge(a, b) {
+            return;
+        }
         self.edges.entry(a).or_insert_with(HashSet::new).insert(b);
         self.edges.entry(b).or_insert_with(HashSet::new).insert(a);
     }
 
-    fn has_edge(&self, a: T, b: T) -> bool {
+    pub fn has_edge(&self, a: T, b: T) -> bool {
         self.edges.get(&a).map_or(false, |set| set.contains(&b))
     }
 
@@ -49,12 +52,20 @@ where
         self.edges.len()
     }
 
-    fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.edges.values().map(|set| set.len()).sum::<usize>() / 2
     }
 
     pub fn neighbors_iter(&self, node: T) -> Option<Iter<T>> {
         self.edges.get(&node).map(|set| set.iter())
+    }
+
+    pub fn remove_node(&mut self, node: T) {
+        if let Some(set) = self.edges.remove(&node) {
+            set.iter().for_each(|neighbor| {
+                self.edges.get_mut(&neighbor).map(|set| set.remove(&node));
+            });
+        }
     }
 }
 
@@ -68,13 +79,14 @@ mod tests {
 
         graph.add_edge(103, 25);
         graph.add_edge(85, 103);
+        graph.add_edge(85, 103);
         graph.add_edge(85, 32);
         graph.add_edge(67, 25);
 
-        let mut iter = graph.neighbors_iter(103).unwrap();
-        assert_eq!(iter.next(), Some(&25));
-        assert_eq!(iter.next(), Some(&85));
-        assert_eq!(iter.next(), None);
+        let iter = graph.neighbors_iter(103).unwrap();
+        let mut neighbors = iter.map(|&x| x).collect::<Vec<_>>();
+        neighbors.sort();
+        assert_eq!(neighbors, vec![25, 85]);
 
         assert_eq!(graph.order(), 5);
         assert_eq!(graph.size(), 4);
