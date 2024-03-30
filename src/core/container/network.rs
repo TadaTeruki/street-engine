@@ -1,9 +1,8 @@
 use rstar::RTree;
 
-use crate::{
-    container::undirected::UndirectedGraph,
-    geometry::{line_segment::LineSegment, site::Site},
-};
+use crate::core::geometry::{line_segment::LineSegment, site::Site};
+
+use super::undirected::UndirectedGraph;
 
 /// Represents a network of sites.
 struct Network {
