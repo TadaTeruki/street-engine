@@ -33,7 +33,7 @@ impl Angle {
     }
 
     /// Calculate the clockwise angle difference.
-    fn diff_clockwise_to(&self, to: Self) -> f64 {
+    fn diff_clockwise_to(&self, to: &Self) -> f64 {
         let diff = to.0 - self.0;
         if diff < 0.0 {
             diff + 2.0 * std::f64::consts::PI
@@ -43,7 +43,7 @@ impl Angle {
     }
 
     /// Calculate the counterclockwise angle difference.
-    fn diff_counterclockwise_to(&self, to: Self) -> f64 {
+    fn diff_counterclockwise_to(&self, to: &Self) -> f64 {
         let diff = self.0 - to.0;
         if diff < 0.0 {
             diff + 2.0 * std::f64::consts::PI
@@ -53,7 +53,7 @@ impl Angle {
     }
 
     /// Create an iterator of angles between two angles.
-    fn iter_range_closer(&self, other: Self, step_num: usize) -> AngleIter {
+    fn iter_range_closer(&self, other: &Self, step_num: usize) -> AngleIter {
         //let (rad0, rad1) = (Self::normalized(rad0), Self::normalized(rad1));
         let (rad_from, rad_to) = {
             let diff_clockwise = self.diff_clockwise_to(other);
@@ -77,7 +77,7 @@ impl Angle {
     fn iter_range_around(&self, radian_range: f64, step_num: usize) -> AngleIter {
         let frac_radian_range_2 = radian_range / 2.0;
         Self::new(self.0 - frac_radian_range_2)
-            .iter_range_closer(Self::new(self.0 + frac_radian_range_2), step_num)
+            .iter_range_closer(&Self::new(self.0 + frac_radian_range_2), step_num)
     }
 }
 
@@ -121,19 +121,19 @@ mod tests {
     #[test]
     fn test_angle_diff_clockwise_to() {
         assert_eq!(
-            Angle::new(0.0).diff_clockwise_to(Angle::new(std::f64::consts::PI)),
+            Angle::new(0.0).diff_clockwise_to(&Angle::new(std::f64::consts::PI)),
             std::f64::consts::PI
         );
         assert_eq!(
-            Angle::new(std::f64::consts::PI).diff_clockwise_to(Angle::new(0.0)),
+            Angle::new(std::f64::consts::PI).diff_clockwise_to(&Angle::new(0.0)),
             std::f64::consts::PI
         );
         assert_eq!(
-            Angle::new(0.0).diff_clockwise_to(Angle::new(0.5 * std::f64::consts::PI)),
+            Angle::new(0.0).diff_clockwise_to(&Angle::new(0.5 * std::f64::consts::PI)),
             0.5 * std::f64::consts::PI
         );
         assert_eq!(
-            Angle::new(0.5 * std::f64::consts::PI).diff_clockwise_to(Angle::new(0.0)),
+            Angle::new(0.5 * std::f64::consts::PI).diff_clockwise_to(&Angle::new(0.0)),
             1.5 * std::f64::consts::PI
         );
     }
@@ -141,26 +141,27 @@ mod tests {
     #[test]
     fn test_angle_diff_counterclockwise() {
         assert_eq!(
-            Angle::new(0.0).diff_counterclockwise_to(Angle::new(std::f64::consts::PI)),
+            Angle::new(0.0).diff_counterclockwise_to(&Angle::new(std::f64::consts::PI)),
             std::f64::consts::PI
         );
         assert_eq!(
-            Angle::new(std::f64::consts::PI).diff_counterclockwise_to(Angle::new(0.0)),
+            Angle::new(std::f64::consts::PI).diff_counterclockwise_to(&Angle::new(0.0)),
             std::f64::consts::PI
         );
         assert_eq!(
-            Angle::new(0.0).diff_counterclockwise_to(Angle::new(0.5 * std::f64::consts::PI)),
+            Angle::new(0.0).diff_counterclockwise_to(&Angle::new(0.5 * std::f64::consts::PI)),
             1.5 * std::f64::consts::PI
         );
         assert_eq!(
-            Angle::new(0.5 * std::f64::consts::PI).diff_counterclockwise_to(Angle::new(0.0)),
+            Angle::new(0.5 * std::f64::consts::PI).diff_counterclockwise_to(&Angle::new(0.0)),
             0.5 * std::f64::consts::PI
         );
     }
 
     #[test]
     fn test_angle_iter_range_closer() {
-        let mut iter = Angle::new(0.0).iter_range_closer(Angle::new(std::f64::consts::PI * 0.5), 5);
+        let mut iter =
+            Angle::new(0.0).iter_range_closer(&Angle::new(std::f64::consts::PI * 0.5), 5);
         assert_eq!(iter.next(), Some(Angle::new(0.0)));
         assert_eq!(iter.next(), Some(Angle::new(0.125 * std::f64::consts::PI)));
         assert_eq!(iter.next(), Some(Angle::new(0.25 * std::f64::consts::PI)));
@@ -168,7 +169,8 @@ mod tests {
         assert_eq!(iter.next(), Some(Angle::new(0.5 * std::f64::consts::PI)));
         assert_eq!(iter.next(), None);
 
-        let mut iter = Angle::new(std::f64::consts::PI * 0.5).iter_range_closer(Angle::new(0.0), 5);
+        let mut iter =
+            Angle::new(std::f64::consts::PI * 0.5).iter_range_closer(&Angle::new(0.0), 5);
         assert_eq!(iter.next(), Some(Angle::new(0.0)));
         assert_eq!(iter.next(), Some(Angle::new(0.125 * std::f64::consts::PI)));
         assert_eq!(iter.next(), Some(Angle::new(0.25 * std::f64::consts::PI)));
@@ -177,7 +179,7 @@ mod tests {
         assert_eq!(iter.next(), None);
 
         let mut iter = Angle::new(std::f64::consts::PI * 1.8)
-            .iter_range_closer(Angle::new(std::f64::consts::PI * 1.4), 5);
+            .iter_range_closer(&Angle::new(std::f64::consts::PI * 1.4), 5);
         assert_eq!(iter.next(), Some(Angle::new(1.4 * std::f64::consts::PI)));
         assert_eq!(iter.next(), Some(Angle::new(1.5 * std::f64::consts::PI)));
         assert_eq!(iter.next(), Some(Angle::new(1.6 * std::f64::consts::PI)));
@@ -185,7 +187,8 @@ mod tests {
         assert_eq!(iter.next(), Some(Angle::new(1.8 * std::f64::consts::PI)));
         assert_eq!(iter.next(), None);
 
-        let mut iter = Angle::new(0.0).iter_range_closer(Angle::new(std::f64::consts::PI * 1.5), 5);
+        let mut iter =
+            Angle::new(0.0).iter_range_closer(&Angle::new(std::f64::consts::PI * 1.5), 5);
         assert_eq!(iter.next(), Some(Angle::new(1.5 * std::f64::consts::PI)));
         assert_eq!(iter.next(), Some(Angle::new(1.625 * std::f64::consts::PI)));
         assert_eq!(iter.next(), Some(Angle::new(1.75 * std::f64::consts::PI)));
