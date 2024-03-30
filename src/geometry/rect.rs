@@ -1,6 +1,7 @@
 use super::site::Site;
 
 /// Representation of a rectangle.
+#[derive(Debug, Copy, Clone)]
 struct Rect {
     x: f64,
     y: f64,

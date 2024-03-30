@@ -1,6 +1,7 @@
 use super::site::Site;
 
 /// Representation of a line segment.
+#[derive(Debug, Copy, Clone)]
 struct LineSegment(Site, Site);
 
 impl LineSegment {
