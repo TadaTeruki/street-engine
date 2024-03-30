@@ -24,7 +24,7 @@ impl Angle {
     }
 
     /// Calculate the counterclockwise angle difference.
-    fn diff_counterclockwise_to(rad_from: f64, rad_to: f64) -> f64 {
+    fn diff_counterclockwise(rad_from: f64, rad_to: f64) -> f64 {
         let diff = Self::normalized(rad_from) - Self::normalized(rad_to);
         if diff < 0.0 {
             diff + 2.0 * std::f64::consts::PI
@@ -38,7 +38,7 @@ impl Angle {
         let (rad0, rad1) = (Self::normalized(rad0), Self::normalized(rad1));
         let (rad_from, rad_to) = {
             let diff_clockwise = Self::diff_clockwise(rad0, rad1);
-            let diff_counterclockwise = Self::diff_counterclockwise_to(rad0, rad1);
+            let diff_counterclockwise = Self::diff_counterclockwise(rad0, rad1);
             if diff_clockwise < diff_counterclockwise {
                 (rad0, rad0 + diff_clockwise)
             } else {
@@ -124,21 +124,21 @@ mod tests {
     }
 
     #[test]
-    fn test_angle_diff_counterclockwise_to() {
+    fn test_angle_diff_counterclockwise() {
         assert_eq!(
-            Angle::diff_counterclockwise_to(0.0, std::f64::consts::PI),
+            Angle::diff_counterclockwise(0.0, std::f64::consts::PI),
             std::f64::consts::PI
         );
         assert_eq!(
-            Angle::diff_counterclockwise_to(std::f64::consts::PI, 0.0),
+            Angle::diff_counterclockwise(std::f64::consts::PI, 0.0),
             std::f64::consts::PI
         );
         assert_eq!(
-            Angle::diff_counterclockwise_to(0.0, 0.5 * std::f64::consts::PI),
+            Angle::diff_counterclockwise(0.0, 0.5 * std::f64::consts::PI),
             1.5 * std::f64::consts::PI
         );
         assert_eq!(
-            Angle::diff_counterclockwise_to(0.5 * std::f64::consts::PI, 0.0),
+            Angle::diff_counterclockwise(0.5 * std::f64::consts::PI, 0.0),
             0.5 * std::f64::consts::PI
         );
     }
