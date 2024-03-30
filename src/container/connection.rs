@@ -3,6 +3,7 @@ use std::{
     hash::Hash,
 };
 
+/// Undirected graph.
 struct UndirectedGraph<T>
 where
     T: Eq + Hash + Copy,
@@ -21,14 +22,8 @@ where
     }
 
     fn add_edge(&mut self, a: T, b: T) {
-        self.edges
-            .entry(a)
-            .or_insert_with(std::collections::HashSet::new)
-            .insert(b);
-        self.edges
-            .entry(b)
-            .or_insert_with(std::collections::HashSet::new)
-            .insert(a);
+        self.edges.entry(a).or_insert_with(HashSet::new).insert(b);
+        self.edges.entry(b).or_insert_with(HashSet::new).insert(a);
     }
 
     fn has_edge(&self, a: T, b: T) -> bool {
