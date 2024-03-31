@@ -21,6 +21,11 @@ impl Angle {
         self.0
     }
 
+    /// Get opposite angle.
+    pub fn opposite(&self) -> Self {
+        Self::new(self.0 + std::f64::consts::PI)
+    }
+
     /// Normalize to the range of (-PI, PI].
     fn normalize(&self) -> Self {
         let radian = self.0.rem_euclid(2.0 * std::f64::consts::PI);
