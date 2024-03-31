@@ -1,7 +1,7 @@
 use std::collections::BinaryHeap;
 
 use crate::core::{
-    container::network::Network,
+    container::network::NetworkBuilder,
     geometry::{angle::Angle, site::Site},
 };
 
@@ -14,7 +14,7 @@ struct TransportBuilder<'a, TP>
 where
     TP: TransportPropertyProvider,
 {
-    network: Network<TransportNode>,
+    network_builder: NetworkBuilder<TransportNode>,
     property_provider: &'a TP,
     path_candidate_container: BinaryHeap<PathCandidate>,
 }
@@ -25,7 +25,7 @@ where
 {
     fn new(property_provider: &'a TP) -> Self {
         Self {
-            network: Network::new(),
+            network_builder: NetworkBuilder::new(),
             property_provider,
             path_candidate_container: BinaryHeap::new(),
         }

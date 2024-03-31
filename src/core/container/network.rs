@@ -6,8 +6,8 @@ use crate::core::geometry::{line_segment::LineSegment, site::Site};
 
 use super::undirected::UndirectedGraph;
 
-/// Represents a network.
-pub struct Network<N>
+///
+pub struct NetworkBuilder<N>
 where
     N: Eq + Hash + Copy + Into<Site>,
 {
@@ -15,7 +15,7 @@ where
     path_connection: UndirectedGraph<N>,
 }
 
-impl<N> Network<N>
+impl<N> NetworkBuilder<N>
 where
     N: Eq + Hash + Copy + Into<Site>,
 {
@@ -82,13 +82,36 @@ where
     }
 }
 
+pub struct Network<N>
+where
+    N: Eq + Hash + Copy + Into<Site>,
+{
+    nodes: Vec<N>,
+    connection: Vec<Vec<usize>>,
+}
+
+impl Network<Site> {
+    pub fn new() -> Self {
+        Self {
+            nodes: Vec::new(),
+            connection: Vec::new(),
+        }
+    }
+
+    pub fn has_edge(&self, a: Site, b: Site) -> bool {
+        let a_index = self.nodes.iter().position(|&node| node == a).unwrap();
+        let b_index = self.nodes.iter().position(|&node| node == b).unwrap();
+        self.connection[a_index].contains(&b_index)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_network() {
-        let mut network = Network::new();
+        let mut network = NetworkBuilder::new();
         let site0 = Site::new(0.0, 0.0);
         let site1 = Site::new(1.0, 1.0);
         let site2 = Site::new(2.0, 2.0);
@@ -132,7 +155,7 @@ mod tests {
     // Test with no crossing paths
     #[test]
     fn test_search_path_crossing_no_crosses() {
-        let mut network = Network::new();
+        let mut network = NetworkBuilder::new();
         let site0 = Site::new(0.0, 1.0);
         let site1 = Site::new(2.0, 3.0);
         let site2 = Site::new(4.0, 5.0);
@@ -151,7 +174,7 @@ mod tests {
     // Test with all paths crossing
     #[test]
     fn test_search_path_crossing_all_cross() {
-        let mut network = Network::new();
+        let mut network = NetworkBuilder::new();
 
         let sites = vec![
             Site::new(0.0, 2.0),
@@ -187,7 +210,7 @@ mod tests {
     // Test with intersecting at endpoints
     #[test]
     fn test_search_path_crossing_at_endpoints() {
-        let mut network = Network::new();
+        let mut network = NetworkBuilder::new();
         let site0 = Site::new(0.0, 0.0);
         let site1 = Site::new(1.0, 1.0);
         let site2 = Site::new(1.0, -1.0);
