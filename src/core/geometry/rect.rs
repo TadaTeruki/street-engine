@@ -4,7 +4,7 @@ use super::site::Site;
 
 /// Representation of a rectangle.
 #[derive(Debug, Copy, Clone)]
-struct Rect {
+pub struct Rect {
     x: f64,
     y: f64,
     width: f64,
@@ -23,7 +23,7 @@ impl Rect {
     }
 
     /// Create a rectangle from two sites.
-    fn from_sites(start: &Site, end: &Site) -> Self {
+    pub fn from_sites(start: &Site, end: &Site) -> Self {
         let x = start.x.min(end.x);
         let y = start.y.min(end.y);
         let width = start.x.max(end.x) - x;

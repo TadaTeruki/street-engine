@@ -182,7 +182,10 @@ mod tests {
             .iter_range_closer(&Angle::new(std::f64::consts::PI * 1.4), 5);
         assert_eq!(iter.next(), Some(Angle::new(1.4 * std::f64::consts::PI)));
         assert_eq!(iter.next(), Some(Angle::new(1.5 * std::f64::consts::PI)));
-        assert_eq!(iter.next(), Some(Angle::new(1.6 * std::f64::consts::PI)));
+        let iter_next = iter.next();
+        // check if the radian is normalized
+        assert_eq!(iter_next.unwrap().radian(), -0.4 * std::f64::consts::PI);
+        assert_eq!(iter_next, Some(Angle::new(1.6 * std::f64::consts::PI)));
         assert_eq!(iter.next(), Some(Angle::new(1.7 * std::f64::consts::PI)));
         assert_eq!(iter.next(), Some(Angle::new(1.8 * std::f64::consts::PI)));
         assert_eq!(iter.next(), None);

@@ -1,6 +1,6 @@
 use rstar::{PointDistance, RTreeObject};
 
-use super::site::Site;
+use super::{rect::Rect, site::Site};
 
 /// Representation of a line segment.
 #[derive(Debug, Copy, Clone)]
@@ -18,9 +18,15 @@ impl LineSegment {
         Self(start, end)
     }
 
+    /// Convert the line segment into a rectangle.
+    pub fn into_rect(self) -> Rect {
+        Rect::from_sites(&self.0, &self.1)
+    }
+
     /// Calculate the intersection of two line segments.
-    /// If the intersection is outside the line segments or not exist, return None.
-    fn get_intersection(&self, other: &Self) -> Option<Site> {
+    /// If the intersection is outside the line segments or the line segments are parallel, return None
+    /// even if the two line segments are collinear.
+    pub fn get_intersection(&self, other: &Self) -> Option<Site> {
         let (x0, y0) = (self.0.x, self.0.y);
         let (x1, y1) = (self.1.x, self.1.y);
         let (x2, y2) = (other.0.x, other.0.y);
@@ -106,13 +112,47 @@ mod tests {
 
     #[test]
     fn test_get_intersection() {
-        let line0 = LineSegment::new(Site::new(1.0, 1.0), Site::new(3.0, 3.0));
-        let line1 = LineSegment::new(Site::new(1.0, 3.0), Site::new(3.0, 1.0));
-        assert_eq!(line0.get_intersection(&line1), Some(Site::new(2.0, 2.0)));
-
-        let line0 = LineSegment::new(Site::new(1.0, 1.0), Site::new(3.0, 3.0));
-        let line1 = LineSegment::new(Site::new(-1.0, 0.0), Site::new(0.0, -1.0));
+        // Parallel lines (no intersection)
+        let line0 = LineSegment::new(Site::new(0.0, 0.0), Site::new(2.0, 2.0));
+        let line1 = LineSegment::new(Site::new(1.0, 1.0), Site::new(3.0, 3.0));
         assert_eq!(line0.get_intersection(&line1), None);
+
+        // Collinear overlapping lines
+        // This is expected to return None, as the intersection is not a point.
+        let line0 = LineSegment::new(Site::new(1.0, 1.0), Site::new(3.0, 3.0));
+        let line1 = LineSegment::new(Site::new(2.0, 2.0), Site::new(4.0, 4.0));
+        assert_eq!(line0.get_intersection(&line1), None);
+
+        // Intersecting at an end point
+        let line0 = LineSegment::new(Site::new(0.0, 0.0), Site::new(2.0, 0.0));
+        let line1 = LineSegment::new(Site::new(2.0, 0.0), Site::new(2.0, 2.0));
+        assert_eq!(line0.get_intersection(&line1), Some(Site::new(2.0, 0.0)));
+
+        // Vertical and horizontal lines intersecting
+        let line0 = LineSegment::new(Site::new(0.0, 1.0), Site::new(4.0, 1.0));
+        let line1 = LineSegment::new(Site::new(2.0, 0.0), Site::new(2.0, 3.0));
+        assert_eq!(line0.get_intersection(&line1), Some(Site::new(2.0, 1.0)));
+
+        // Collinear lines that barely touch by their edges
+        let line0 = LineSegment::new(Site::new(0.0, 0.0), Site::new(1.0, 1.0));
+        let line1 = LineSegment::new(Site::new(1.0, 1.0), Site::new(2.0, 2.0));
+        assert_eq!(line0.get_intersection(&line1), None);
+
+        // Lines with no intersection (completely separate)
+        let line0 = LineSegment::new(Site::new(0.0, 0.0), Site::new(1.0, 1.0));
+        let line1 = LineSegment::new(Site::new(2.0, 2.0), Site::new(3.0, 3.0));
+        assert_eq!(line0.get_intersection(&line1), None);
+
+        // Edge case: Zero-length line segment
+        // This is expected to return None.
+        let line0 = LineSegment::new(Site::new(1.0, 1.0), Site::new(1.0, 1.0));
+        let line1 = LineSegment::new(Site::new(1.0, 1.0), Site::new(2.0, 2.0));
+        assert_eq!(line0.get_intersection(&line1), None);
+
+        // Intersecting at a point
+        let line0 = LineSegment::new(Site::new(1.0, 3.0), Site::new(3.0, 4.0));
+        let line1 = LineSegment::new(Site::new(1.0, 4.0), Site::new(2.0, 2.0));
+        assert_eq!(line0.get_intersection(&line1), Some(Site::new(1.4, 3.2)));
     }
 
     #[test]
