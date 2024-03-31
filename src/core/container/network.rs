@@ -5,14 +5,14 @@ use crate::core::geometry::{line_segment::LineSegment, site::Site};
 use super::undirected::UndirectedGraph;
 
 /// Represents a network of sites.
-struct Network {
+pub struct Network {
     path_tree: RTree<LineSegment>,
     path_connection: UndirectedGraph<Site>,
 }
 
 impl Network {
     /// Create a new network.
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             path_tree: RTree::new(),
             path_connection: UndirectedGraph::new(),
