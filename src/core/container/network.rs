@@ -1,16 +1,24 @@
+use std::hash::Hash;
+
 use rstar::{RTree, RTreeObject};
 
 use crate::core::geometry::{line_segment::LineSegment, site::Site};
 
 use super::undirected::UndirectedGraph;
 
-/// Represents a network of sites.
-pub struct Network {
+/// Represents a network.
+pub struct Network<N>
+where
+    N: Eq + Hash + Copy + Into<Site>,
+{
     path_tree: RTree<LineSegment>,
-    path_connection: UndirectedGraph<Site>,
+    path_connection: UndirectedGraph<N>,
 }
 
-impl Network {
+impl<N> Network<N>
+where
+    N: Eq + Hash + Copy + Into<Site>,
+{
     /// Create a new network.
     pub fn new() -> Self {
         Self {
@@ -19,40 +27,43 @@ impl Network {
         }
     }
 
-    /// Add a path between two sites.
-    fn add_path(&mut self, from: Site, to: Site) {
+    /// Add a path between two nodes.
+    fn add_path(&mut self, from: N, to: N) {
         if from == to {
             return;
         }
         self.path_connection.add_edge(from, to);
-        self.path_tree.insert(LineSegment::new(from, to));
+        self.path_tree
+            .insert(LineSegment::new(from.into(), to.into()));
     }
 
-    /// Remove a path between two sites.
-    fn remove_path(&mut self, from: Site, to: Site) {
+    /// Remove a path between two nodes.
+    fn remove_path(&mut self, from: N, to: N) {
         self.path_connection.remove_edge(from, to);
-        self.path_tree.remove(&LineSegment::new(from, to));
+        self.path_tree
+            .remove(&LineSegment::new(from.into(), to.into()));
     }
 
-    /// Check if there is a path between two sites.
-    fn has_path(&self, from: Site, to: Site) -> bool {
+    /// Check if there is a path between two nodes.
+    fn has_path(&self, from: N, to: N) -> bool {
         self.path_connection.has_edge(from, to)
     }
 
-    /// Remove a site from the network.
-    fn remove_site(&mut self, site: Site) {
-        self.path_connection.neighbors_iter(site).map(|iter| {
+    /// Remove a node from the network.
+    fn remove_node(&mut self, node: N) {
+        self.path_connection.neighbors_iter(node).map(|iter| {
             iter.for_each(|neighbor| {
-                self.path_tree.remove(&LineSegment::new(site, *neighbor));
+                self.path_tree
+                    .remove(&LineSegment::new(node.into(), (*neighbor).into()));
             });
         });
-        self.path_connection.remove_node(site);
+        self.path_connection.remove_node(node);
     }
 
-    /// Search paths around a site within a radius.
-    fn search_path_around_site(&self, site: Site, radius: f64) -> Vec<&LineSegment> {
+    /// Search paths around a node within a radius.
+    fn search_path_around_node(&self, node: N, radius: f64) -> Vec<&LineSegment> {
         self.path_tree
-            .locate_within_distance([site.x, site.y], radius * radius)
+            .locate_within_distance([node.into().x, node.into().y], radius * radius)
             .collect::<Vec<_>>()
     }
 
@@ -100,14 +111,14 @@ mod tests {
         assert_eq!(network.has_path(site1, site2), false);
         assert_eq!(network.has_path(site2, site3), true);
 
-        network.remove_site(site1);
+        network.remove_node(site1);
         assert_eq!(network.has_path(site0, site1), false);
 
-        let paths = network.search_path_around_site(site2, 1.0);
+        let paths = network.search_path_around_node(site2, 1.0);
         assert_eq!(paths.len(), 2);
-        let paths = network.search_path_around_site(site2, 2.0);
+        let paths = network.search_path_around_node(site2, 2.0);
         assert_eq!(paths.len(), 3);
-        let paths = network.search_path_around_site(Site::new(1.1, 1.1), 1.0);
+        let paths = network.search_path_around_node(Site::new(1.1, 1.1), 1.0);
         assert_eq!(paths.len(), 0);
 
         let path = LineSegment::new(Site::new(1.0, 3.0), Site::new(3.0, 4.0));
