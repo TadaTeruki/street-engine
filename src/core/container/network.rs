@@ -1,5 +1,3 @@
-use std::hash::Hash;
-
 use rstar::{RTree, RTreeObject};
 
 use crate::core::geometry::{line_segment::LineSegment, site::Site};
@@ -9,7 +7,7 @@ use super::undirected::UndirectedGraph;
 ///
 pub struct NetworkBuilder<N>
 where
-    N: Eq + Hash + Copy + Into<Site>,
+    N: Eq + Ord + Copy + Into<Site>,
 {
     path_tree: RTree<LineSegment>,
     path_connection: UndirectedGraph<N>,
@@ -17,7 +15,7 @@ where
 
 impl<N> NetworkBuilder<N>
 where
-    N: Eq + Hash + Copy + Into<Site>,
+    N: Eq + Ord + Copy + Into<Site>,
 {
     /// Create a new network.
     pub fn new() -> Self {
@@ -84,24 +82,21 @@ where
 
 pub struct Network<N>
 where
-    N: Eq + Hash + Copy + Into<Site>,
+    N: Eq + Ord + Copy + Into<Site>,
 {
     nodes: Vec<N>,
     connection: Vec<Vec<usize>>,
 }
 
-impl Network<Site> {
+impl<N> Network<N>
+where
+    N: Eq + Ord + Copy + Into<Site>,
+{
     pub fn new() -> Self {
         Self {
             nodes: Vec::new(),
             connection: Vec::new(),
         }
-    }
-
-    pub fn has_edge(&self, a: Site, b: Site) -> bool {
-        let a_index = self.nodes.iter().position(|&node| node == a).unwrap();
-        let b_index = self.nodes.iter().position(|&node| node == b).unwrap();
-        self.connection[a_index].contains(&b_index)
     }
 }
 

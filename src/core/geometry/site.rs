@@ -1,5 +1,3 @@
-use std::hash::{Hash, Hasher};
-
 use rstar::{PointDistance, RTreeObject, AABB};
 
 use super::angle::Angle;
@@ -19,10 +17,25 @@ impl PartialEq for Site {
 
 impl Eq for Site {}
 
-impl Hash for Site {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.x.to_bits());
-        state.write_u64(self.y.to_bits());
+impl PartialOrd for Site {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let ordering = self.x.partial_cmp(&other.x);
+        if ordering == Some(std::cmp::Ordering::Equal) {
+            self.y.partial_cmp(&other.y)
+        } else {
+            ordering
+        }
+    }
+}
+
+impl Ord for Site {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let ordering = self.x.total_cmp(&other.x);
+        if ordering == std::cmp::Ordering::Equal {
+            self.y.total_cmp(&other.y)
+        } else {
+            ordering
+        }
     }
 }
 

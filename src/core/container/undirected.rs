@@ -1,23 +1,20 @@
-use std::{
-    collections::{hash_set::Iter, HashMap, HashSet},
-    hash::Hash,
-};
+use std::collections::{btree_set::Iter, BTreeMap, BTreeSet};
 
 /// Undirected graph.
 pub struct UndirectedGraph<T>
 where
-    T: Eq + Hash + Copy,
+    T: Eq + Ord + Copy,
 {
-    edges: HashMap<T, HashSet<T>>,
+    edges: BTreeMap<T, BTreeSet<T>>,
 }
 
 impl<T> UndirectedGraph<T>
 where
-    T: Eq + Hash + Copy,
+    T: Eq + Ord + Copy,
 {
     pub fn new() -> Self {
         Self {
-            edges: HashMap::new(),
+            edges: BTreeMap::new(),
         }
     }
 
@@ -25,8 +22,8 @@ where
         if self.has_edge(a, b) {
             return;
         }
-        self.edges.entry(a).or_insert_with(HashSet::new).insert(b);
-        self.edges.entry(b).or_insert_with(HashSet::new).insert(a);
+        self.edges.entry(a).or_insert_with(BTreeSet::new).insert(b);
+        self.edges.entry(b).or_insert_with(BTreeSet::new).insert(a);
     }
 
     pub fn has_edge(&self, a: T, b: T) -> bool {

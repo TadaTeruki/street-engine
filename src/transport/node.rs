@@ -1,8 +1,6 @@
-use std::hash::Hash;
-
 use crate::core::geometry::{angle::Angle, site::Site};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialOrd, Ord)]
 pub struct TransportNode {
     site: Site,
 }
@@ -26,12 +24,6 @@ impl PartialEq for TransportNode {
 }
 
 impl Eq for TransportNode {}
-
-impl Hash for TransportNode {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.site.hash(state);
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PathCandidate {
