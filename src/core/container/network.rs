@@ -13,6 +13,15 @@ where
     path_connection: UndirectedGraph<N>,
 }
 
+impl<N> Default for Network<N>
+where
+    N: Eq + Ord + Copy + Into<Site>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<N> Network<N>
 where
     N: Eq + Ord + Copy + Into<Site>,
@@ -45,12 +54,11 @@ where
 
     /// Remove a node from the network.
     pub(crate) fn remove_node(&mut self, node: N) {
-        self.path_connection.neighbors_iter(node).map(|iter| {
+        if let Some(iter) = self.path_connection.neighbors_iter(node) {
             iter.for_each(|neighbor| {
                 self.path_tree.remove(&LineSegment::new(node, *neighbor));
             });
-        });
-        self.path_connection.remove_node(node);
+        }
     }
 
     /// Check if there is a path between two nodes.
@@ -71,11 +79,8 @@ where
         self.path_tree
             .locate_in_envelope_intersecting(&line.into_rect().envelope())
             .filter_map(|path| {
-                if let Some(intersection) = path.get_intersection(&line) {
-                    Some((path, intersection))
-                } else {
-                    None
-                }
+                path.get_intersection(&line)
+                    .map(|intersection| (path, intersection))
             })
             .collect::<Vec<_>>()
     }

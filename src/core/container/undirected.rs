@@ -25,8 +25,8 @@ where
         if self.has_edge(a, b) {
             return;
         }
-        self.edges.entry(a).or_insert_with(BTreeSet::new).insert(b);
-        self.edges.entry(b).or_insert_with(BTreeSet::new).insert(a);
+        self.edges.entry(a).or_default().insert(b);
+        self.edges.entry(b).or_default().insert(a);
     }
 
     /// Check if there is an edge between two nodes.
@@ -83,7 +83,7 @@ where
     pub fn remove_node(&mut self, node: N) {
         if let Some(set) = self.edges.remove(&node) {
             set.iter().for_each(|neighbor| {
-                self.edges.get_mut(&neighbor).map(|set| set.remove(&node));
+                self.edges.get_mut(neighbor).map(|set| set.remove(&node));
             });
         }
     }

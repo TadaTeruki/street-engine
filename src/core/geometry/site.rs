@@ -19,12 +19,7 @@ impl Eq for Site {}
 
 impl PartialOrd for Site {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let ordering = self.x.partial_cmp(&other.x);
-        if ordering == Some(std::cmp::Ordering::Equal) {
-            self.y.partial_cmp(&other.y)
-        } else {
-            ordering
-        }
+        Some(self.cmp(other))
     }
 }
 

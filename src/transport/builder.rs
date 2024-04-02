@@ -69,7 +69,7 @@ where
         candidate: PathCandidate,
     ) -> Option<TransportNode> {
         // If the curve is None, the path will be always extended to straight.
-        let curve = candidate.curve.unwrap_or(CurveProperty::default());
+        let curve = candidate.curve.unwrap_or_default();
 
         candidate
             .angle_to
@@ -123,8 +123,8 @@ where
                 .min_by(|(_, site), (_, other_site)| {
                     node_from
                         .site
-                        .distance_2(&site)
-                        .total_cmp(&node_from.site.distance_2(&other_site))
+                        .distance_2(site)
+                        .total_cmp(&node_from.site.distance_2(other_site))
                 })
             {
                 // remove the crossing line segment

@@ -17,9 +17,9 @@ impl TransportNode {
     }
 }
 
-impl Into<Site> for TransportNode {
-    fn into(self) -> Site {
-        self.site
+impl From<TransportNode> for Site {
+    fn from(node: TransportNode) -> Self {
+        node.site
     }
 }
 
@@ -33,23 +33,13 @@ impl Eq for TransportNode {}
 
 impl PartialOrd for TransportNode {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let ordering = self.site.partial_cmp(&other.site);
-        if ordering == Some(std::cmp::Ordering::Equal) {
-            self.elevated_height.partial_cmp(&other.elevated_height)
-        } else {
-            ordering
-        }
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for TransportNode {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let ordering = self.site.cmp(&other.site);
-        if ordering == std::cmp::Ordering::Equal {
-            self.elevated_height.total_cmp(&other.elevated_height)
-        } else {
-            ordering
-        }
+        self.site.cmp(&other.site)
     }
 }
 
@@ -84,7 +74,7 @@ impl Eq for PathCandidate {}
 
 impl PartialOrd for PathCandidate {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.path_priority.partial_cmp(&other.path_priority)
+        Some(self.cmp(other))
     }
 }
 
