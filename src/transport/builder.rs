@@ -7,7 +7,7 @@ use crate::core::{
 
 use super::{
     node::{PathCandidate, TransportNode},
-    property::{CurveProperty, TransportPropertyProvider},
+    property::TransportPropertyProvider,
 };
 
 pub struct TransportBuilder<'a, TP>
@@ -99,7 +99,6 @@ where
             return self;
         };
         let node_from = prior_candidate.node_from;
-        println!("node_from: {:?}", node_from);
 
         // determine node to apply
         let (paths_to_add, paths_to_remove, node_next) = {
@@ -107,7 +106,6 @@ where
                 if let Some(node_to) = self.determine_node_to_apply(&node_from, prior_candidate) {
                     node_to
                 } else {
-                    println!("node_to is None");
                     return self;
                 };
             let line_segment = LineSegment::new(node_from, node_to);
