@@ -4,7 +4,9 @@ use city_engine::core::container::network::Network;
 use city_engine::core::geometry::site::Site;
 use city_engine::transport::builder::TransportBuilder;
 use city_engine::transport::node::TransportNode;
-use city_engine::transport::property::{TransportProperty, TransportPropertyProvider};
+use city_engine::transport::property::{
+    CurveProperty, TransportProperty, TransportPropertyProvider,
+};
 use fastlem::core::{parameters::TopographicalParameters, traits::Model};
 use fastlem::lem::generator::TerrainGenerator;
 use fastlem::models::surface::builder::TerrainModel2DBulider;
@@ -37,7 +39,9 @@ impl<'a> MapProvider<'a> {
 
 impl<'a> TransportPropertyProvider for MapProvider<'a> {
     fn get_property(&self, site: &Site) -> Option<TransportProperty> {
+        println!("a");
         let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
+        println!("b");
         let population_density = self
             .interpolator
             .interpolate(
@@ -48,7 +52,8 @@ impl<'a> TransportPropertyProvider for MapProvider<'a> {
                 },
             )
             .unwrap_or(None)?;
-        if elevation < 1e-2 {
+        println!("c");
+        if elevation < 1e-3 {
             return None;
         }
         Some(TransportProperty {
@@ -57,21 +62,24 @@ impl<'a> TransportPropertyProvider for MapProvider<'a> {
             population_density,
             path_length: 0.7,
             branch_probability: 0.0,
-            curve: None,
+            curve: Some(CurveProperty {
+                max_radian: 0.,
+                comparison_step: 1,
+            }),
         })
     }
 }
 
 fn main() {
-    let node_num = 20000;
+    let node_num = 10000;
     let seed = 14;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,
     };
     let bound_max = Site { x: 100.0, y: 50.0 };
-    let img_width = 3000;
-    let img_height = 1500;
+    let img_width = 1500;
+    let img_height = 750;
     let filename = "modelcase.png";
 
     let (terrain, is_outlet, graph) = create_terrain(node_num, seed, bound_min, bound_max);

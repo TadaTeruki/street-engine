@@ -1,5 +1,7 @@
 use crate::core::geometry::{angle::Angle, site::Site};
 
+use super::property::CurveProperty;
+
 #[derive(Debug, Clone, Copy)]
 pub struct TransportNode {
     pub site: Site,
@@ -51,30 +53,30 @@ impl Ord for TransportNode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PathCandidate {
-    from: TransportNode,
-    to_angle: Angle,
-    path_length: f64,
-    path_priority: f64,
+    pub node_from: TransportNode,
+    pub angle_to: Angle,
+    pub path_length: f64,
+    pub path_priority: f64,
+    pub curve: Option<CurveProperty>,
 }
 
 impl PathCandidate {
-    pub fn new(from: TransportNode, to_angle: Angle, path_length: f64, path_priority: f64) -> Self {
+    pub fn new(
+        node_from: TransportNode,
+        angle_to: Angle,
+        path_length: f64,
+        path_priority: f64,
+        curve: Option<CurveProperty>,
+    ) -> Self {
         Self {
-            from,
-            to_angle,
+            node_from,
+            angle_to,
             path_length,
             path_priority,
+            curve,
         }
-    }
-
-    pub fn node_from(&self) -> TransportNode {
-        self.from
-    }
-
-    pub fn query_site_to(&self) -> Site {
-        self.from.site.extend(self.to_angle, self.path_length)
     }
 }
 

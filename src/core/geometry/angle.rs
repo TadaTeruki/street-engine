@@ -69,7 +69,6 @@ impl Angle {
 
     /// Create an iterator of angles between two angles.
     fn iter_range_closer(&self, other: &Self, step_num: usize) -> AngleIter {
-        //let (rad0, rad1) = (Self::normalized(rad0), Self::normalized(rad1));
         let (rad_from, rad_to) = {
             let diff_clockwise = self.diff_clockwise_to(other);
             let diff_counterclockwise = self.diff_counterclockwise_to(other);
@@ -89,7 +88,15 @@ impl Angle {
     }
 
     /// Create an iterator of angles around the specified angle.
-    fn iter_range_around(&self, radian_range: f64, step_num: usize) -> AngleIter {
+    pub fn iter_range_around(&self, radian_range: f64, step_num: usize) -> AngleIter {
+        if step_num == 1 || radian_range == 0.0 {
+            return AngleIter {
+                rad_from: self.0,
+                rad_to: self.0,
+                step_num: 1,
+                step_current: 0,
+            };
+        }
         let frac_radian_range_2 = radian_range / 2.0;
         Self::new(self.0 - frac_radian_range_2)
             .iter_range_closer(&Self::new(self.0 + frac_radian_range_2), step_num)
@@ -97,7 +104,7 @@ impl Angle {
 }
 
 /// An iterator of angles.
-struct AngleIter {
+pub struct AngleIter {
     rad_from: f64,
     rad_to: f64,
     step_num: usize,
@@ -109,11 +116,16 @@ impl Iterator for AngleIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.step_current < self.step_num {
-            let angle = self.rad_from
-                + (self.rad_to - self.rad_from) * (self.step_current as f64)
-                    / ((self.step_num - 1) as f64);
-            self.step_current += 1;
-            Some(Angle::new(angle))
+            if self.step_num == 1 {
+                self.step_current += 1;
+                Some(Angle::new(self.rad_from))
+            } else {
+                let angle = self.rad_from
+                    + (self.rad_to - self.rad_from) * (self.step_current as f64)
+                        / ((self.step_num - 1) as f64);
+                self.step_current += 1;
+                Some(Angle::new(angle))
+            }
         } else {
             None
         }

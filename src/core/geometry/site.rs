@@ -110,19 +110,35 @@ mod tests {
 
     #[test]
     fn test_get_angle() {
-        let site1 = Site::new(0.0, 0.0);
+        let site0 = Site::new(0.0, 0.0);
+        let site1 = Site::new(1.0, 0.0);
         let site2 = Site::new(1.0, 1.0);
-        assert_eq!(site1.get_angle(&site2).radian(), std::f64::consts::PI / 4.0);
+        let site3 = Site::new(0.0, 1.0);
+        let site4 = Site::new(-1.0, 1.0);
+        let site5 = Site::new(-1.0, 0.0);
+        let site6 = Site::new(-1.0, -1.0);
+        let site7 = Site::new(0.0, -1.0);
+        let site8 = Site::new(1.0, -1.0);
 
-        let site1 = Site::new(0.0, 0.0);
-        let site2 = Site::new(-1.0, -1.0);
+        assert_eq!(site0.get_angle(&site1).radian(), 0.0);
+        assert_eq!(site0.get_angle(&site2).radian(), std::f64::consts::PI / 4.0);
+        assert_eq!(site0.get_angle(&site3).radian(), std::f64::consts::PI / 2.0);
         assert_eq!(
-            site1.get_angle(&site2).radian(),
+            site0.get_angle(&site4).radian(),
+            3.0 * std::f64::consts::PI / 4.0
+        );
+        assert_eq!(site0.get_angle(&site5).radian(), std::f64::consts::PI);
+        assert_eq!(
+            site0.get_angle(&site6).radian(),
             -3.0 * std::f64::consts::PI / 4.0
         );
-
-        let site1 = Site::new(0.0, 0.0);
-        let site2 = Site::new(0.0, 0.0);
-        assert_eq!(site1.get_angle(&site2).radian(), 0.0);
+        assert_eq!(
+            site0.get_angle(&site7).radian(),
+            -std::f64::consts::PI / 2.0
+        );
+        assert_eq!(
+            site0.get_angle(&site8).radian(),
+            -std::f64::consts::PI / 4.0
+        );
     }
 }
