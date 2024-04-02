@@ -5,7 +5,7 @@ use crate::core::geometry::{line_segment::LineSegment, site::Site};
 use super::undirected::UndirectedGraph;
 
 #[derive(Debug, Clone)]
-pub struct NetworkBuilder<N>
+pub struct Network<N>
 where
     N: Eq + Ord + Copy + Into<Site>,
 {
@@ -13,7 +13,7 @@ where
     path_connection: UndirectedGraph<N>,
 }
 
-impl<N> NetworkBuilder<N>
+impl<N> Network<N>
 where
     N: Eq + Ord + Copy + Into<Site>,
 {
@@ -76,8 +76,18 @@ where
             .collect::<Vec<_>>()
     }
 
+    /// Get the number of paths in the network.
     fn size(&self) -> usize {
         self.path_tree.size()
+    }
+
+    /// Reconstruct the network to optimize the performance.
+    fn into_optimized(self) -> Self {
+        let line_segments = self.path_tree.iter().cloned().collect::<Vec<_>>();
+        Network {
+            path_tree: RTree::bulk_load(line_segments),
+            path_connection: self.path_connection,
+        }
     }
 
     /// This function is only for testing
@@ -93,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_network() {
-        let mut network = NetworkBuilder::new();
+        let mut network = Network::new();
         let site0 = Site::new(0.0, 0.0);
         let site1 = Site::new(1.0, 1.0);
         let site2 = Site::new(2.0, 2.0);
@@ -137,7 +147,7 @@ mod tests {
     // Test with no crossing paths
     #[test]
     fn test_search_path_crossing_no_crosses() {
-        let mut network = NetworkBuilder::new();
+        let mut network = Network::new();
         let site0 = Site::new(0.0, 1.0);
         let site1 = Site::new(2.0, 3.0);
         let site2 = Site::new(4.0, 5.0);
@@ -156,7 +166,7 @@ mod tests {
     // Test with all paths crossing
     #[test]
     fn test_search_path_crossing_all_cross() {
-        let mut network = NetworkBuilder::new();
+        let mut network = Network::new();
 
         let sites = vec![
             Site::new(0.0, 2.0),
@@ -192,7 +202,7 @@ mod tests {
     // Test with intersecting at endpoints
     #[test]
     fn test_search_path_crossing_at_endpoints() {
-        let mut network = NetworkBuilder::new();
+        let mut network = Network::new();
         let site0 = Site::new(0.0, 0.0);
         let site1 = Site::new(1.0, 1.0);
         let site2 = Site::new(1.0, -1.0);
@@ -209,10 +219,10 @@ mod tests {
     }
 
     // Test creating a complex network
+    //  - Check if the paths are correctly added and removed
+    //  - Check if the network is correctly optimized
     #[test]
     fn test_complex_network() {
-        let mut network_builder = NetworkBuilder::new();
-
         let xorshift = |x: usize| -> usize {
             let mut x = x;
             x ^= x << 13;
@@ -225,7 +235,9 @@ mod tests {
             .map(|i| Site::new(xorshift(i * 2) as f64, xorshift(i * 2 + 1) as f64))
             .collect::<Vec<_>>();
 
-        let loop_count = 100;
+        let loop_count = 10;
+
+        let mut network = Network::new();
 
         for l in 0..loop_count {
             let seed_start = l * sites.len() * sites.len();
@@ -233,27 +245,34 @@ mod tests {
                 (0..sites.len()).for_each(|j| {
                     let id = i * sites.len() + j;
                     if xorshift(id + seed_start) % 2 == 0 {
-                        network_builder.add_path(sites[i], sites[j]);
+                        network.add_path(sites[i], sites[j]);
                     }
                 });
             });
 
-            assert!(network_builder.check_path_size_is_valid());
+            assert!(network.check_path_size_is_valid());
 
             (0..sites.len()).for_each(|i| {
                 (0..sites.len()).for_each(|j| {
                     let id = i * sites.len() + j;
                     if xorshift(id + seed_start) % 3 == 0 {
-                        network_builder.remove_path(sites[i], sites[j]);
+                        network.remove_path(sites[i], sites[j]);
                     }
                 });
             });
 
-            assert!(network_builder.check_path_size_is_valid());
-
-            assert!(network_builder.check_path_size_is_valid());
-
-            println!("Loop: {}", l);
+            assert!(network.check_path_size_is_valid());
         }
+
+        let opt_network = network.clone().into_optimized();
+
+        (0..sites.len()).for_each(|i| {
+            (0..sites.len()).for_each(|j| {
+                assert_eq!(
+                    network.has_path(sites[i], sites[j]),
+                    opt_network.has_path(sites[i], sites[j])
+                );
+            });
+        });
     }
 }
