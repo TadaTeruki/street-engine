@@ -26,6 +26,16 @@ impl Angle {
         Self::new(self.0 + std::f64::consts::PI)
     }
 
+    /// Get the clockwise right angle.
+    pub fn right_clockwise(&self) -> Self {
+        Self::new(self.0 + 0.5 * std::f64::consts::PI)
+    }
+
+    /// Get the counterclockwise right angle.
+    pub fn right_counterclockwise(&self) -> Self {
+        Self::new(self.0 - 0.5 * std::f64::consts::PI)
+    }
+
     /// Normalize to the range of (-PI, PI].
     fn normalize(&self) -> Self {
         let radian = self.0.rem_euclid(2.0 * std::f64::consts::PI);

@@ -10,10 +10,11 @@ pub struct TransportProperty {
     /// Population density.
     pub population_density: f64,
 
-    /// Probability of branching. If 1.0, the path will always create branch.
-    pub branch_probability: f64,
     /// Length of the path.
     pub path_length: f64,
+
+    /// Probability of branching. If 1.0, the path will always create branch.
+    pub branch_probability: f64,
 
     /// Property of curves.
     /// If None, the path will be always extended to straight.
@@ -30,37 +31,6 @@ pub struct CurveProperty {
     pub comparison_step: usize,
 }
 
-impl TransportProperty {
-    /// Create a new `TransportProperty`.
-    pub fn new(
-        path_priority: f64,
-        elevation: f64,
-        population_density: f64,
-        branch_probability: f64,
-        path_length: f64,
-        curve: Option<CurveProperty>,
-    ) -> Self {
-        Self {
-            path_priority,
-            elevation,
-            population_density,
-            branch_probability,
-            path_length,
-            curve,
-        }
-    }
-}
-
-impl CurveProperty {
-    /// Create a new `CurveProperty`.
-    pub fn new(max_radian: f64, comparison_step: usize) -> Self {
-        Self {
-            max_radian,
-            comparison_step,
-        }
-    }
-}
-
 pub trait TransportPropertyProvider {
-    fn get_property(&self, site: &Site) -> TransportProperty;
+    fn get_property(&self, site: &Site) -> &TransportProperty;
 }

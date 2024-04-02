@@ -9,7 +9,7 @@ pub struct Network<N>
 where
     N: Eq + Ord + Copy + Into<Site>,
 {
-    path_tree: RTree<LineSegment>,
+    path_tree: RTree<LineSegment<N>>,
     path_connection: UndirectedGraph<N>,
 }
 
@@ -26,7 +26,7 @@ where
     }
 
     /// Add a path between two nodes.
-    fn add_path(&mut self, from: N, to: N) {
+    pub(crate) fn add_path(&mut self, from: N, to: N) {
         if from == to {
             return;
         }
@@ -34,23 +34,20 @@ where
             return;
         }
         self.path_connection.add_edge(from, to);
-        self.path_tree
-            .insert(LineSegment::new(from.into(), to.into()));
+        self.path_tree.insert(LineSegment::new(from, to));
     }
 
     /// Remove a path between two nodes.
-    fn remove_path(&mut self, from: N, to: N) {
+    pub(crate) fn remove_path(&mut self, from: N, to: N) {
         self.path_connection.remove_edge(from, to);
-        self.path_tree
-            .remove(&LineSegment::new(from.into(), to.into()));
+        self.path_tree.remove(&LineSegment::new(from, to));
     }
 
     /// Remove a node from the network.
-    fn remove_node(&mut self, node: N) {
+    pub(crate) fn remove_node(&mut self, node: N) {
         self.path_connection.neighbors_iter(node).map(|iter| {
             iter.for_each(|neighbor| {
-                self.path_tree
-                    .remove(&LineSegment::new(node.into(), (*neighbor).into()));
+                self.path_tree.remove(&LineSegment::new(node, *neighbor));
             });
         });
         self.path_connection.remove_node(node);
@@ -62,17 +59,24 @@ where
     }
 
     /// Search paths around a node within a radius.
-    fn search_path_around_node(&self, node: N, radius: f64) -> Vec<&LineSegment> {
+    pub fn search_path_around_node(&self, node: N, radius: f64) -> Vec<&LineSegment<N>> {
         self.path_tree
             .locate_within_distance([node.into().x, node.into().y], radius * radius)
             .collect::<Vec<_>>()
     }
 
     /// Search paths crossing a line segment.
-    fn search_path_crossing(&self, line: LineSegment) -> Vec<&LineSegment> {
+    /// Return the crossing paths and the intersection sites.
+    pub fn search_path_crossing(&self, line: LineSegment<N>) -> Vec<(&LineSegment<N>, Site)> {
         self.path_tree
             .locate_in_envelope_intersecting(&line.into_rect().envelope())
-            .filter(|path| path.get_intersection(&line).is_some())
+            .filter_map(|path| {
+                if let Some(intersection) = path.get_intersection(&line) {
+                    Some((path, intersection))
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>()
     }
 

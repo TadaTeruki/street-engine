@@ -61,24 +61,29 @@ impl Site {
 
     /// Calculate the euclidean distance to the other site.
     pub fn distance(&self, other: &Self) -> f64 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+        self.distance_2(other).sqrt()
+    }
+
+    /// Calculate the squared euclidean distance to the other site.
+    pub fn distance_2(&self, other: &Self) -> f64 {
+        (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
     }
 
     /// Calculate the site moved by the angle and distance.
-    fn extend(&self, angle: Angle, distance: f64) -> Self {
+    pub fn extend(&self, angle: Angle, distance: f64) -> Self {
         let x = self.x + angle.radian().cos() * distance;
         let y = self.y + angle.radian().sin() * distance;
         Self::new(x, y)
     }
 
     /// Calculate the angle to the other site.
-    fn get_angle(&self, other: &Self) -> Option<Angle> {
+    pub fn get_angle(&self, other: &Self) -> Angle {
         let dx = other.x - self.x;
         let dy = other.y - self.y;
         if dx == 0.0 && dy == 0.0 {
-            return None;
+            return Angle::new(0.0);
         }
-        Some(Angle::new(dy.atan2(dx)))
+        Angle::new(dy.atan2(dx))
     }
 }
 
@@ -107,20 +112,17 @@ mod tests {
     fn test_get_angle() {
         let site1 = Site::new(0.0, 0.0);
         let site2 = Site::new(1.0, 1.0);
-        assert_eq!(
-            site1.get_angle(&site2).unwrap().radian(),
-            std::f64::consts::PI / 4.0
-        );
+        assert_eq!(site1.get_angle(&site2).radian(), std::f64::consts::PI / 4.0);
 
         let site1 = Site::new(0.0, 0.0);
         let site2 = Site::new(-1.0, -1.0);
         assert_eq!(
-            site1.get_angle(&site2).unwrap().radian(),
+            site1.get_angle(&site2).radian(),
             -3.0 * std::f64::consts::PI / 4.0
         );
 
         let site1 = Site::new(0.0, 0.0);
         let site2 = Site::new(0.0, 0.0);
-        assert_eq!(site1.get_angle(&site2), None);
+        assert_eq!(site1.get_angle(&site2).radian(), 0.0);
     }
 }
