@@ -4,7 +4,7 @@ use crate::core::geometry::{line_segment::LineSegment, site::Site};
 
 use super::undirected::UndirectedGraph;
 
-///
+#[derive(Debug, Clone)]
 pub struct NetworkBuilder<N>
 where
     N: Eq + Ord + Copy + Into<Site>,
@@ -30,6 +30,9 @@ where
         if from == to {
             return;
         }
+        if self.has_path(from, to) {
+            return;
+        }
         self.path_connection.add_edge(from, to);
         self.path_tree
             .insert(LineSegment::new(from.into(), to.into()));
@@ -42,11 +45,6 @@ where
             .remove(&LineSegment::new(from.into(), to.into()));
     }
 
-    /// Check if there is a path between two nodes.
-    fn has_path(&self, from: N, to: N) -> bool {
-        self.path_connection.has_edge(from, to)
-    }
-
     /// Remove a node from the network.
     fn remove_node(&mut self, node: N) {
         self.path_connection.neighbors_iter(node).map(|iter| {
@@ -56,6 +54,11 @@ where
             });
         });
         self.path_connection.remove_node(node);
+    }
+
+    /// Check if there is a path between two nodes.
+    fn has_path(&self, from: N, to: N) -> bool {
+        self.path_connection.has_edge(from, to)
     }
 
     /// Search paths around a node within a radius.
@@ -73,30 +76,14 @@ where
             .collect::<Vec<_>>()
     }
 
-    /// this function is only for testing
+    fn size(&self) -> usize {
+        self.path_tree.size()
+    }
+
+    /// This function is only for testing
     #[allow(dead_code)]
     fn check_path_size_is_valid(&self) -> bool {
         self.path_tree.size() == self.path_connection.size()
-    }
-}
-
-pub struct Network<N>
-where
-    N: Eq + Ord + Copy + Into<Site>,
-{
-    nodes: Vec<N>,
-    connection: Vec<Vec<usize>>,
-}
-
-impl<N> Network<N>
-where
-    N: Eq + Ord + Copy + Into<Site>,
-{
-    pub fn new() -> Self {
-        Self {
-            nodes: Vec::new(),
-            connection: Vec::new(),
-        }
     }
 }
 
@@ -219,5 +206,54 @@ mod tests {
         assert_eq!(paths.len(), 1);
 
         assert_eq!(network.check_path_size_is_valid(), true);
+    }
+
+    // Test creating a complex network
+    #[test]
+    fn test_complex_network() {
+        let mut network_builder = NetworkBuilder::new();
+
+        let xorshift = |x: usize| -> usize {
+            let mut x = x;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            x
+        };
+
+        let sites = (0..100)
+            .map(|i| Site::new(xorshift(i * 2) as f64, xorshift(i * 2 + 1) as f64))
+            .collect::<Vec<_>>();
+
+        let loop_count = 100;
+
+        for l in 0..loop_count {
+            let seed_start = l * sites.len() * sites.len();
+            (0..sites.len()).for_each(|i| {
+                (0..sites.len()).for_each(|j| {
+                    let id = i * sites.len() + j;
+                    if xorshift(id + seed_start) % 2 == 0 {
+                        network_builder.add_path(sites[i], sites[j]);
+                    }
+                });
+            });
+
+            assert!(network_builder.check_path_size_is_valid());
+
+            (0..sites.len()).for_each(|i| {
+                (0..sites.len()).for_each(|j| {
+                    let id = i * sites.len() + j;
+                    if xorshift(id + seed_start) % 3 == 0 {
+                        network_builder.remove_path(sites[i], sites[j]);
+                    }
+                });
+            });
+
+            assert!(network_builder.check_path_size_is_valid());
+
+            assert!(network_builder.check_path_size_is_valid());
+
+            println!("Loop: {}", l);
+        }
     }
 }

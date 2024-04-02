@@ -1,24 +1,27 @@
-use std::collections::{btree_set::Iter, BTreeMap, BTreeSet};
+use std::collections::{btree_set, BTreeMap, BTreeSet};
 
 /// Undirected graph.
-pub struct UndirectedGraph<T>
+#[derive(Debug, Clone)]
+pub struct UndirectedGraph<N>
 where
-    T: Eq + Ord + Copy,
+    N: Eq + Ord + Copy,
 {
-    edges: BTreeMap<T, BTreeSet<T>>,
+    edges: BTreeMap<N, BTreeSet<N>>,
 }
 
-impl<T> UndirectedGraph<T>
+impl<N> UndirectedGraph<N>
 where
-    T: Eq + Ord + Copy,
+    N: Eq + Ord + Copy,
 {
+    /// Create a new undirected graph.
     pub fn new() -> Self {
         Self {
             edges: BTreeMap::new(),
         }
     }
 
-    pub fn add_edge(&mut self, a: T, b: T) {
+    /// Add an edge to the graph.
+    pub fn add_edge(&mut self, a: N, b: N) {
         if self.has_edge(a, b) {
             return;
         }
@@ -26,11 +29,13 @@ where
         self.edges.entry(b).or_insert_with(BTreeSet::new).insert(a);
     }
 
-    pub fn has_edge(&self, a: T, b: T) -> bool {
+    /// Check if there is an edge between two nodes.
+    pub fn has_edge(&self, a: N, b: N) -> bool {
         self.edges.get(&a).map_or(false, |set| set.contains(&b))
     }
 
-    pub fn remove_edge(&mut self, a: T, b: T) {
+    /// Remove an edge from the graph.
+    pub fn remove_edge(&mut self, a: N, b: N) {
         if let Some(set) = self.edges.get_mut(&a) {
             set.remove(&b);
             if set.is_empty() {
@@ -45,19 +50,37 @@ where
         }
     }
 
+    /// Get the number of nodes in the graph.
     fn order(&self) -> usize {
         self.edges.len()
     }
 
+    /// Get the number of edges in the graph.
     pub fn size(&self) -> usize {
         self.edges.values().map(|set| set.len()).sum::<usize>() / 2
     }
 
-    pub fn neighbors_iter(&self, node: T) -> Option<Iter<T>> {
+    /// Get the nodes of the graph.
+    fn nodes(&self) -> Vec<N> {
+        self.edges.keys().copied().collect()
+    }
+
+    /// Get the edges of the graph as an iterator.
+    pub fn edges_iter(&self) -> impl Iterator<Item = (N, N)> + '_ {
+        self.edges.iter().flat_map(|(node, set)| {
+            set.iter()
+                .filter(move |&neighbor| *node < *neighbor)
+                .map(move |&neighbor| (*node, neighbor))
+        })
+    }
+
+    /// Get the neighbors of a node as an iterator.
+    pub fn neighbors_iter(&self, node: N) -> Option<btree_set::Iter<N>> {
         self.edges.get(&node).map(|set| set.iter())
     }
 
-    pub fn remove_node(&mut self, node: T) {
+    /// Remove a node from the graph.
+    pub fn remove_node(&mut self, node: N) {
         if let Some(set) = self.edges.remove(&node) {
             set.iter().for_each(|neighbor| {
                 self.edges.get_mut(&neighbor).map(|set| set.remove(&node));
@@ -80,10 +103,15 @@ mod tests {
         graph.add_edge(85, 32);
         graph.add_edge(67, 25);
 
-        let iter = graph.neighbors_iter(103).unwrap();
-        let mut neighbors = iter.map(|&x| x).collect::<Vec<_>>();
-        neighbors.sort();
+        let neighbors = graph
+            .neighbors_iter(103)
+            .unwrap()
+            .map(|&x| x)
+            .collect::<Vec<_>>();
         assert_eq!(neighbors, vec![25, 85]);
+
+        let edges = graph.edges_iter().collect::<Vec<_>>();
+        assert_eq!(edges.len(), graph.size(),);
 
         assert_eq!(graph.order(), 5);
         assert_eq!(graph.size(), 4);
