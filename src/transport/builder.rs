@@ -10,7 +10,7 @@ use super::{
     property::TransportPropertyProvider,
 };
 
-struct TransportBuilder<'a, TP>
+pub struct TransportBuilder<'a, TP>
 where
     TP: TransportPropertyProvider,
 {
@@ -23,7 +23,7 @@ impl<'a, TP> TransportBuilder<'a, TP>
 where
     TP: TransportPropertyProvider,
 {
-    fn new(property_provider: &'a TP) -> Self {
+    pub fn new(property_provider: &'a TP) -> Self {
         Self {
             network: Network::new(),
             property_provider,
@@ -31,9 +31,14 @@ where
         }
     }
 
-    fn add_origin(mut self, site: Site, elevated_height: f64, angle_radian: f64) -> Self {
+    pub fn add_origin(
+        mut self,
+        site: Site,
+        elevated_height: f64,
+        angle_radian: f64,
+    ) -> Option<Self> {
         let origin = TransportNode::new(site, elevated_height);
-        let property = self.property_provider.get_property(&origin.into());
+        let property = self.property_provider.get_property(&origin.into())?;
         self.path_candidate_container.push(PathCandidate::new(
             origin,
             Angle::new(angle_radian),
@@ -46,6 +51,13 @@ where
             property.path_length,
             property.path_priority,
         ));
+        Some(self)
+    }
+
+    pub fn iterate_n_times(mut self, n: usize) -> Self {
+        for _ in 0..n {
+            self = self.iterate();
+        }
         self
     }
 
@@ -56,6 +68,7 @@ where
             return self;
         };
         let node_from = prior_candidate.node_from();
+        println!("node_from: {:?}", node_from);
 
         // determine node to apply
         let (paths_to_add, paths_to_remove, node_next) = {
@@ -63,11 +76,13 @@ where
                 TransportNode::new(prior_candidate.query_site_to(), node_from.elevated_height);
 
             let line_segment = LineSegment::new(node_from, node_to);
+
             // search the nearest crossing line segment
             if let Some((crossing_line_segment, crossing_site)) = self
                 .network
                 .search_path_crossing(line_segment)
                 .iter()
+                .filter(|(_, site)| site != &node_from.site)
                 .min_by(|(_, site), (_, other_site)| {
                     node_from
                         .site
@@ -104,16 +119,20 @@ where
         });
 
         let straight_angle = node_from.site.get_angle(&node_next.site);
-        let property = self.property_provider.get_property(&node_next.into());
-
-        // add new path candidates
-        self.path_candidate_container.push(PathCandidate::new(
-            node_next,
-            straight_angle,
-            property.path_length,
-            property.path_priority,
-        ));
+        if let Some(property) = self.property_provider.get_property(&node_next.into()) {
+            // add new path candidates
+            self.path_candidate_container.push(PathCandidate::new(
+                node_next,
+                straight_angle,
+                property.path_length,
+                property.path_priority,
+            ));
+        }
 
         self
+    }
+
+    pub fn build(self) -> Network<TransportNode> {
+        self.network.into_optimized()
     }
 }

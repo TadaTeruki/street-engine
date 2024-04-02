@@ -32,5 +32,5 @@ pub struct CurveProperty {
 }
 
 pub trait TransportPropertyProvider {
-    fn get_property(&self, site: &Site) -> &TransportProperty;
+    fn get_property(&self, site: &Site) -> Option<TransportProperty>;
 }

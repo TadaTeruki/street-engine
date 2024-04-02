@@ -86,12 +86,20 @@ where
     }
 
     /// Reconstruct the network to optimize the performance.
-    fn into_optimized(self) -> Self {
+    pub fn into_optimized(self) -> Self {
         let line_segments = self.path_tree.iter().cloned().collect::<Vec<_>>();
         Network {
             path_tree: RTree::bulk_load(line_segments),
             path_connection: self.path_connection,
         }
+    }
+
+    pub fn nodes(&self) -> Vec<N> {
+        self.path_connection.nodes()
+    }
+
+    pub fn neighbors_iter(&self, node: N) -> Option<impl Iterator<Item = &N> + '_> {
+        self.path_connection.neighbors_iter(node)
     }
 
     /// This function is only for testing

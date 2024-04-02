@@ -61,7 +61,7 @@ where
     }
 
     /// Get the nodes of the graph.
-    fn nodes(&self) -> Vec<N> {
+    pub fn nodes(&self) -> Vec<N> {
         self.edges.keys().copied().collect()
     }
 
