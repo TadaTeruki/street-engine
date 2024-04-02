@@ -101,7 +101,7 @@ where
         let node_from = prior_candidate.node_from;
 
         // determine node to apply
-        let (paths_to_add, paths_to_remove, node_next) = {
+        let (paths_to_add, paths_to_remove, node_next, continue_path) = {
             let node_to =
                 if let Some(node_to) = self.determine_node_to_apply(&node_from, prior_candidate) {
                     node_to
@@ -136,10 +136,10 @@ where
                     LineSegment::new(node_crossing, crossing_line_segment.1),
                     LineSegment::new(node_from, node_crossing),
                 ];
-                (paths_to_add, paths_to_remove, node_crossing)
+                (paths_to_add, paths_to_remove, node_crossing, false)
             } else {
                 // add new line segments
-                (vec![line_segment], vec![], node_to)
+                (vec![line_segment], vec![], node_to, true)
             }
         };
 
@@ -155,42 +155,44 @@ where
             self.network.add_path(line_segment.0, line_segment.1);
         });
 
-        let straight_angle = node_from.site.get_angle(&node_next.site);
-        if let Some(property) = self.property_provider.get_property(&node_next.into()) {
-            // add new path candidates
-            self.path_candidate_container.push(PathCandidate::new(
-                node_next,
-                straight_angle,
-                property.path_length,
-                property.path_priority,
-                property.curve,
-            ));
-        }
-        /*
-        let clockwise_angle = straight_angle.right_clockwise();
-        if let Some(property) = self.property_provider.get_property(&node_next.into()) {
-            // add new path candidates
-            self.path_candidate_container.push(PathCandidate::new(
-                node_next,
-                clockwise_angle,
-                property.path_length,
-                property.path_priority,
-                property.curve,
-            ));
-        }
+        if continue_path {
+            let straight_angle = node_from.site.get_angle(&node_next.site);
+            if let Some(property) = self.property_provider.get_property(&node_next.into()) {
+                // add new path candidates
+                self.path_candidate_container.push(PathCandidate::new(
+                    node_next,
+                    straight_angle,
+                    property.path_length,
+                    property.path_priority,
+                    property.curve,
+                ));
+            }
+            /*
+            let clockwise_angle = straight_angle.right_clockwise();
+            if let Some(property) = self.property_provider.get_property(&node_next.into()) {
+                // add new path candidates
+                self.path_candidate_container.push(PathCandidate::new(
+                    node_next,
+                    clockwise_angle,
+                    property.path_length,
+                    property.path_priority,
+                    property.curve,
+                ));
+            }
 
-        let anticlockwise_angle = straight_angle.right_counterclockwise();
-        if let Some(property) = self.property_provider.get_property(&node_next.into()) {
-            // add new path candidates
-            self.path_candidate_container.push(PathCandidate::new(
-                node_next,
-                anticlockwise_angle,
-                property.path_length,
-                property.path_priority,
-                property.curve,
-            ));
+            let anticlockwise_angle = straight_angle.right_counterclockwise();
+            if let Some(property) = self.property_provider.get_property(&node_next.into()) {
+                // add new path candidates
+                self.path_candidate_container.push(PathCandidate::new(
+                    node_next,
+                    anticlockwise_angle,
+                    property.path_length,
+                    property.path_priority,
+                    property.curve,
+                ));
+            }
+            */
         }
-        */
 
         self
     }
