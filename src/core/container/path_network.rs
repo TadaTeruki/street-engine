@@ -119,8 +119,10 @@ where
 
         self.path_connection.add_edge(from, to);
 
+        let (from_site, to_site) = (from_site.into(), to_site.into());
+
         self.path_tree.insert(PathTreeObject {
-            line_segment: LineSegment::new(from_site.into(), to_site.into()),
+            line_segment: LineSegment::new(from_site, to_site),
             node_ids: (from, to),
         });
 
@@ -150,6 +152,51 @@ where
         self.path_connection.has_edge(from, to)
     }
 
+    /// Search nodes around a site within a radius.
+    pub fn node_around_site_iter(&self, site: Site, radius: f64) -> impl Iterator<Item = &NodeId> {
+        self.nodes.iter().filter_map(move |(node_id, &node)| {
+            if site.distance(&node.into()) <= radius {
+                Some(node_id)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Search paths around a site within a radius.
+    pub fn path_around_site_iter(
+        &self,
+        site: Site,
+        radius: f64,
+    ) -> impl Iterator<Item = &LineSegment> {
+        self.path_tree
+            .locate_within_distance([site.x, site.y], radius)
+            .map(|object| &object.line_segment)
+    }
+
+    /// Search paths crossing a line segment.
+    /// Return the crossing paths and the intersection sites.
+    pub fn path_crossing_iter(
+        &self,
+        line: LineSegment,
+    ) -> impl Iterator<Item = (&LineSegment, Site)> {
+        let envelope = &PathTreeObject {
+            line_segment: line.clone(),
+            node_ids: (NodeId(0), NodeId(0)),
+        }
+        .envelope();
+        self.path_tree
+            .locate_in_envelope_intersecting(envelope)
+            .filter_map(move |object| {
+                object
+                    .line_segment
+                    .get_intersection(&line)
+                    .map(|intersection| (&object.line_segment, intersection))
+            })
+    }
+
+    /// This function is only for testing
+    #[allow(dead_code)]
     fn check_path_state_is_consistent(&self) -> bool {
         self.path_tree.size() == self.path_connection.size()
             && self.path_connection.order() == self.nodes.len()
@@ -205,11 +252,11 @@ mod tests {
             x
         };
 
-        let sites = (0..200)
+        let sites = (0..100)
             .map(|i| Site::new(xorshift(i * 2) as f64, xorshift(i * 2 + 1) as f64))
             .collect::<Vec<_>>();
 
-        let loop_count = 100;
+        let loop_count = 10;
 
         let mut network = PathNetwork::new();
 

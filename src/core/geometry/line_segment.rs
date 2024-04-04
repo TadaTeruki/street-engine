@@ -12,7 +12,7 @@ impl LineSegment {
 
     /// Calculate the intersection of two line segments.
     /// If the intersection is outside the line segments or not exist, return None.
-    fn get_intersection(&self, other: &Self) -> Option<Site> {
+    pub fn get_intersection(&self, other: &Self) -> Option<Site> {
         let (x0, y0) = (self.0.x, self.0.y);
         let (x1, y1) = (self.1.x, self.1.y);
         let (x2, y2) = (other.0.x, other.0.y);
