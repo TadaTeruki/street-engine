@@ -6,7 +6,7 @@ pub struct LineSegment(pub Site, pub Site);
 
 impl LineSegment {
     /// Create a line segment from two sites.
-    fn new(start: Site, end: Site) -> Self {
+    pub fn new(start: Site, end: Site) -> Self {
         Self(start, end)
     }
 
@@ -63,6 +63,12 @@ impl LineSegment {
         }
         let proj = (x1 + b.0 * distance, y1 + b.1 * distance);
         Some(Site::new(proj.0, proj.1))
+    }
+}
+
+impl PartialEq for LineSegment {
+    fn eq(&self, other: &Self) -> bool {
+        (self.0 == other.0 && self.1 == other.1) || (self.0 == other.1 && self.1 == other.0)
     }
 }
 

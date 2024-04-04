@@ -3,7 +3,7 @@ use rstar::{PointDistance, RTreeObject, AABB};
 use super::angle::Angle;
 
 /// Representation of a 2D site.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Site {
     pub x: f64,
     pub y: f64,
