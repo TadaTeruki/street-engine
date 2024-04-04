@@ -194,4 +194,53 @@ mod tests {
 
         assert!(network.check_path_state_is_consistent());
     }
+
+    #[test]
+    fn test_complex_network() {
+        let xorshift = |x: usize| -> usize {
+            let mut x = x;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            x
+        };
+
+        let sites = (0..200)
+            .map(|i| Site::new(xorshift(i * 2) as f64, xorshift(i * 2 + 1) as f64))
+            .collect::<Vec<_>>();
+
+        let loop_count = 100;
+
+        let mut network = PathNetwork::new();
+
+        let nodeids = sites
+            .iter()
+            .map(|site| network.add_node(*site))
+            .collect::<Vec<_>>();
+
+        for l in 0..loop_count {
+            let seed_start = l * sites.len() * sites.len();
+            (0..sites.len()).for_each(|i| {
+                (0..sites.len()).for_each(|j| {
+                    let id = i * sites.len() + j;
+                    if xorshift(id + seed_start) % 2 == 0 {
+                        network.add_path(nodeids[i], nodeids[j]);
+                    }
+                });
+            });
+
+            assert!(network.check_path_state_is_consistent());
+
+            (0..sites.len()).for_each(|i| {
+                (0..sites.len()).for_each(|j| {
+                    let id = i * sites.len() + j;
+                    if xorshift(id + seed_start) % 3 == 0 {
+                        network.remove_path(nodeids[i], nodeids[j]);
+                    }
+                });
+            });
+
+            assert!(network.check_path_state_is_consistent());
+        }
+    }
 }
