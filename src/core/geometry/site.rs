@@ -55,7 +55,7 @@ impl Site {
     }
 
     /// Calculate the euclidean distance to the other site.
-    fn distance(&self, other: &Self) -> f64 {
+    pub fn distance(&self, other: &Self) -> f64 {
         self.distance_2(other).sqrt()
     }
 

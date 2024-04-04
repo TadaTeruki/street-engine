@@ -2,7 +2,7 @@ use super::site::Site;
 
 /// Representation of a line segment.
 #[derive(Debug, Clone)]
-struct LineSegment(Site, Site);
+pub struct LineSegment(pub Site, pub Site);
 
 impl LineSegment {
     /// Create a line segment from two sites.
@@ -47,7 +47,7 @@ impl LineSegment {
 
     /// Calculate the perpendicular projection of the site on the line segment.
     /// If the projection is outside the line segment, return None.
-    fn get_projection(&self, site: &Site) -> Option<Site> {
+    pub fn get_projection(&self, site: &Site) -> Option<Site> {
         let (x0, y0) = (site.x, site.y);
         let (x1, y1) = (self.0.x, self.0.y);
         let (x2, y2) = (self.1.x, self.1.y);
