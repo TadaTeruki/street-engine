@@ -1,2 +1,2 @@
 mod container;
-mod geometry;
+pub mod geometry;
