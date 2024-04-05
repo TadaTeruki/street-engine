@@ -243,6 +243,79 @@ mod tests {
     }
 
     #[test]
+    fn test_path_crossing_no_crosses() {
+        let mut network = PathNetwork::new();
+        let node0 = network.add_node(Site::new(0.0, 1.0));
+        let node1 = network.add_node(Site::new(2.0, 3.0));
+        let node2 = network.add_node(Site::new(4.0, 5.0));
+
+        network.add_path(node0, node1);
+        network.add_path(node1, node2);
+
+        let path = LineSegment::new(Site::new(0.0, 0.95), Site::new(1.0, 1.95));
+        let paths = network.path_crossing_iter(path).collect::<Vec<_>>();
+        assert_eq!(paths.len(), 0);
+
+        assert!(network.check_path_state_is_consistent());
+    }
+
+    #[test]
+    fn test_path_crossing_all_cross() {
+        let mut network = PathNetwork::new();
+
+        let sites = vec![
+            Site::new(0.0, 2.0),
+            Site::new(2.0, 2.0),
+            Site::new(2.0, 0.0),
+            Site::new(0.0, 0.0),
+        ];
+
+        let nodes = sites
+            .iter()
+            .map(|site| network.add_node(*site))
+            .collect::<Vec<_>>();
+
+        for i in 0..sites.len() {
+            // Add all paths between sites
+            // When i == j, the path is expected to be ignored
+            for j in i..sites.len() {
+                network.add_path(nodes[i], nodes[j]);
+            }
+        }
+
+        for i in 0..sites.len() {
+            for j in 0..sites.len() {
+                if i != j {
+                    assert!(network.has_path(NodeId(i), NodeId(j)));
+                }
+            }
+        }
+
+        let path = LineSegment::new(Site::new(1.0, 3.0), Site::new(0.0, -1.0));
+        let paths = network.path_crossing_iter(path).collect::<Vec<_>>();
+        assert_eq!(paths.len(), 4);
+
+        assert!(network.check_path_state_is_consistent());
+    }
+
+    #[test]
+    fn test_path_crossing_at_endpoints() {
+        let mut network = PathNetwork::new();
+        let node0 = network.add_node(Site::new(0.0, 0.0));
+        let node1 = network.add_node(Site::new(1.0, 1.0));
+        let node2 = network.add_node(Site::new(1.0, -1.0));
+
+        network.add_path(node0, node1);
+        network.add_path(node1, node2);
+
+        let path = LineSegment::new(Site::new(1.0, 1.0), Site::new(2.0, 2.0));
+        let paths = network.path_crossing_iter(path).collect::<Vec<_>>();
+        assert_eq!(paths.len(), 1);
+
+        assert!(network.check_path_state_is_consistent());
+    }
+
+    #[test]
     fn test_complex_network() {
         let xorshift = |x: usize| -> usize {
             let mut x = x;
