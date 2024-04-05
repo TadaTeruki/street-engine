@@ -7,7 +7,7 @@ use crate::core::geometry::{line_segment::LineSegment, site::Site};
 use super::undirected::UndirectedGraph;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct NodeId(usize);
+pub struct NodeId(usize);
 
 #[derive(Debug, Clone)]
 struct PathTreeObject {

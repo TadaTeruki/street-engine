@@ -1,2 +1,2 @@
-mod path_network;
+pub mod path_network;
 mod undirected;
