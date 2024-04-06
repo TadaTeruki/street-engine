@@ -75,14 +75,14 @@ where
         }
     }
 
-    pub fn add_node(&mut self, node: N) -> NodeId {
+    pub(crate) fn add_node(&mut self, node: N) -> NodeId {
         let node_id = self.last_node_id;
         self.nodes.insert(node_id, node);
         self.last_node_id = NodeId(node_id.0 + 1);
         node_id
     }
 
-    pub fn remove_node(&mut self, node_id: NodeId) -> Option<NodeId> {
+    pub(crate) fn remove_node(&mut self, node_id: NodeId) -> Option<NodeId> {
         let neighbors = if let Some(neighbors) = self.path_connection.neighbors_iter(node_id) {
             neighbors.copied().collect::<Vec<_>>()
         } else {
@@ -101,7 +101,7 @@ where
         Some(node_id)
     }
 
-    pub fn add_path(&mut self, from: NodeId, to: NodeId) -> Option<(NodeId, NodeId)> {
+    pub(crate) fn add_path(&mut self, from: NodeId, to: NodeId) -> Option<(NodeId, NodeId)> {
         if from == to {
             return None;
         }
@@ -129,7 +129,7 @@ where
         Some((from, to))
     }
 
-    pub fn remove_path(&mut self, from: NodeId, to: NodeId) -> Option<(NodeId, NodeId)> {
+    pub(crate) fn remove_path(&mut self, from: NodeId, to: NodeId) -> Option<(NodeId, NodeId)> {
         let (from_site, to_site) = if let (Some(from_node), Some(to_node)) =
             (self.nodes.get(&from), self.nodes.get(&to))
         {
@@ -193,6 +193,11 @@ where
                     .get_intersection(&line)
                     .map(|intersection| (&object.line_segment, intersection))
             })
+    }
+
+    pub fn into_optimized(self) -> Self {
+        // TODO: optimize the path network
+        self
     }
 
     /// This function is only for testing

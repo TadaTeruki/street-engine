@@ -6,7 +6,7 @@ use crate::core::{
 };
 
 use super::{
-    node::{PathCandidate, TransportNode},
+    node::{NextTransportNodeType, PathCandidate, TransportNode},
     property::TransportPropertyProvider,
 };
 
@@ -48,5 +48,9 @@ where
         ));
 
         Some(self)
+    }
+
+    pub fn build(self) -> PathNetwork<TransportNode> {
+        self.path_network.into_optimized()
     }
 }

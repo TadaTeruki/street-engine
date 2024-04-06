@@ -9,6 +9,12 @@ pub struct Site {
     pub y: f64,
 }
 
+impl Default for Site {
+    fn default() -> Self {
+        Self::new(0.0, 0.0)
+    }
+}
+
 impl PartialEq for Site {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
@@ -65,9 +71,9 @@ impl Site {
     }
 
     /// Calculate the site moved by the angle and distance.
-    fn extend(&self, angle: Angle, distance: f64) -> Self {
-        let x = self.x + angle.radian().cos() * distance;
-        let y = self.y + angle.radian().sin() * distance;
+    pub fn extend(&self, angle: Angle, distance: f64) -> Self {
+        let x = self.x + angle.unit_x() * distance;
+        let y = self.y + angle.unit_y() * distance;
         Self::new(x, y)
     }
 

@@ -1,4 +1,5 @@
 /// Provides calculation of angles.
+/// As the angle is 0, the direction is the positive x-axis.
 #[derive(Debug, Clone, Copy)]
 pub struct Angle(f64);
 
@@ -29,6 +30,14 @@ impl Angle {
     /// Get the clockwise right angle.
     fn right_clockwise(&self) -> Self {
         Self::new(self.0 + 0.5 * std::f64::consts::PI)
+    }
+
+    pub fn unit_x(&self) -> f64 {
+        self.0.cos()
+    }
+
+    pub fn unit_y(&self) -> f64 {
+        self.0.sin()
     }
 
     /// Get the counterclockwise right angle.

@@ -24,6 +24,21 @@ pub struct TransportProperty {
     pub curve: Option<CurveProperty>,
 }
 
+impl Default for TransportProperty {
+    /// With default values, the path is always constructed as a straight line.
+    fn default() -> Self {
+        Self {
+            path_priority: 0.0,
+            elevation: 0.0,
+            population_density: 0.0,
+            path_normal_length: 0.0,
+            path_min_length: 0.0,
+            branch_probability: 0.0,
+            curve: None,
+        }
+    }
+}
+
 /// Properties of curves.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CurveProperty {
