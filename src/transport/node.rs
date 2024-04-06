@@ -1,4 +1,4 @@
-use crate::core::geometry::{angle::Angle, site::Site};
+use crate::core::geometry::{angle::Angle, line_segment::LineSegment, site::Site};
 
 use super::property::TransportProperty;
 
@@ -61,5 +61,22 @@ impl Ord for PathCandidate {
         self.property
             .path_priority
             .total_cmp(&other.property.path_priority)
+    }
+}
+
+#[derive(Debug)]
+enum NextTransportNodeType {
+    New(TransportNode),
+    Existing(TransportNode),
+    Intersect(TransportNode, LineSegment),
+}
+
+impl NextTransportNodeType {
+    fn node_to(&self) -> TransportNode {
+        match self {
+            Self::New(node) => *node,
+            Self::Existing(node) => *node,
+            Self::Intersect(node, _) => *node,
+        }
     }
 }

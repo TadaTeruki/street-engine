@@ -10,23 +10,6 @@ use super::{
     property::TransportPropertyProvider,
 };
 
-#[derive(Debug)]
-enum NextTransportNodeType {
-    New(TransportNode),
-    Existing(TransportNode),
-    Intersect(TransportNode, LineSegment),
-}
-
-impl NextTransportNodeType {
-    fn node_to(&self) -> TransportNode {
-        match self {
-            Self::New(node) => *node,
-            Self::Existing(node) => *node,
-            Self::Intersect(node, _) => *node,
-        }
-    }
-}
-
 pub struct TransportBuilder<'a, TP>
 where
     TP: TransportPropertyProvider,
