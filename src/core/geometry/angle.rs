@@ -1,5 +1,5 @@
 /// Provides calculation of angles.
-/// As the angle is 0, the direction is the positive x-axis.
+/// As the angle is 0, the direction is the negative y-axis.
 #[derive(Debug, Clone, Copy)]
 pub struct Angle(f64);
 
@@ -33,11 +33,11 @@ impl Angle {
     }
 
     pub fn unit_x(&self) -> f64 {
-        self.0.cos()
+        self.0.sin()
     }
 
     pub fn unit_y(&self) -> f64 {
-        self.0.sin()
+        -self.0.cos()
     }
 
     /// Get the counterclockwise right angle.

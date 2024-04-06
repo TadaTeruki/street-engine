@@ -2,11 +2,11 @@ use std::collections::BinaryHeap;
 
 use crate::core::{
     container::path_network::PathNetwork,
-    geometry::{angle::Angle, line_segment::LineSegment, site::Site},
+    geometry::{angle::Angle, site::Site},
 };
 
 use super::{
-    node::{NextTransportNodeType, PathCandidate, TransportNode},
+    node::{PathCandidate, TransportNode},
     property::TransportPropertyProvider,
 };
 

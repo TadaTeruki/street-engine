@@ -1,4 +1,7 @@
-use crate::core::geometry::{angle::Angle, line_segment::LineSegment, site::Site};
+use crate::core::{
+    container::path_network::NodeId,
+    geometry::{angle::Angle, line_segment::LineSegment, site::Site},
+};
 
 use super::property::TransportProperty;
 
@@ -37,13 +40,13 @@ impl Ord for TransportNode {
 }
 
 #[derive(Debug)]
-pub enum NextTransportNodeType {
+pub enum NextTransportNode {
     New(TransportNode),
     Existing(TransportNode),
-    Intersect(TransportNode, LineSegment),
+    Intersect(TransportNode, (NodeId, NodeId)),
 }
 
-impl NextTransportNodeType {
+impl NextTransportNode {
     fn node_to(&self) -> TransportNode {
         match self {
             Self::New(node) => *node,
@@ -91,15 +94,15 @@ impl PathCandidate {
             .extend(self.angle_to, self.property.path_normal_length)
     }
 
-    fn determine_node_type<'a>(
+    fn determine_node_type(
         &self,
-        related_path_iter: impl Iterator<Item = (&'a TransportNode, &'a TransportNode)>,
-    ) -> NextTransportNodeType {
+        related_paths: &[(&TransportNode, &TransportNode)],
+    ) -> NextTransportNode {
         let site_to = self.get_site_to();
 
-        for node in related_path_iter {}
+        for node in related_paths.iter() {}
 
-        NextTransportNodeType::New(TransportNode::new(site_to))
+        NextTransportNode::New(TransportNode::new(site_to))
     }
 }
 
@@ -108,18 +111,133 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_path_candidate_cmp() {
+    fn test_next_node() {
         let nodes = vec![
-            TransportNode::default().set_site(Site::new(2.0, 0.0)),
+            TransportNode::default().set_site(Site::new(3.0, 0.0)),
             TransportNode::default().set_site(Site::new(1.0, 0.0)),
             TransportNode::default().set_site(Site::new(0.0, 1.0)),
-            TransportNode::default().set_site(Site::new(0.0, 2.0)),
+            TransportNode::default().set_site(Site::new(0.0, 3.0)),
         ];
 
-        let candidate = PathCandidate::new(
-            TransportNode::default().set_site(Site::new(2.0, 2.0)),
-            Angle::new(-std::f64::consts::PI / 4.0),
-            TransportProperty::default(),
+        let paths = vec![
+            (&nodes[0], &nodes[1]),
+            (&nodes[1], &nodes[2]),
+            (&nodes[2], &nodes[3]),
+        ];
+
+        let property = TransportProperty {
+            path_priority: 0.0,
+            elevation: 0.0,
+            population_density: 0.0,
+            path_normal_length: 1.0,
+            path_merge_length: 0.25,
+            branch_probability: 0.0,
+            curve: None,
+        };
+
+        // New node
+        let new = PathCandidate::new(
+            TransportNode::default().set_site(Site::new(1.0, 1.0)),
+            Angle::new(std::f64::consts::PI * 0.75),
+            property.clone(),
+        )
+        .determine_node_type(&paths);
+
+        assert!(matches!(new, NextTransportNode::New(_)));
+        assert_eq!(
+            new.node_to().site,
+            Site::new(1.0 + 1.0 / 2.0_f64.sqrt(), 1.0 + 1.0 / 2.0_f64.sqrt())
+        );
+
+        // Intersect (Close Path)
+        let intersect = PathCandidate::new(
+            TransportNode::default().set_site(Site::new(1.0, 1.0)),
+            Angle::new(std::f64::consts::PI * 0.25),
+            property.clone(),
+        )
+        .determine_node_type(&paths);
+
+        assert!(matches!(intersect, NextTransportNode::Intersect(_, _)));
+
+        assert_eq!(
+            intersect.node_to().site,
+            Site::new(1.0 + 1.0 / 2.0_f64.sqrt(), 0.0)
+        );
+
+        // Intersect (Crossing Path)
+        let intersect = PathCandidate::new(
+            TransportNode::default().set_site(Site::new(1.0, 1.0)),
+            Angle::new(-std::f64::consts::PI * 0.25),
+            property.clone(),
+        )
+        .determine_node_type(&paths);
+
+        assert!(matches!(intersect, NextTransportNode::Intersect(_, _)));
+
+        assert_eq!(intersect.node_to().site, Site::new(0.5, 0.5));
+
+        // Existing node
+        let existing = PathCandidate::new(
+            TransportNode::default().set_site(Site::new(1.0, 1.0)),
+            Angle::new(std::f64::consts::PI * 0.05),
+            property.clone(),
+        )
+        .determine_node_type(&paths);
+
+        assert!(matches!(existing, NextTransportNode::Existing(_)));
+
+        assert_eq!(existing.node_to(), nodes[1]);
+    }
+
+    #[test]
+    fn test_next_node_across_multiple_paths() {
+        let nodes_upper = vec![
+            TransportNode::default().set_site(Site::new(0.0, 0.0)),
+            TransportNode::default().set_site(Site::new(0.3, 0.0)),
+            TransportNode::default().set_site(Site::new(0.7, 0.0)),
+            TransportNode::default().set_site(Site::new(1.0, 0.0)),
+        ];
+        let nodes_lower = vec![
+            TransportNode::default().set_site(Site::new(0.0, 10.0)),
+            TransportNode::default().set_site(Site::new(0.3, 10.0)),
+            TransportNode::default().set_site(Site::new(0.7, 10.0)),
+            TransportNode::default().set_site(Site::new(1.0, 10.0)),
+        ];
+
+        let paths = vec![
+            (&nodes_upper[0], &nodes_lower[1]),
+            (&nodes_lower[1], &nodes_upper[2]),
+            (&nodes_upper[2], &nodes_lower[3]),
+            (&nodes_lower[3], &nodes_upper[3]),
+            (&nodes_upper[3], &nodes_lower[2]),
+            (&nodes_lower[2], &nodes_upper[1]),
+            (&nodes_upper[1], &nodes_lower[0]),
+        ];
+
+        let property = TransportProperty {
+            path_priority: 0.0,
+            elevation: 0.0,
+            population_density: 0.0,
+            path_normal_length: 10000.0,
+            path_merge_length: 0.0,
+            branch_probability: 0.0,
+            curve: None,
+        };
+
+        let next = PathCandidate::new(
+            TransportNode::default().set_site(Site::new(-1.0, 1.0)),
+            Angle::new(0.),
+            property.clone(),
+        )
+        .determine_node_type(&paths);
+
+        assert!(matches!(next, NextTransportNode::Intersect(_, _)));
+
+        let next_site = next.node_to().site;
+
+        assert!(
+            (next_site.x >= 0.0 && next_site.x <= 0.3)
+                && (next_site.y >= 0.0 && next_site.y <= 5.0)
         );
     }
 }
