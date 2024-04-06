@@ -22,7 +22,7 @@ impl Angle {
     }
 
     /// Get opposite angle.
-    fn opposite(&self) -> Self {
+    pub fn opposite(&self) -> Self {
         Self::new(self.0 + std::f64::consts::PI)
     }
 

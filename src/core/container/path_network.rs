@@ -52,7 +52,7 @@ impl PartialEq for PathTreeObject {
 }
 
 #[derive(Debug, Clone)]
-struct PathNetwork<N>
+pub struct PathNetwork<N>
 where
     N: Eq + Copy + Into<Site>,
 {

@@ -1,15 +1,33 @@
-use crate::core::{container::path_network::NodeId, geometry::angle::Angle};
+use crate::core::geometry::{angle::Angle, site::Site};
 
 use super::property::TransportProperty;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TransportNode {
-    pub node_id: NodeId,
+    pub site: Site,
 }
 
 impl TransportNode {
-    pub fn new(node_id: NodeId) -> Self {
-        Self { node_id }
+    pub fn new(site: Site) -> Self {
+        Self { site }
+    }
+}
+
+impl From<TransportNode> for Site {
+    fn from(node: TransportNode) -> Self {
+        node.site
+    }
+}
+
+impl PartialOrd for TransportNode {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TransportNode {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.site.cmp(&other.site)
     }
 }
 
