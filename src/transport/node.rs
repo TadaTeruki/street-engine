@@ -49,7 +49,8 @@ pub enum NextTransportNode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PathCandidate {
     node_from: TransportNode,
-    angle_to: Angle,
+    node_from_id: NodeId,
+    angle_expected_to: Angle,
     property: TransportProperty,
 }
 
@@ -73,39 +74,60 @@ type RelatedNode<'a> = (&'a TransportNode, NodeId);
 
 impl PathCandidate {
     /// Create a new path candidate.
-    pub fn new(node_from: TransportNode, angle_to: Angle, property: TransportProperty) -> Self {
+    pub fn new(
+        node_from: TransportNode,
+        node_from_id: NodeId,
+        angle_expected_to: Angle,
+        property: TransportProperty,
+    ) -> Self {
         Self {
             node_from,
-            angle_to,
+            node_from_id,
+            angle_expected_to,
             property,
         }
     }
 
+    /// Get node id
+    pub fn get_node_from_id(&self) -> NodeId {
+        self.node_from_id
+    }
+
+    /// Get the start site of the path.
+    pub fn get_site_from(&self) -> Site {
+        self.node_from.site
+    }
+
     /// Get the end site of the path.
-    pub fn get_site_to(&self) -> Site {
+    pub fn get_expected_site_to(&self) -> Site {
         self.node_from
             .site
-            .extend(self.angle_to, self.property.path_normal_length)
+            .extend(self.angle_expected_to, self.property.path_normal_length)
+    }
+
+    /// Get property of the path.
+    pub fn get_property(&self) -> &TransportProperty {
+        &self.property
     }
 
     /// Get the end site of the path with extra length.
     /// This is temporary used for searching intersections.
-    fn get_site_to_with_extra_length(&self) -> Site {
+    fn get_expected_site_to_with_extra_length(&self) -> Site {
         self.node_from.site.extend(
-            self.angle_to,
+            self.angle_expected_to,
             self.property.path_normal_length + self.property.path_extra_length_for_intersection,
         )
     }
 
     /// Determine the next node type from related(close) nodes and paths.
-    fn determine_next_node(
+    pub fn determine_next_node(
         &self,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
     ) -> NextTransportNode {
         // Crossing Paths
         let search_from = self.node_from.site;
-        let site_expected_to = self.get_site_to();
+        let site_expected_to = self.get_expected_site_to();
 
         // Existing Node
         // For this situation, path crosses are needed to be checked again because the direction of the path can be changed from original.
@@ -145,7 +167,7 @@ impl PathCandidate {
         }
 
         {
-            let search_to = self.get_site_to_with_extra_length();
+            let search_to = self.get_expected_site_to_with_extra_length();
             let search_line = LineSegment::new(search_from, search_to);
 
             let crossing_path = related_paths
@@ -221,6 +243,7 @@ mod tests {
         // New node
         let new = PathCandidate::new(
             TransportNode::default().set_site(Site::new(1.0, 1.0)),
+            NodeId::new(10000),
             Angle::new(std::f64::consts::PI * 0.75),
             property.clone(),
         )
@@ -241,6 +264,7 @@ mod tests {
         // Intersect (Crossing Path)
         let intersect = PathCandidate::new(
             TransportNode::default().set_site(Site::new(1.0, 1.0)),
+            NodeId::new(10000),
             Angle::new(-std::f64::consts::PI * 0.25),
             property.clone(),
         )
@@ -255,6 +279,7 @@ mod tests {
         // Existing node (close between two nodes)
         let existing = PathCandidate::new(
             TransportNode::default().set_site(Site::new(1.0, 1.0)),
+            NodeId::new(10000),
             Angle::new(std::f64::consts::PI * 0.05),
             property.clone(),
         )
@@ -268,6 +293,7 @@ mod tests {
         // Existing node (close between an existing node and expected path)
         let existing = PathCandidate::new(
             TransportNode::default().set_site(Site::new(1.0, 0.5)),
+            NodeId::new(10000),
             Angle::new(std::f64::consts::PI * 0.05),
             property.clone(),
         )
@@ -318,6 +344,7 @@ mod tests {
 
         let next = PathCandidate::new(
             TransportNode::default().set_site(Site::new(-1.0, 1.0)),
+            NodeId::new(10000),
             Angle::new(std::f64::consts::PI * 0.5),
             property.clone(),
         )

@@ -28,8 +28,13 @@ impl Angle {
     }
 
     /// Get the clockwise right angle.
-    fn right_clockwise(&self) -> Self {
+    pub fn right_clockwise(&self) -> Self {
         Self::new(self.0 + 0.5 * std::f64::consts::PI)
+    }
+
+    /// Get the counterclockwise right angle.
+    pub fn right_counterclockwise(&self) -> Self {
+        Self::new(self.0 - 0.5 * std::f64::consts::PI)
     }
 
     pub fn unit_x(&self) -> f64 {
@@ -38,11 +43,6 @@ impl Angle {
 
     pub fn unit_y(&self) -> f64 {
         -self.0.cos()
-    }
-
-    /// Get the counterclockwise right angle.
-    fn right_counterclockwise(&self) -> Self {
-        Self::new(self.0 - 0.5 * std::f64::consts::PI)
     }
 
     /// Normalize to the range of (-PI, PI].

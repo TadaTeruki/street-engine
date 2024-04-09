@@ -78,7 +78,7 @@ impl Site {
     }
 
     /// Calculate the angle to the other site.
-    fn get_angle(&self, other: &Self) -> Angle {
+    pub fn get_angle(&self, other: &Self) -> Angle {
         let dx = other.x - self.x;
         let dy = other.y - self.y;
         if dx == 0.0 && dy == 0.0 {
