@@ -9,6 +9,12 @@ use super::undirected::UndirectedGraph;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NodeId(usize);
 
+impl NodeId {
+    pub fn new(id: usize) -> Self {
+        Self(id)
+    }
+}
+
 #[derive(Debug, Clone)]
 struct PathTreeObject {
     line_segment: LineSegment,

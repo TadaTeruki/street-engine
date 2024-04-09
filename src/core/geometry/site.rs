@@ -66,7 +66,7 @@ impl Site {
     }
 
     /// Calculate the squared euclidean distance to the other site.
-    fn distance_2(&self, other: &Self) -> f64 {
+    pub fn distance_2(&self, other: &Self) -> f64 {
         (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
     }
 

@@ -13,8 +13,8 @@ pub struct TransportProperty {
 
     /// Normal length of the path.
     pub path_normal_length: f64,
-    /// Distance between nodes to merge.
-    pub path_merge_length: f64,
+    /// Extra length of the path to search intersections.
+    pub path_extra_length_for_intersection: f64,
 
     /// Probability of branching. If 1.0, the path will always create branch.
     pub branch_probability: f64,
@@ -32,7 +32,7 @@ impl Default for TransportProperty {
             elevation: 0.0,
             population_density: 0.0,
             path_normal_length: 0.0,
-            path_merge_length: 0.0,
+            path_extra_length_for_intersection: 0.0,
             branch_probability: 0.0,
             curve: None,
         }
