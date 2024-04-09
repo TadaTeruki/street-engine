@@ -170,7 +170,7 @@ where
     }
 
     /// Search paths around a site within a radius.
-    pub fn path_around_site_iter(
+    pub fn paths_around_site_iter(
         &self,
         site: Site,
         radius: f64,
@@ -180,12 +180,28 @@ where
             .map(|object| &object.line_segment)
     }
 
+    /// Search paths overlapping with a rectangle.
+    pub fn paths_in_rect_iter(
+        &self,
+        corner_0: Site,
+        corner_1: Site,
+    ) -> impl Iterator<Item = &LineSegment> {
+        let search_rect =
+            rstar::AABB::from_corners([corner_0.x, corner_0.y], [corner_1.x, corner_1.y]);
+
+        self.path_tree
+            .locate_in_envelope_intersecting(&search_rect)
+            .map(|object| &object.line_segment)
+    }
+
+    pub fn into_optimized(self) -> Self {
+        // TODO: optimize the path network
+        self
+    }
+
     /// Search paths crossing a line segment.
     /// Return the crossing paths and the intersection sites.
-    pub fn path_crossing_iter(
-        &self,
-        line: LineSegment,
-    ) -> impl Iterator<Item = (&LineSegment, Site)> {
+    fn path_crossing_iter(&self, line: LineSegment) -> impl Iterator<Item = (&LineSegment, Site)> {
         let envelope = &PathTreeObject {
             line_segment: line.clone(),
             node_ids: (NodeId(0), NodeId(0)),
@@ -199,11 +215,6 @@ where
                     .get_intersection(&line)
                     .map(|intersection| (&object.line_segment, intersection))
             })
-    }
-
-    pub fn into_optimized(self) -> Self {
-        // TODO: optimize the path network
-        self
     }
 
     /// This function is only for testing
@@ -267,6 +278,11 @@ mod tests {
         let paths = network.path_crossing_iter(path).collect::<Vec<_>>();
         assert_eq!(paths.len(), 0);
 
+        let paths = network
+            .paths_in_rect_iter(Site::new(0.0, 0.0), Site::new(1.0, 1.0))
+            .collect::<Vec<_>>();
+        assert_eq!(paths.len(), 1);
+
         assert!(network.check_path_state_is_consistent());
     }
 
@@ -305,6 +321,11 @@ mod tests {
         let path = LineSegment::new(Site::new(1.0, 3.0), Site::new(0.0, -1.0));
         let paths = network.path_crossing_iter(path).collect::<Vec<_>>();
         assert_eq!(paths.len(), 4);
+
+        let paths = network
+            .paths_in_rect_iter(Site::new(0.0, 0.0), Site::new(1.0, 2.0))
+            .collect::<Vec<_>>();
+        assert_eq!(paths.len(), 5);
 
         assert!(network.check_path_state_is_consistent());
     }
