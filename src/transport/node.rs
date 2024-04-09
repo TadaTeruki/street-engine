@@ -317,7 +317,7 @@ mod tests {
 
         let next = PathCandidate::new(
             TransportNode::default().set_site(Site::new(-1.0, 1.0)),
-            Angle::new(0.),
+            Angle::new(std::f64::consts::PI * 0.5),
             property.clone(),
         )
         .determine_next_node(&nodes_parsed, &paths_parsed);
