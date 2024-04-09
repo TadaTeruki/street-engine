@@ -64,6 +64,16 @@ impl LineSegment {
         let proj = (x1 + b.0 * distance, y1 + b.1 * distance);
         Some(Site::new(proj.0, proj.1))
     }
+
+    /// Calculate the distance from the site to the line segment.
+    pub fn get_distance(&self, site: &Site) -> f64 {
+        let projection = self.get_projection(site);
+        if let Some(projection) = projection {
+            site.distance(&projection)
+        } else {
+            site.distance(&self.0).min(site.distance(&self.1))
+        }
+    }
 }
 
 impl PartialEq for LineSegment {

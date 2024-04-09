@@ -58,12 +58,41 @@ impl PartialEq for PathTreeObject {
 }
 
 #[derive(Debug, Clone)]
+struct NodeTreeObject {
+    site: Site,
+    node_id: NodeId,
+}
+
+impl RTreeObject for NodeTreeObject {
+    type Envelope = rstar::AABB<[f64; 2]>;
+
+    fn envelope(&self) -> Self::Envelope {
+        rstar::AABB::from_point([self.site.x, self.site.y])
+    }
+}
+
+impl PointDistance for NodeTreeObject {
+    fn distance_2(&self, point: &[f64; 2]) -> f64 {
+        let dx = self.site.x - point[0];
+        let dy = self.site.y - point[1];
+        dx * dx + dy * dy
+    }
+}
+
+impl PartialEq for NodeTreeObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.node_id == other.node_id
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct PathNetwork<N>
 where
     N: Eq + Copy + Into<Site>,
 {
     nodes: BTreeMap<NodeId, N>,
     path_tree: RTree<PathTreeObject>,
+    node_tree: RTree<NodeTreeObject>,
     path_connection: UndirectedGraph<NodeId>,
     last_node_id: NodeId,
 }
@@ -76,6 +105,7 @@ where
         Self {
             nodes: BTreeMap::new(),
             path_tree: RTree::new(),
+            node_tree: RTree::new(),
             path_connection: UndirectedGraph::new(),
             last_node_id: NodeId(0),
         }
@@ -84,6 +114,10 @@ where
     pub(crate) fn add_node(&mut self, node: N) -> NodeId {
         let node_id = self.last_node_id;
         self.nodes.insert(node_id, node);
+        self.node_tree.insert(NodeTreeObject {
+            site: node.into(),
+            node_id,
+        });
         self.last_node_id = NodeId(node_id.0 + 1);
         node_id
     }
@@ -95,15 +129,19 @@ where
             return None;
         };
 
+        let site = if let Some(node) = self.nodes.get(&node_id) {
+            (*node).into()
+        } else {
+            return None;
+        };
+
         neighbors.iter().for_each(|neighbor| {
             self.remove_path(node_id, *neighbor);
-            if self.path_connection.neighbors_iter(*neighbor).is_none() {
-                self.nodes.remove(neighbor);
-            }
         });
 
-        self.nodes.remove(&node_id);
+        self.node_tree.remove(&NodeTreeObject { site, node_id });
 
+        self.nodes.remove(&node_id);
         Some(node_id)
     }
 
@@ -154,6 +192,10 @@ where
         Some((from, to))
     }
 
+    pub fn get_node(&self, node_id: NodeId) -> Option<&N> {
+        self.nodes.get(&node_id)
+    }
+
     pub fn has_path(&self, from: NodeId, to: NodeId) -> bool {
         self.path_connection.has_edge(from, to)
     }
@@ -169,16 +211,28 @@ where
         })
     }
 
-    /// Search paths around a site within a radius.
-    pub fn paths_around_site_iter(
+    /*
+    /// Search nodes around a line segment within a radius.
+    pub fn node_around_line_iter(
         &self,
-        site: Site,
+        line: LineSegment,
         radius: f64,
-    ) -> impl Iterator<Item = &(NodeId, NodeId)> {
-        self.path_tree
-            .locate_within_distance([site.x, site.y], radius)
-            .map(|object| &object.node_ids)
+    ) -> impl Iterator<Item = &NodeId> {
+        let envelope = rstar::AABB::from_corners(
+            [line.0.x.min(line.1.x)-radius, line.0.y.min(line.1.y)-radius],
+            [line.0.x.max(line.1.x)+radius, line.0.y.max(line.1.y)+radius],
+        );
+        self.node_tree
+            .locate_in_envelope(&envelope)
+            .filter_map(move |object| {
+                if object.line_segment.get_distance(&line) <= radius {
+                    Some(&object.node_ids.0)
+                } else {
+                    None
+                }
+            })
     }
+    */
 
     /// Search paths touching a rectangle.
     pub fn paths_touching_rect_iter(
@@ -217,11 +271,22 @@ where
             })
     }
 
+    /// Search paths around a site within a radius.
+    fn paths_around_site_iter(
+        &self,
+        site: Site,
+        radius: f64,
+    ) -> impl Iterator<Item = &(NodeId, NodeId)> {
+        self.path_tree
+            .locate_within_distance([site.x, site.y], radius)
+            .map(|object| &object.node_ids)
+    }
+
     /// This function is only for testing
     #[allow(dead_code)]
     fn check_path_state_is_consistent(&self) -> bool {
         self.path_tree.size() == self.path_connection.size()
-            && self.path_connection.order() == self.nodes.len()
+            && self.nodes.len() == self.node_tree.size()
     }
 }
 
