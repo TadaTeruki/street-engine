@@ -201,7 +201,7 @@ where
     }
 
     /// Search nodes around a site within a radius.
-    pub fn node_around_site_iter(&self, site: Site, radius: f64) -> impl Iterator<Item = &NodeId> {
+    pub fn nodes_around_site_iter(&self, site: Site, radius: f64) -> impl Iterator<Item = &NodeId> {
         self.nodes.iter().filter_map(move |(node_id, &node)| {
             if site.distance(&node.into()) <= radius {
                 Some(node_id)
@@ -212,7 +212,7 @@ where
     }
 
     /// Search nodes around a line segment within a radius.
-    pub fn node_around_line_iter(
+    pub fn nodes_around_line_iter(
         &self,
         line: LineSegment,
         radius: f64,
@@ -427,23 +427,49 @@ mod tests {
         network.add_path(node4, node2);
 
         let site = Site::new(1.0, 1.0);
-        let nodes = network.node_around_site_iter(site, 1.0).collect::<Vec<_>>();
+        let nodes = network
+            .nodes_around_site_iter(site, 1.0)
+            .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 1);
 
         let site = Site::new(2.0, 1.0);
-        let nodes = network.node_around_site_iter(site, 2.0).collect::<Vec<_>>();
+        let nodes = network
+            .nodes_around_site_iter(site, 2.0)
+            .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 2);
 
         let site = Site::new(2.0, 3.0);
-        let nodes = network.node_around_site_iter(site, 2.0).collect::<Vec<_>>();
+        let nodes = network
+            .nodes_around_site_iter(site, 2.0)
+            .collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 3);
+
+        let line = LineSegment::new(Site::new(1.0, 3.0), Site::new(3.0, 2.0));
+        let nodes = network
+            .nodes_around_line_iter(line, 1.0)
+            .collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 3);
+
+        let line = LineSegment::new(Site::new(1.0, 0.0), Site::new(0.0, 1.0));
+        let nodes = network
+            .nodes_around_line_iter(line, 2.5)
+            .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 3);
 
         network.remove_path(node3, node4);
         network.remove_node(node1);
 
         let site = Site::new(2.0, 1.0);
-        let nodes = network.node_around_site_iter(site, 2.0).collect::<Vec<_>>();
+        let nodes = network
+            .nodes_around_site_iter(site, 2.0)
+            .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 1);
+
+        let line = LineSegment::new(Site::new(1.0, 0.0), Site::new(0.0, 1.0));
+        let nodes = network
+            .nodes_around_line_iter(line, 2.5)
+            .collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 2);
 
         assert!(network.check_path_state_is_consistent());
     }
