@@ -180,8 +180,8 @@ where
             .map(|object| &object.line_segment)
     }
 
-    /// Search paths overlapping with a rectangle.
-    pub fn paths_in_rect_iter(
+    /// Search paths touching a rectangle.
+    pub fn paths_touching_rect_iter(
         &self,
         corner_0: Site,
         corner_1: Site,
@@ -201,7 +201,7 @@ where
 
     /// Search paths crossing a line segment.
     /// Return the crossing paths and the intersection sites.
-    fn path_crossing_iter(&self, line: LineSegment) -> impl Iterator<Item = (&LineSegment, Site)> {
+    fn paths_crossing_iter(&self, line: LineSegment) -> impl Iterator<Item = (&LineSegment, Site)> {
         let envelope = &PathTreeObject {
             line_segment: line.clone(),
             node_ids: (NodeId(0), NodeId(0)),
@@ -275,11 +275,11 @@ mod tests {
         network.add_path(node1, node2);
 
         let path = LineSegment::new(Site::new(0.0, 0.95), Site::new(1.0, 1.95));
-        let paths = network.path_crossing_iter(path).collect::<Vec<_>>();
+        let paths = network.paths_crossing_iter(path).collect::<Vec<_>>();
         assert_eq!(paths.len(), 0);
 
         let paths = network
-            .paths_in_rect_iter(Site::new(0.0, 0.0), Site::new(1.0, 1.0))
+            .paths_touching_rect_iter(Site::new(0.0, 0.0), Site::new(1.0, 1.0))
             .collect::<Vec<_>>();
         assert_eq!(paths.len(), 1);
 
@@ -319,11 +319,11 @@ mod tests {
         }
 
         let path = LineSegment::new(Site::new(1.0, 3.0), Site::new(0.0, -1.0));
-        let paths = network.path_crossing_iter(path).collect::<Vec<_>>();
+        let paths = network.paths_crossing_iter(path).collect::<Vec<_>>();
         assert_eq!(paths.len(), 4);
 
         let paths = network
-            .paths_in_rect_iter(Site::new(0.0, 0.0), Site::new(1.0, 2.0))
+            .paths_touching_rect_iter(Site::new(0.0, 0.0), Site::new(1.0, 2.0))
             .collect::<Vec<_>>();
         assert_eq!(paths.len(), 5);
 
@@ -341,7 +341,7 @@ mod tests {
         network.add_path(node1, node2);
 
         let path = LineSegment::new(Site::new(1.0, 1.0), Site::new(2.0, 2.0));
-        let paths = network.path_crossing_iter(path).collect::<Vec<_>>();
+        let paths = network.paths_crossing_iter(path).collect::<Vec<_>>();
         assert_eq!(paths.len(), 1);
 
         assert!(network.check_path_state_is_consistent());
