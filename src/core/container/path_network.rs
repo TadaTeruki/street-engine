@@ -174,10 +174,10 @@ where
         &self,
         site: Site,
         radius: f64,
-    ) -> impl Iterator<Item = &LineSegment> {
+    ) -> impl Iterator<Item = &(NodeId, NodeId)> {
         self.path_tree
             .locate_within_distance([site.x, site.y], radius)
-            .map(|object| &object.line_segment)
+            .map(|object| &object.node_ids)
     }
 
     /// Search paths touching a rectangle.
@@ -185,13 +185,13 @@ where
         &self,
         corner_0: Site,
         corner_1: Site,
-    ) -> impl Iterator<Item = &LineSegment> {
+    ) -> impl Iterator<Item = &(NodeId, NodeId)> {
         let search_rect =
             rstar::AABB::from_corners([corner_0.x, corner_0.y], [corner_1.x, corner_1.y]);
 
         self.path_tree
             .locate_in_envelope_intersecting(&search_rect)
-            .map(|object| &object.line_segment)
+            .map(|object| &object.node_ids)
     }
 
     pub fn into_optimized(self) -> Self {
