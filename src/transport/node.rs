@@ -104,6 +104,45 @@ impl PathCandidate {
     ) -> NextTransportNode {
         // Crossing Paths
         let search_from = self.node_from.site;
+        let site_expected_to = self.get_site_to();
+
+        // Existing Node
+        // For this situation, path crosses are needed to be checked again because the direction of the path can be changed from original.
+        {
+            let existing_node = related_nodes
+                .iter()
+                .filter(|(existing_node, _)| {
+                    let range_2 = self.property.path_extra_length_for_intersection.powi(2);
+                    existing_node.site.distance_2(&site_expected_to) < range_2
+                        || LineSegment::new(search_from, site_expected_to)
+                            .get_projection(&existing_node.site)
+                            .map(|projection| existing_node.site.distance_2(&projection) < range_2)
+                            == Some(true)
+                })
+                .filter(|(existing_node, existing_node_id)| {
+                    let has_intersection = related_paths.iter().any(|(path_from, path_to)| {
+                        if *existing_node_id == path_from.1 || *existing_node_id == path_to.1 {
+                            // ignore
+                            return false;
+                        }
+                        let path_line = LineSegment::new(path_from.0.site, path_to.0.site);
+                        let search_line = LineSegment::new(search_from, existing_node.site);
+                        path_line.get_intersection(&search_line).is_some()
+                    });
+                    !has_intersection
+                })
+                .min_by(|a, b| {
+                    let distance_a = a.0.site.distance_2(&search_from);
+                    let distance_b = b.0.site.distance_2(&search_from);
+                    distance_a.total_cmp(&distance_b)
+                })
+                .map(|(_, node_id)| NextTransportNode::Existing(*node_id));
+
+            if let Some(existing_node) = existing_node {
+                return existing_node;
+            }
+        }
+
         {
             let search_to = self.get_site_to_with_extra_length();
             let search_line = LineSegment::new(search_from, search_to);
@@ -130,45 +169,21 @@ impl PathCandidate {
             }
         }
 
-        // Existing Node
-        // For this situation, path crosses are needed to be checked again because the direction of the path can be changed from original.
-        {
-            let existing_node = related_nodes
-                .iter()
-                .filter(|(existing_node, _)| {
-                    existing_node.site.distance_2(&search_from)
-                        < self.property.path_extra_length_for_intersection.powi(2)
-                })
-                .filter(|(existing_node, _)| {
-                    let has_intersection = related_paths.iter().any(|(path_from, path_to)| {
-                        let path_line = LineSegment::new(path_from.0.site, path_to.0.site);
-                        let search_line = LineSegment::new(search_from, existing_node.site);
-                        path_line.get_intersection(&search_line).is_some()
-                    });
-                    !has_intersection
-                })
-                .min_by(|a, b| {
-                    let distance_a = a.0.site.distance_2(&search_from);
-                    let distance_b = b.0.site.distance_2(&search_from);
-                    distance_a.total_cmp(&distance_b)
-                })
-                .map(|(_, node_id)| NextTransportNode::Existing(*node_id));
-
-            if let Some(existing_node) = existing_node {
-                return existing_node;
-            }
-        }
-
         // New Node
         // Path crosses are already checked in the previous steps.
-        let site_to = self.get_site_to();
-        NextTransportNode::New(TransportNode::new(site_to))
+        NextTransportNode::New(TransportNode::new(site_expected_to))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    macro_rules! assert_eq_f64 {
+        ($a:expr, $b:expr) => {
+            assert!(($a - $b).abs() < 1e-6);
+        };
+    }
 
     #[test]
     fn test_next_node() {
@@ -210,12 +225,13 @@ mod tests {
         )
         .determine_next_node(&nodes_parsed, &paths_parsed);
 
-        assert!(matches!(new, NextTransportNode::New(_)));
-
         if let NextTransportNode::New(node) = new {
-            assert_eq!(
-                node.site,
-                Site::new(1.0 + 1.0 / 2.0_f64.sqrt(), 1.0 + 1.0 / 2.0_f64.sqrt())
+            assert_eq_f64!(
+                node.site.distance(&Site::new(
+                    1.0 + 1.0 / 2.0_f64.sqrt(),
+                    1.0 + 1.0 / 2.0_f64.sqrt()
+                )),
+                0.0
             );
         } else {
             panic!("Unexpected node type");
@@ -229,16 +245,13 @@ mod tests {
         )
         .determine_next_node(&nodes_parsed, &paths_parsed);
 
-        assert!(matches!(intersect, NextTransportNode::Intersect(_, _)));
-
-        //assert_eq!(intersect.node_to().site, Site::new(0.5, 0.5));
         if let NextTransportNode::Intersect(node, _) = intersect {
-            assert_eq!(node.site, Site::new(0.5, 0.5));
+            assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
         } else {
             panic!("Unexpected node type");
         }
 
-        // Existing node
+        // Existing node (close between two nodes)
         let existing = PathCandidate::new(
             TransportNode::default().set_site(Site::new(1.0, 1.0)),
             Angle::new(std::f64::consts::PI * 0.05),
@@ -246,9 +259,19 @@ mod tests {
         )
         .determine_next_node(&nodes_parsed, &paths_parsed);
 
-        assert!(matches!(existing, NextTransportNode::Existing(_)));
+        if let NextTransportNode::Existing(node_id) = existing {
+            assert_eq!(node_id, NodeId::new(1));
+        } else {
+            panic!("Unexpected node type");
+        }
+        // Existing node (close between an existing node and expected path)
+        let existing = PathCandidate::new(
+            TransportNode::default().set_site(Site::new(1.0, 0.5)),
+            Angle::new(std::f64::consts::PI * 0.05),
+            property.clone(),
+        )
+        .determine_next_node(&nodes_parsed, &paths_parsed);
 
-        //assert_eq!(existing.node_to(), nodes[1]);
         if let NextTransportNode::Existing(node_id) = existing {
             assert_eq!(node_id, NodeId::new(1));
         } else {
@@ -298,6 +321,8 @@ mod tests {
             property.clone(),
         )
         .determine_next_node(&nodes_parsed, &paths_parsed);
+
+        println!("{:?}", next);
 
         assert!(matches!(next, NextTransportNode::Intersect(_, _)));
         if let NextTransportNode::Intersect(node, _) = next {
