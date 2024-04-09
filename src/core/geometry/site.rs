@@ -107,10 +107,10 @@ mod tests {
     fn test_extend() {
         let site = Site::new(0.0, 0.0);
         let angle = Angle::new(std::f64::consts::PI / 4.0);
-        let distance = 1.0;
+        let distance = 2.0f64.sqrt();
         let extended = site.extend(angle, distance);
-        let expected = Site::new(1.0, 1.0);
-        assert!(extended.distance(&expected) - distance < 1e-9);
+        let expected = Site::new(1.0, -1.0);
+        assert!(extended.distance(&expected) < 1e-6);
     }
 
     #[test]
