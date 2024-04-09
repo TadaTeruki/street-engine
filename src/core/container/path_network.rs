@@ -211,7 +211,6 @@ where
         })
     }
 
-    /*
     /// Search nodes around a line segment within a radius.
     pub fn node_around_line_iter(
         &self,
@@ -219,20 +218,20 @@ where
         radius: f64,
     ) -> impl Iterator<Item = &NodeId> {
         let envelope = rstar::AABB::from_corners(
-            [line.0.x.min(line.1.x)-radius, line.0.y.min(line.1.y)-radius],
-            [line.0.x.max(line.1.x)+radius, line.0.y.max(line.1.y)+radius],
+            [
+                line.0.x.min(line.1.x) - radius,
+                line.0.y.min(line.1.y) - radius,
+            ],
+            [
+                line.0.x.max(line.1.x) + radius,
+                line.0.y.max(line.1.y) + radius,
+            ],
         );
         self.node_tree
             .locate_in_envelope(&envelope)
-            .filter_map(move |object| {
-                if object.line_segment.get_distance(&line) <= radius {
-                    Some(&object.node_ids.0)
-                } else {
-                    None
-                }
-            })
+            .filter(move |object| line.get_distance(&object.site) <= radius)
+            .map(|object| &object.node_id)
     }
-    */
 
     /// Search paths touching a rectangle.
     pub fn paths_touching_rect_iter(
@@ -408,6 +407,43 @@ mod tests {
         let path = LineSegment::new(Site::new(1.0, 1.0), Site::new(2.0, 2.0));
         let paths = network.paths_crossing_iter(path).collect::<Vec<_>>();
         assert_eq!(paths.len(), 1);
+
+        assert!(network.check_path_state_is_consistent());
+    }
+
+    #[test]
+    fn test_nodes_around_site() {
+        let mut network = PathNetwork::new();
+        let node0 = network.add_node(Site::new(0.0, 0.0));
+        let node1 = network.add_node(Site::new(1.0, 1.0));
+        let node2 = network.add_node(Site::new(2.0, 2.0));
+        let node3 = network.add_node(Site::new(3.0, 3.0));
+        let node4 = network.add_node(Site::new(1.0, 4.0));
+
+        network.add_path(node0, node1);
+        network.add_path(node1, node2);
+        network.add_path(node2, node3);
+        network.add_path(node3, node4);
+        network.add_path(node4, node2);
+
+        let site = Site::new(1.0, 1.0);
+        let nodes = network.node_around_site_iter(site, 1.0).collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 1);
+
+        let site = Site::new(2.0, 1.0);
+        let nodes = network.node_around_site_iter(site, 2.0).collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 2);
+
+        let site = Site::new(2.0, 3.0);
+        let nodes = network.node_around_site_iter(site, 2.0).collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 3);
+
+        network.remove_path(node3, node4);
+        network.remove_node(node1);
+
+        let site = Site::new(2.0, 1.0);
+        let nodes = network.node_around_site_iter(site, 2.0).collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 1);
 
         assert!(network.check_path_state_is_consistent());
     }
