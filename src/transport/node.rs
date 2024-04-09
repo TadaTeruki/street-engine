@@ -1,5 +1,3 @@
-use rstar::PointDistance;
-
 use crate::core::{
     container::path_network::NodeId,
     geometry::{angle::Angle, line_segment::LineSegment, site::Site},
@@ -71,7 +69,10 @@ impl Ord for PathCandidate {
     }
 }
 
+type RelatedNode<'a> = (&'a TransportNode, NodeId);
+
 impl PathCandidate {
+    /// Create a new path candidate.
     pub fn new(node_from: TransportNode, angle_to: Angle, property: TransportProperty) -> Self {
         Self {
             node_from,
@@ -99,8 +100,8 @@ impl PathCandidate {
     /// Determine the next node type from related(close) nodes and paths.
     fn determine_next_node(
         &self,
-        related_nodes: &[(&TransportNode, NodeId)],
-        related_paths: &[((&TransportNode, NodeId), (&TransportNode, NodeId))],
+        related_nodes: &[RelatedNode],
+        related_paths: &[(RelatedNode, RelatedNode)],
     ) -> NextTransportNode {
         // Crossing Paths
         let search_from = self.node_from.site;
