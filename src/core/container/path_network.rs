@@ -111,6 +111,18 @@ where
         }
     }
 
+    pub fn nodes_iter(&self) -> impl Iterator<Item = (NodeId, &N)> {
+        self.nodes.iter().map(|(node_id, node)| (*node_id, node))
+    }
+
+    pub fn neighbors_iter(&self, node_id: NodeId) -> Option<impl Iterator<Item = (NodeId, &N)>> {
+        self.path_connection
+            .neighbors_iter(node_id)
+            .map(|neighbors| {
+                neighbors.filter_map(move |neighbor| Some((*neighbor, self.nodes.get(&neighbor)?)))
+            })
+    }
+
     pub(crate) fn add_node(&mut self, node: N) -> NodeId {
         let node_id = self.last_node_id;
         self.nodes.insert(node_id, node);

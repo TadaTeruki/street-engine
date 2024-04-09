@@ -52,6 +52,20 @@ where
         Some(self)
     }
 
+    pub fn iterate_n_times(mut self, n: usize) -> Self {
+        for _ in 0..n {
+            self = self.iterate();
+        }
+        self
+    }
+
+    pub fn iterate_until_empty(mut self) -> Self {
+        while !self.path_candidate_container.is_empty() {
+            self = self.iterate();
+        }
+        self
+    }
+
     pub fn iterate(mut self) -> Self {
         let prior_candidate = if let Some(candidate) = self.path_candidate_container.pop() {
             candidate

@@ -7,7 +7,7 @@ use super::property::TransportProperty;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct TransportNode {
-    site: Site,
+    pub site: Site,
 }
 
 impl TransportNode {
