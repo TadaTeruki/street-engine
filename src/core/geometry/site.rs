@@ -84,7 +84,7 @@ impl Site {
         if dx == 0.0 && dy == 0.0 {
             return Angle::new(0.0);
         }
-        Angle::new(dy.atan2(dx))
+        Angle::new(dy.atan2(dx) + std::f64::consts::PI * 0.5)
     }
 
     fn is_around(&self, other: &Self, range: f64) -> bool {

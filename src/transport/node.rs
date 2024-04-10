@@ -125,7 +125,6 @@ impl PathCandidate {
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
     ) -> NextTransportNode {
-        // Crossing Paths
         let search_from = self.node_from.site;
         let site_expected_to = self.get_expected_site_to();
 
@@ -135,12 +134,9 @@ impl PathCandidate {
             let existing_node = related_nodes
                 .iter()
                 .filter(|(existing_node, _)| {
-                    let range_2 = self.property.path_extra_length_for_intersection.powi(2);
-                    existing_node.site.distance_2(&site_expected_to) < range_2
-                        || LineSegment::new(search_from, site_expected_to)
-                            .get_projection(&existing_node.site)
-                            .map(|projection| existing_node.site.distance_2(&projection) < range_2)
-                            == Some(true)
+                    LineSegment::new(search_from, site_expected_to)
+                        .get_distance(&existing_node.site)
+                        < self.property.path_extra_length_for_intersection
                 })
                 .filter(|(existing_node, existing_node_id)| {
                     let has_intersection = related_paths.iter().any(|(path_from, path_to)| {
@@ -166,6 +162,8 @@ impl PathCandidate {
             }
         }
 
+        // Crossing Paths
+        /*
         {
             let search_to = self.get_expected_site_to_with_extra_length();
             let search_line = LineSegment::new(search_from, search_to);
@@ -191,6 +189,7 @@ impl PathCandidate {
                 return crossing_path;
             }
         }
+        */
 
         // New Node
         // Path crosses are already checked in the previous steps.

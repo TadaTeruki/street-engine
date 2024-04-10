@@ -97,6 +97,15 @@ where
     last_node_id: NodeId,
 }
 
+impl<N> Default for PathNetwork<N>
+where
+    N: Eq + Copy + Into<Site>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<N> PathNetwork<N>
 where
     N: Eq + Copy + Into<Site>,
@@ -119,7 +128,7 @@ where
         self.path_connection
             .neighbors_iter(node_id)
             .map(|neighbors| {
-                neighbors.filter_map(move |neighbor| Some((*neighbor, self.nodes.get(&neighbor)?)))
+                neighbors.filter_map(move |neighbor| Some((*neighbor, self.nodes.get(neighbor)?)))
             })
     }
 

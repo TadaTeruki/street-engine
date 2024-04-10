@@ -54,7 +54,7 @@ impl<'a> TransportPropertyProvider for MapProvider<'a> {
             elevation,
             population_density,
             path_normal_length: 1.2,
-            path_extra_length_for_intersection: 0.3,
+            path_extra_length_for_intersection: 0.1,
             branch_probability: 0.0,
             curve: None,
         })
@@ -92,7 +92,7 @@ fn main() {
     let network = TransportBuilder::new(&map_provider)
         .add_origin(Site { x: 0.0, y: 0.0 }, 0.0)
         .unwrap()
-        .iterate_n_times(10)
+        .iterate_n_times(300)
         .build();
 
     write_to_image(

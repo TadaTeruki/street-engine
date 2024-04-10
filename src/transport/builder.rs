@@ -59,13 +59,6 @@ where
         self
     }
 
-    pub fn iterate_until_empty(mut self) -> Self {
-        while !self.path_candidate_container.is_empty() {
-            self = self.iterate();
-        }
-        self
-    }
-
     pub fn iterate(mut self) -> Self {
         let prior_candidate = if let Some(candidate) = self.path_candidate_container.pop() {
             candidate
@@ -76,6 +69,9 @@ where
         let site_from = prior_candidate.get_site_from();
         let site_expected_to = prior_candidate.get_expected_site_to();
 
+        println!("{:?} -> {:?}", site_from, site_expected_to);
+        println!("except: {:?}", prior_candidate.get_node_from_id());
+
         let related_nodes = self
             .path_network
             .nodes_around_line_iter(
@@ -84,6 +80,7 @@ where
                     .get_property()
                     .path_extra_length_for_intersection,
             )
+            .filter(|&node_id| *node_id != prior_candidate.get_node_from_id())
             .filter_map(|node_id| Some((self.path_network.get_node(*node_id)?, *node_id)))
             .collect::<Vec<_>>();
 
@@ -100,10 +97,37 @@ where
         let candidate_node_id = prior_candidate.get_node_from_id();
         let next_node = prior_candidate.determine_next_node(&related_nodes, &related_paths);
 
+        println!("{:?}", next_node);
+
         match next_node {
             NextTransportNode::New(node_to) => {
                 let node_id = self.path_network.add_node(node_to);
                 self.path_network.add_path(candidate_node_id, node_id);
+
+                // add new path candidates
+                if let Some(property) = self.property_provider.get_property(&node_to.into()) {
+                    let straight_angle = site_from.get_angle(&site_expected_to);
+                    self.path_candidate_container.push(PathCandidate::new(
+                        node_to,
+                        node_id,
+                        straight_angle,
+                        property.clone(),
+                    ));
+
+                    self.path_candidate_container.push(PathCandidate::new(
+                        node_to,
+                        node_id,
+                        straight_angle.right_clockwise(),
+                        property.clone(),
+                    ));
+
+                    self.path_candidate_container.push(PathCandidate::new(
+                        node_to,
+                        node_id,
+                        straight_angle.right_counterclockwise(),
+                        property.clone(),
+                    ));
+                }
             }
             NextTransportNode::Existing(node_id) => {
                 self.path_network.add_path(candidate_node_id, node_id);
@@ -115,33 +139,6 @@ where
                 self.path_network.add_path(candidate_node_id, next_node_id);
                 self.path_network.add_path(next_node_id, encount_path.0);
                 self.path_network.add_path(next_node_id, encount_path.1);
-            }
-        }
-
-        if let NextTransportNode::New(next_node_to) = next_node {
-            let next_node_id = self.path_network.add_node(next_node_to);
-            if let Some(property) = self.property_provider.get_property(&next_node_to.into()) {
-                let straight_angle = site_from.get_angle(&site_expected_to);
-                self.path_candidate_container.push(PathCandidate::new(
-                    next_node_to,
-                    next_node_id,
-                    straight_angle,
-                    property.clone(),
-                ));
-
-                self.path_candidate_container.push(PathCandidate::new(
-                    next_node_to,
-                    next_node_id,
-                    straight_angle.right_clockwise(),
-                    property.clone(),
-                ));
-
-                self.path_candidate_container.push(PathCandidate::new(
-                    next_node_to,
-                    next_node_id,
-                    straight_angle.right_counterclockwise(),
-                    property.clone(),
-                ));
             }
         }
 
