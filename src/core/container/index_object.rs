@@ -25,10 +25,6 @@ where
         }
     }
 
-    pub fn line_segment(&self) -> &LineSegment {
-        &self.line_segment
-    }
-
     pub fn node_ids(&self) -> &(ID, ID) {
         &self.node_ids
     }

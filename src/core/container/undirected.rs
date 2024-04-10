@@ -57,7 +57,9 @@ where
     }
 
     /// Get the number of nodes in the graph.
-    pub fn order(&self) -> usize {
+    /// This function is now only for testing, but it may be useful in the future.
+    #[allow(dead_code)]
+    fn order(&self) -> usize {
         self.edges.len()
     }
 
@@ -66,34 +68,9 @@ where
         self.edges.values().map(|set| set.len()).sum::<usize>() / 2
     }
 
-    /// Get the nodes of the graph.
-    fn nodes(&self) -> Vec<N> {
-        self.edges.keys().copied().collect()
-    }
-
-    /// Get the edges of the graph as an iterator.
-    fn edges_iter(&self) -> impl Iterator<Item = (N, N)> + '_ {
-        self.edges.iter().flat_map(|(node, set)| {
-            set.iter()
-                .filter(move |&neighbor| *node < *neighbor)
-                .map(move |&neighbor| (*node, neighbor))
-        })
-    }
-
     /// Get the neighbors of a node as an iterator.
     pub fn neighbors_iter(&self, node: N) -> Option<impl Iterator<Item = &N> + '_> {
         self.edges.get(&node).map(|set| set.iter())
-    }
-
-    /// Remove a node from the graph.
-    pub fn remove_node(&mut self, node: N) -> Option<N> {
-        if let Some(set) = self.edges.remove(&node) {
-            set.iter().for_each(|neighbor| {
-                self.edges.get_mut(neighbor).map(|set| set.remove(&node));
-            });
-        }
-
-        Some(node)
     }
 }
 
@@ -117,9 +94,6 @@ mod tests {
             .map(|&x| x)
             .collect::<Vec<_>>();
         assert_eq!(neighbors, vec![25, 85]);
-
-        let edges = graph.edges_iter().collect::<Vec<_>>();
-        assert_eq!(edges.len(), graph.size(),);
 
         assert_eq!(graph.order(), 5);
         assert_eq!(graph.size(), 4);
