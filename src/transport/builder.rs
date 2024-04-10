@@ -82,7 +82,7 @@ where
                 .map(|angle| {
                     site_from.extend(angle, prior_candidate.get_property().path_normal_length)
                 })
-                .filter_map(|site| Some((site, self.property_provider.get_property(&site.into())?)))
+                .filter_map(|site| Some((site, self.property_provider.get_property(&site)?)))
                 .max_by(|(_, property1), (_, property2)| {
                     property1.path_priority.total_cmp(&property2.path_priority)
                 })

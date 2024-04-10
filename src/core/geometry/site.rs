@@ -116,14 +116,14 @@ mod tests {
     #[test]
     fn test_get_angle() {
         let site0 = Site::new(0.0, 0.0);
-        let site1 = Site::new(1.0, 0.0);
-        let site2 = Site::new(1.0, 1.0);
-        let site3 = Site::new(0.0, 1.0);
-        let site4 = Site::new(-1.0, 1.0);
-        let site5 = Site::new(-1.0, 0.0);
-        let site6 = Site::new(-1.0, -1.0);
-        let site7 = Site::new(0.0, -1.0);
-        let site8 = Site::new(1.0, -1.0);
+        let site1 = Site::new(0.0, -1.0);
+        let site2 = Site::new(1.0, -1.0);
+        let site3 = Site::new(1.0, 0.0);
+        let site4 = Site::new(1.0, 1.0);
+        let site5 = Site::new(0.0, 1.0);
+        let site6 = Site::new(-1.0, 1.0);
+        let site7 = Site::new(-1.0, 0.0);
+        let site8 = Site::new(-1.0, -1.0);
 
         assert_eq!(site0.get_angle(&site1).radian(), 0.0);
         assert_eq!(site0.get_angle(&site2).radian(), std::f64::consts::PI / 4.0);

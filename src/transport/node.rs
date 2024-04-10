@@ -243,7 +243,7 @@ mod tests {
 
         let (node_from, angle_expected_to) = (
             TransportNode::default().set_site(Site::new(1.0, 1.0)),
-            Angle::new(std::f64::consts::PI * 0.5),
+            Angle::new(std::f64::consts::PI * 0.75),
         );
         let site_expected_to = node_from
             .site
@@ -380,16 +380,6 @@ mod tests {
             branch_probability: 0.0,
             curve: None,
         };
-
-        /*
-        let next = PathCandidate::new(
-            TransportNode::default().set_site(Site::new(-1.0, 1.0)),
-            NodeId::new(10000),
-            Angle::new(std::f64::consts::PI * 0.5),
-            property.clone(),
-        )
-        .determine_next_node(&nodes_parsed, &paths_parsed);
-        */
 
         let (node_from, angle_expected_to) = (
             TransportNode::default().set_site(Site::new(-1.0, 1.0)),
