@@ -2,9 +2,7 @@ use city_engine::core::container::path_network::PathNetwork;
 use city_engine::core::geometry::site::Site;
 use city_engine::transport::builder::TransportBuilder;
 use city_engine::transport::node::TransportNode;
-use city_engine::transport::property::{
-    CurveProperty, TransportProperty, TransportPropertyProvider,
-};
+use city_engine::transport::rules::{PathDirectionRules, TransportRules, TransportRulesProvider};
 use fastlem::core::{parameters::TopographicalParameters, traits::Model};
 use fastlem::lem::generator::TerrainGenerator;
 use fastlem::models::surface::builder::TerrainModel2DBulider;
@@ -35,8 +33,8 @@ impl<'a> MapProvider<'a> {
     }
 }
 
-impl<'a> TransportPropertyProvider for MapProvider<'a> {
-    fn get_property(&self, site: &Site) -> Option<TransportProperty> {
+impl<'a> TransportRulesProvider for MapProvider<'a> {
+    fn get_rules(&self, site: &Site) -> Option<TransportRules> {
         let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
         let population_density = self
             .interpolator
@@ -51,17 +49,17 @@ impl<'a> TransportPropertyProvider for MapProvider<'a> {
         if elevation < 1e-3 {
             return None;
         }
-        Some(TransportProperty {
+        Some(TransportRules {
             path_priority: population_density,
             elevation,
             population_density,
             path_normal_length: 0.5,
             path_extra_length_for_intersection: 0.3,
             branch_probability: 0.0,
-            curve: Some(CurveProperty {
+            path_direction_rules: PathDirectionRules {
                 max_radian: std::f64::consts::PI / 32.0,
                 comparison_step: 3,
-            }),
+            },
         })
     }
 }
