@@ -90,9 +90,6 @@ where
             return self;
         };
 
-        println!("{:?} -> {:?}", site_start, site_expected_end);
-        println!("except: {:?}", prior_candidate.get_node_start_id());
-
         let related_nodes = self
             .path_network
             .nodes_around_line_iter(
@@ -122,8 +119,6 @@ where
         let candidate_node_id = prior_candidate.get_node_start_id();
         let next_node =
             prior_candidate.determine_next_node(site_expected_end, &related_nodes, &related_paths);
-
-        println!("{:?}", next_node);
 
         match next_node {
             NextTransportNode::New(node_end) => {
