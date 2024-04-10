@@ -1,10 +1,13 @@
 use std::collections::BTreeMap;
 
-use rstar::{PointDistance, RTree, RTreeObject};
+use rstar::{RTree, RTreeObject};
 
 use crate::core::geometry::{line_segment::LineSegment, site::Site};
 
-use super::undirected::UndirectedGraph;
+use super::{
+    index_object::{NodeTreeObject, PathTreeObject},
+    undirected::UndirectedGraph,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NodeId(usize);
@@ -16,83 +19,13 @@ impl NodeId {
 }
 
 #[derive(Debug, Clone)]
-struct PathTreeObject {
-    line_segment: LineSegment,
-    node_ids: (NodeId, NodeId),
-}
-
-impl RTreeObject for PathTreeObject {
-    type Envelope = rstar::AABB<[f64; 2]>;
-
-    fn envelope(&self) -> Self::Envelope {
-        rstar::AABB::from_corners(
-            [self.line_segment.0.x, self.line_segment.0.y],
-            [self.line_segment.1.x, self.line_segment.1.y],
-        )
-    }
-}
-
-impl PointDistance for PathTreeObject {
-    fn distance_2(&self, point: &[f64; 2]) -> f64 {
-        let site = Site::new(point[0], point[1]);
-        let proj = self.line_segment.get_projection(&site);
-        if let Some(proj) = proj {
-            let dx = proj.x - site.x;
-            let dy = proj.y - site.y;
-            dx * dx + dy * dy
-        } else {
-            let start = &self.line_segment.0;
-            let end = &self.line_segment.1;
-
-            let d0 = start.distance(&Site::new(point[0], point[1]));
-            let d1 = end.distance(&Site::new(point[0], point[1]));
-            d0.min(d1)
-        }
-    }
-}
-
-impl PartialEq for PathTreeObject {
-    fn eq(&self, other: &Self) -> bool {
-        self.node_ids == other.node_ids || self.node_ids == (other.node_ids.1, other.node_ids.0)
-    }
-}
-
-#[derive(Debug, Clone)]
-struct NodeTreeObject {
-    site: Site,
-    node_id: NodeId,
-}
-
-impl RTreeObject for NodeTreeObject {
-    type Envelope = rstar::AABB<[f64; 2]>;
-
-    fn envelope(&self) -> Self::Envelope {
-        rstar::AABB::from_point([self.site.x, self.site.y])
-    }
-}
-
-impl PointDistance for NodeTreeObject {
-    fn distance_2(&self, point: &[f64; 2]) -> f64 {
-        let dx = self.site.x - point[0];
-        let dy = self.site.y - point[1];
-        dx * dx + dy * dy
-    }
-}
-
-impl PartialEq for NodeTreeObject {
-    fn eq(&self, other: &Self) -> bool {
-        self.node_id == other.node_id
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct PathNetwork<N>
 where
     N: Eq + Copy + Into<Site>,
 {
     nodes: BTreeMap<NodeId, N>,
-    path_tree: RTree<PathTreeObject>,
-    node_tree: RTree<NodeTreeObject>,
+    path_tree: RTree<PathTreeObject<NodeId>>,
+    node_tree: RTree<NodeTreeObject<NodeId>>,
     path_connection: UndirectedGraph<NodeId>,
     last_node_id: NodeId,
 }
@@ -116,7 +49,7 @@ where
             path_tree: RTree::new(),
             node_tree: RTree::new(),
             path_connection: UndirectedGraph::new(),
-            last_node_id: NodeId(0),
+            last_node_id: NodeId::new(0),
         }
     }
 
@@ -135,11 +68,9 @@ where
     pub(crate) fn add_node(&mut self, node: N) -> NodeId {
         let node_id = self.last_node_id;
         self.nodes.insert(node_id, node);
-        self.node_tree.insert(NodeTreeObject {
-            site: node.into(),
-            node_id,
-        });
-        self.last_node_id = NodeId(node_id.0 + 1);
+        self.node_tree
+            .insert(NodeTreeObject::new(node.into(), node_id));
+        self.last_node_id = NodeId::new(node_id.0 + 1);
         node_id
     }
 
@@ -160,7 +91,7 @@ where
             self.remove_path(node_id, *neighbor);
         });
 
-        self.node_tree.remove(&NodeTreeObject { site, node_id });
+        self.node_tree.remove(&NodeTreeObject::new(site, node_id));
 
         self.nodes.remove(&node_id);
         Some(node_id)
@@ -186,10 +117,10 @@ where
 
         let (start_site, end_site) = (start_site.into(), end_site.into());
 
-        self.path_tree.insert(PathTreeObject {
-            line_segment: LineSegment::new(start_site, end_site),
-            node_ids: (start, end),
-        });
+        self.path_tree.insert(PathTreeObject::new(
+            LineSegment::new(start_site, end_site),
+            (start, end),
+        ));
 
         Some((start, end))
     }
@@ -205,10 +136,10 @@ where
 
         self.path_connection.remove_edge(start, end);
 
-        self.path_tree.remove(&PathTreeObject {
-            line_segment: LineSegment::new(start_site.into(), end_site.into()),
-            node_ids: (start, end),
-        });
+        self.path_tree.remove(&PathTreeObject::new(
+            LineSegment::new(start_site.into(), end_site.into()),
+            (start, end),
+        ));
 
         Some((start, end))
     }
@@ -250,8 +181,8 @@ where
         );
         self.node_tree
             .locate_in_envelope(&envelope)
-            .filter(move |object| line.get_distance(&object.site) <= radius)
-            .map(|object| &object.node_id)
+            .filter(move |object| line.get_distance(object.site()) <= radius)
+            .map(|object| object.node_id())
     }
 
     /// Search paths touching a rectangle.
@@ -265,7 +196,7 @@ where
 
         self.path_tree
             .locate_in_envelope_intersecting(&search_rect)
-            .map(|object| &object.node_ids)
+            .map(|object| object.node_ids())
     }
 
     pub fn into_optimized(self) -> Self {
@@ -276,18 +207,14 @@ where
     /// Search paths crossing a line segment.
     /// Return the crossing paths and the intersection sites.
     fn paths_crossing_iter(&self, line: LineSegment) -> impl Iterator<Item = (&LineSegment, Site)> {
-        let envelope = &PathTreeObject {
-            line_segment: line.clone(),
-            node_ids: (NodeId(0), NodeId(0)),
-        }
-        .envelope();
+        let envelope = &PathTreeObject::new(line.clone(), (NodeId(0), NodeId(0))).envelope();
         self.path_tree
             .locate_in_envelope_intersecting(envelope)
             .filter_map(move |object| {
                 object
-                    .line_segment
+                    .line_segment()
                     .get_intersection(&line)
-                    .map(|intersection| (&object.line_segment, intersection))
+                    .map(|intersection| (object.line_segment(), intersection))
             })
     }
 
@@ -299,7 +226,7 @@ where
     ) -> impl Iterator<Item = &(NodeId, NodeId)> {
         self.path_tree
             .locate_within_distance([site.x, site.y], radius)
-            .map(|object| &object.node_ids)
+            .map(|object| object.node_ids())
     }
 
     /// This function is only for testing
