@@ -92,7 +92,7 @@ fn main() {
     let network = TransportBuilder::new(&map_provider)
         .add_origin(Site { x: 0.0, y: 0.0 }, 0.0)
         .unwrap()
-        .iterate_n_times(300)
+        .iterate_n_times(3500)
         .build();
 
     write_to_image(

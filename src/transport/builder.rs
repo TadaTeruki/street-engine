@@ -87,6 +87,10 @@ where
         let related_paths = self
             .path_network
             .paths_touching_rect_iter(site_from, site_expected_to)
+            .filter(|(node_id_from, node_id_to)| {
+                *node_id_from != prior_candidate.get_node_from_id()
+                    && *node_id_to != prior_candidate.get_node_from_id()
+            })
             .filter_map(|(node_id_from, node_id_to)| {
                 let node_from = self.path_network.get_node(*node_id_from)?;
                 let node_to = self.path_network.get_node(*node_id_to)?;

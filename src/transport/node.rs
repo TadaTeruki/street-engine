@@ -163,7 +163,6 @@ impl PathCandidate {
         }
 
         // Crossing Paths
-        /*
         {
             let search_to = self.get_expected_site_to_with_extra_length();
             let search_line = LineSegment::new(search_from, search_to);
@@ -189,7 +188,6 @@ impl PathCandidate {
                 return crossing_path;
             }
         }
-        */
 
         // New Node
         // Path crosses are already checked in the previous steps.
