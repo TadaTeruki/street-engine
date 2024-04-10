@@ -1,8 +1,11 @@
 use std::collections::BinaryHeap;
 
-use crate::core::{
-    container::path_network::PathNetwork,
-    geometry::{angle::Angle, line_segment::LineSegment, site::Site},
+use crate::{
+    core::{
+        container::path_network::PathNetwork,
+        geometry::{angle::Angle, line_segment::LineSegment, site::Site},
+    },
+    transport::property::CurveProperty,
 };
 
 use super::{
@@ -67,7 +70,28 @@ where
         };
 
         let site_from = prior_candidate.get_site_from();
-        let site_expected_to = prior_candidate.get_expected_site_to();
+        let site_expected_to = if let Some(site_expected_to) = {
+            let curve = prior_candidate
+                .get_property()
+                .curve
+                .clone()
+                .unwrap_or_default();
+            prior_candidate
+                .angle_expected_to()
+                .iter_range_around(curve.max_radian, curve.comparison_step)
+                .map(|angle| {
+                    site_from.extend(angle, prior_candidate.get_property().path_normal_length)
+                })
+                .filter_map(|site| Some((site, self.property_provider.get_property(&site.into())?)))
+                .max_by(|(_, property1), (_, property2)| {
+                    property1.path_priority.total_cmp(&property2.path_priority)
+                })
+                .map(|(site, _)| site)
+        } {
+            site_expected_to
+        } else {
+            return self;
+        };
 
         println!("{:?} -> {:?}", site_from, site_expected_to);
         println!("except: {:?}", prior_candidate.get_node_from_id());
@@ -99,7 +123,8 @@ where
             .collect::<Vec<_>>();
 
         let candidate_node_id = prior_candidate.get_node_from_id();
-        let next_node = prior_candidate.determine_next_node(&related_nodes, &related_paths);
+        let next_node =
+            prior_candidate.determine_next_node(site_expected_to, &related_nodes, &related_paths);
 
         println!("{:?}", next_node);
 

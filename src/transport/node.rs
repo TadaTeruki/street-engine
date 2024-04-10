@@ -97,12 +97,16 @@ impl PathCandidate {
     pub fn get_site_from(&self) -> Site {
         self.node_from.site
     }
-
+    /*
     /// Get the end site of the path.
     pub fn get_expected_site_to(&self) -> Site {
         self.node_from
             .site
             .extend(self.angle_expected_to, self.property.path_normal_length)
+    }
+    */
+    pub fn angle_expected_to(&self) -> Angle {
+        self.angle_expected_to
     }
 
     /// Get property of the path.
@@ -122,11 +126,11 @@ impl PathCandidate {
     /// Determine the next node type from related(close) nodes and paths.
     pub fn determine_next_node(
         &self,
+        site_expected_to: Site,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
     ) -> NextTransportNode {
         let search_from = self.node_from.site;
-        let site_expected_to = self.get_expected_site_to();
 
         // Existing Node
         // For this situation, path crosses are needed to be checked again because the direction of the path can be changed from original.
@@ -237,14 +241,21 @@ mod tests {
             curve: None,
         };
 
+        let (node_from, angle_expected_to) = (
+            TransportNode::default().set_site(Site::new(1.0, 1.0)),
+            Angle::new(std::f64::consts::PI * 0.5),
+        );
+        let site_expected_to = node_from
+            .site
+            .extend(angle_expected_to, property.path_normal_length);
         // New node
         let new = PathCandidate::new(
-            TransportNode::default().set_site(Site::new(1.0, 1.0)),
+            node_from,
             NodeId::new(10000),
-            Angle::new(std::f64::consts::PI * 0.75),
+            angle_expected_to,
             property.clone(),
         )
-        .determine_next_node(&nodes_parsed, &paths_parsed);
+        .determine_next_node(site_expected_to, &nodes_parsed, &paths_parsed);
 
         if let NextTransportNode::New(node) = new {
             assert_eq_f64!(
@@ -259,13 +270,20 @@ mod tests {
         }
 
         // Intersect (Crossing Path)
-        let intersect = PathCandidate::new(
+        let (node_from, angle_expected_to) = (
             TransportNode::default().set_site(Site::new(1.0, 1.0)),
-            NodeId::new(10000),
             Angle::new(-std::f64::consts::PI * 0.25),
+        );
+        let site_expected_to = node_from
+            .site
+            .extend(angle_expected_to, property.path_normal_length);
+        let intersect = PathCandidate::new(
+            node_from,
+            NodeId::new(10000),
+            angle_expected_to,
             property.clone(),
         )
-        .determine_next_node(&nodes_parsed, &paths_parsed);
+        .determine_next_node(site_expected_to, &nodes_parsed, &paths_parsed);
 
         if let NextTransportNode::Intersect(node, _) = intersect {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
@@ -274,20 +292,29 @@ mod tests {
         }
 
         // Existing node (close between two nodes)
-        let existing = PathCandidate::new(
+        let (node_from, angle_expected_to) = (
             TransportNode::default().set_site(Site::new(1.0, 1.0)),
-            NodeId::new(10000),
             Angle::new(std::f64::consts::PI * 0.05),
+        );
+        let site_expected_to = node_from
+            .site
+            .extend(angle_expected_to, property.path_normal_length);
+        let existing = PathCandidate::new(
+            node_from,
+            NodeId::new(10000),
+            angle_expected_to,
             property.clone(),
         )
-        .determine_next_node(&nodes_parsed, &paths_parsed);
+        .determine_next_node(site_expected_to, &nodes_parsed, &paths_parsed);
 
         if let NextTransportNode::Existing(node_id) = existing {
             assert_eq!(node_id, NodeId::new(1));
         } else {
             panic!("Unexpected node type");
         }
+
         // Existing node (close between an existing node and expected path)
+        /*
         let existing = PathCandidate::new(
             TransportNode::default().set_site(Site::new(1.0, 0.5)),
             NodeId::new(10000),
@@ -295,6 +322,21 @@ mod tests {
             property.clone(),
         )
         .determine_next_node(&nodes_parsed, &paths_parsed);
+        */
+        let (node_from, angle_expected_to) = (
+            TransportNode::default().set_site(Site::new(1.0, 0.5)),
+            Angle::new(std::f64::consts::PI * 0.05),
+        );
+        let site_expected_to = node_from
+            .site
+            .extend(angle_expected_to, property.path_normal_length);
+        let existing = PathCandidate::new(
+            node_from,
+            NodeId::new(10000),
+            angle_expected_to,
+            property.clone(),
+        )
+        .determine_next_node(site_expected_to, &nodes_parsed, &paths_parsed);
 
         if let NextTransportNode::Existing(node_id) = existing {
             assert_eq!(node_id, NodeId::new(1));
@@ -339,6 +381,7 @@ mod tests {
             curve: None,
         };
 
+        /*
         let next = PathCandidate::new(
             TransportNode::default().set_site(Site::new(-1.0, 1.0)),
             NodeId::new(10000),
@@ -346,6 +389,22 @@ mod tests {
             property.clone(),
         )
         .determine_next_node(&nodes_parsed, &paths_parsed);
+        */
+
+        let (node_from, angle_expected_to) = (
+            TransportNode::default().set_site(Site::new(-1.0, 1.0)),
+            Angle::new(std::f64::consts::PI * 0.5),
+        );
+        let site_expected_to = node_from
+            .site
+            .extend(angle_expected_to, property.path_normal_length);
+        let next = PathCandidate::new(
+            node_from,
+            NodeId::new(10000),
+            angle_expected_to,
+            property.clone(),
+        )
+        .determine_next_node(site_expected_to, &nodes_parsed, &paths_parsed);
 
         println!("{:?}", next);
 

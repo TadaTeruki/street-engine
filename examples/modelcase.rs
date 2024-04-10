@@ -2,7 +2,9 @@ use city_engine::core::container::path_network::PathNetwork;
 use city_engine::core::geometry::site::Site;
 use city_engine::transport::builder::TransportBuilder;
 use city_engine::transport::node::TransportNode;
-use city_engine::transport::property::{TransportProperty, TransportPropertyProvider};
+use city_engine::transport::property::{
+    CurveProperty, TransportProperty, TransportPropertyProvider,
+};
 use fastlem::core::{parameters::TopographicalParameters, traits::Model};
 use fastlem::lem::generator::TerrainGenerator;
 use fastlem::models::surface::builder::TerrainModel2DBulider;
@@ -53,10 +55,13 @@ impl<'a> TransportPropertyProvider for MapProvider<'a> {
             path_priority: population_density,
             elevation,
             population_density,
-            path_normal_length: 1.2,
-            path_extra_length_for_intersection: 0.1,
+            path_normal_length: 0.5,
+            path_extra_length_for_intersection: 0.3,
             branch_probability: 0.0,
-            curve: None,
+            curve: Some(CurveProperty {
+                max_radian: std::f64::consts::PI / 32.0,
+                comparison_step: 3,
+            }),
         })
     }
 }
@@ -92,7 +97,7 @@ fn main() {
     let network = TransportBuilder::new(&map_provider)
         .add_origin(Site { x: 0.0, y: 0.0 }, 0.0)
         .unwrap()
-        .iterate_n_times(3500)
+        .iterate_n_times(13500)
         .build();
 
     write_to_image(

@@ -97,7 +97,7 @@ impl Angle {
     }
 
     /// Create an iterator of angles around the specified angle.
-    fn iter_range_around(&self, radian_range: f64, step_num: usize) -> AngleIter {
+    pub fn iter_range_around(&self, radian_range: f64, step_num: usize) -> AngleIter {
         if step_num == 1 || radian_range == 0.0 {
             return AngleIter {
                 rad_from: self.0,
@@ -113,7 +113,7 @@ impl Angle {
 }
 
 /// An iterator of angles.
-struct AngleIter {
+pub struct AngleIter {
     rad_from: f64,
     rad_to: f64,
     step_num: usize,
