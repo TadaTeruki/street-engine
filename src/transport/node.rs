@@ -3,7 +3,7 @@ use crate::core::{
     geometry::{angle::Angle, line_segment::LineSegment, site::Site},
 };
 
-use super::property::TransportProperty;
+use super::rules::TransportRules;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct TransportNode {
@@ -51,7 +51,7 @@ pub struct PathCandidate {
     node_start: TransportNode,
     node_start_id: NodeId,
     angle_expected_end: Angle,
-    property: TransportProperty,
+    rules: TransportRules,
 }
 
 impl Eq for PathCandidate {}
@@ -64,9 +64,9 @@ impl PartialOrd for PathCandidate {
 
 impl Ord for PathCandidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.property
+        self.rules
             .path_priority
-            .total_cmp(&other.property.path_priority)
+            .total_cmp(&other.rules.path_priority)
     }
 }
 
@@ -78,13 +78,13 @@ impl PathCandidate {
         node_start: TransportNode,
         node_start_id: NodeId,
         angle_expected_end: Angle,
-        property: TransportProperty,
+        rules: TransportRules,
     ) -> Self {
         Self {
             node_start,
             node_start_id,
             angle_expected_end,
-            property,
+            rules,
         }
     }
 
@@ -103,9 +103,9 @@ impl PathCandidate {
         self.angle_expected_end
     }
 
-    /// Get property of the path.
-    pub fn get_property(&self) -> &TransportProperty {
-        &self.property
+    /// Get rules of the path.
+    pub fn get_rules(&self) -> &TransportRules {
+        &self.rules
     }
 
     /// Get the end site of the path with extra length.
@@ -113,7 +113,7 @@ impl PathCandidate {
     fn get_expected_site_to_with_extra_length(&self) -> Site {
         self.node_start.site.extend(
             self.angle_expected_end,
-            self.property.path_normal_length + self.property.path_extra_length_for_intersection,
+            self.rules.path_normal_length + self.rules.path_extra_length_for_intersection,
         )
     }
 
@@ -134,7 +134,7 @@ impl PathCandidate {
                 .filter(|(existing_node, _)| {
                     LineSegment::new(search_start, site_expected_end)
                         .get_distance(&existing_node.site)
-                        < self.property.path_extra_length_for_intersection
+                        < self.rules.path_extra_length_for_intersection
                 })
                 .filter(|(existing_node, existing_node_id)| {
                     let has_intersection = related_paths.iter().any(|(path_start, path_end)| {
@@ -195,6 +195,8 @@ impl PathCandidate {
 
 #[cfg(test)]
 mod tests {
+    use crate::transport::rules::PathDirectionRules;
+
     use super::*;
 
     macro_rules! assert_eq_f64 {
@@ -225,14 +227,14 @@ mod tests {
             .map(|(start, end)| (nodes_parsed[*start], nodes_parsed[*end]))
             .collect::<Vec<_>>();
 
-        let property = TransportProperty {
+        let rules = TransportRules {
             path_priority: 0.0,
             elevation: 0.0,
             population_density: 0.0,
             path_normal_length: 1.0,
             path_extra_length_for_intersection: 0.25,
             branch_probability: 0.0,
-            curve: None,
+            path_direction_rules: PathDirectionRules::default(),
         };
 
         let (node_start, angle_expected_end) = (
@@ -241,13 +243,13 @@ mod tests {
         );
         let site_expected_end = node_start
             .site
-            .extend(angle_expected_end, property.path_normal_length);
+            .extend(angle_expected_end, rules.path_normal_length);
         // New node
         let new = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            property.clone(),
+            rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
 
@@ -270,12 +272,12 @@ mod tests {
         );
         let site_expected_end = node_start
             .site
-            .extend(angle_expected_end, property.path_normal_length);
+            .extend(angle_expected_end, rules.path_normal_length);
         let intersect = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            property.clone(),
+            rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
 
@@ -292,12 +294,12 @@ mod tests {
         );
         let site_expected_end = node_start
             .site
-            .extend(angle_expected_end, property.path_normal_length);
+            .extend(angle_expected_end, rules.path_normal_length);
         let existing = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            property.clone(),
+            rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
 
@@ -314,12 +316,12 @@ mod tests {
         );
         let site_expected_end = node_start
             .site
-            .extend(angle_expected_end, property.path_normal_length);
+            .extend(angle_expected_end, rules.path_normal_length);
         let existing = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            property.clone(),
+            rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
 
@@ -356,14 +358,14 @@ mod tests {
             .map(|(start, end)| (nodes_parsed[*start], nodes_parsed[*end]))
             .collect::<Vec<_>>();
 
-        let property = TransportProperty {
+        let rules = TransportRules {
             path_priority: 0.0,
             elevation: 0.0,
             population_density: 0.0,
             path_normal_length: 10000.0,
             path_extra_length_for_intersection: 0.0,
             branch_probability: 0.0,
-            curve: None,
+            path_direction_rules: PathDirectionRules::default(),
         };
 
         let (node_start, angle_expected_end) = (
@@ -372,12 +374,12 @@ mod tests {
         );
         let site_expected_end = node_start
             .site
-            .extend(angle_expected_end, property.path_normal_length);
+            .extend(angle_expected_end, rules.path_normal_length);
         let next = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            property.clone(),
+            rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
 

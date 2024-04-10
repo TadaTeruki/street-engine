@@ -1,8 +1,8 @@
 use crate::core::geometry::site::Site;
 
-/// Properties of a site for constructing a new path.
+/// Rules to construct a path.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TransportProperty {
+pub struct TransportRules {
     /// Priority to construct a path to this site.
     pub path_priority: f64,
 
@@ -19,12 +19,11 @@ pub struct TransportProperty {
     /// Probability of branching. If 1.0, the path will always create branch.
     pub branch_probability: f64,
 
-    /// Property of curves.
-    /// If None, the path will be always extended to straight.
-    pub curve: Option<CurveProperty>,
+    /// Rules to determine the direction of the path.
+    pub path_direction_rules: PathDirectionRules,
 }
 
-impl Default for TransportProperty {
+impl Default for TransportRules {
     /// With default values, the path is always constructed as a straight line.
     fn default() -> Self {
         Self {
@@ -34,14 +33,17 @@ impl Default for TransportProperty {
             path_normal_length: 0.0,
             path_extra_length_for_intersection: 0.0,
             branch_probability: 0.0,
-            curve: None,
+            path_direction_rules: PathDirectionRules::default(),
         }
     }
 }
 
-/// Properties of curves.
+/// Rules to determine the direction of a path.
+///
+/// This struct implements `Default` method.
+/// With default values, the path is always constructed as a straight line.
 #[derive(Debug, Clone, PartialEq)]
-pub struct CurveProperty {
+pub struct PathDirectionRules {
     /// Maximum angle of curves.
     pub max_radian: f64,
     /// Number of candidates of the next site to create a path.
@@ -49,8 +51,7 @@ pub struct CurveProperty {
     pub comparison_step: usize,
 }
 
-impl Default for CurveProperty {
-    /// With default values, the path is always constructed as a straight line.
+impl Default for PathDirectionRules {
     fn default() -> Self {
         Self {
             max_radian: 0.0,
@@ -59,6 +60,6 @@ impl Default for CurveProperty {
     }
 }
 
-pub trait TransportPropertyProvider {
-    fn get_property(&self, site: &Site) -> Option<TransportProperty>;
+pub trait TransportRulesProvider {
+    fn get_rules(&self, site: &Site) -> Option<TransportRules>;
 }
