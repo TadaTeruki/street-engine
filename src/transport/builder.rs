@@ -7,7 +7,7 @@ use crate::core::{
 
 use super::{
     node::{NextTransportNode, PathCandidate, TransportNode},
-    rules::TransportRulesProvider,
+    traits::{RandomF64Provider, TransportRulesProvider},
 };
 
 pub struct TransportBuilder<'a, TP>
@@ -58,15 +58,21 @@ where
 
     /// Iterate the path network `n` times.
     /// See [`iterate`](Self::iterate) for details.
-    pub fn iterate_n_times(mut self, n: usize) -> Self {
+    pub fn iterate_n_times<R>(mut self, n: usize, rng: &mut R) -> Self
+    where
+        R: RandomF64Provider,
+    {
         for _ in 0..n {
-            self = self.iterate();
+            self = self.iterate::<R>(rng);
         }
         self
     }
 
     /// Iterate the path network to the next step.
-    pub fn iterate(mut self) -> Self {
+    pub fn iterate<R>(mut self, rng: &mut R) -> Self
+    where
+        R: RandomF64Provider,
+    {
         let prior_candidate = if let Some(candidate) = self.path_candidate_container.pop() {
             candidate
         } else {

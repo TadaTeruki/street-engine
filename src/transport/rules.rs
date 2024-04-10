@@ -1,5 +1,3 @@
-use crate::core::geometry::site::Site;
-
 /// Rules to construct a path.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransportRules {
@@ -58,8 +56,4 @@ impl Default for PathDirectionRules {
             comparison_step: 1,
         }
     }
-}
-
-pub trait TransportRulesProvider {
-    fn get_rules(&self, site: &Site) -> Option<TransportRules>;
 }
