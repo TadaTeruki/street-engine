@@ -9,6 +9,9 @@ use super::{
     undirected::UndirectedGraph,
 };
 
+pub trait PathNetworkNodeTrait: Into<Site> + Copy + Eq {}
+impl<T> PathNetworkNodeTrait for T where T: Into<Site> + Copy + Eq {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NodeId(usize);
 
@@ -21,7 +24,7 @@ impl NodeId {
 #[derive(Debug, Clone)]
 pub struct PathNetwork<N>
 where
-    N: Eq + Copy + Into<Site>,
+    N: PathNetworkNodeTrait,
 {
     nodes: BTreeMap<NodeId, N>,
     path_tree: RTree<PathTreeObject<NodeId>>,
@@ -32,7 +35,7 @@ where
 
 impl<N> Default for PathNetwork<N>
 where
-    N: Eq + Copy + Into<Site>,
+    N: PathNetworkNodeTrait,
 {
     fn default() -> Self {
         Self::new()
@@ -41,7 +44,7 @@ where
 
 impl<N> PathNetwork<N>
 where
-    N: Eq + Copy + Into<Site>,
+    N: PathNetworkNodeTrait,
 {
     pub fn new() -> Self {
         Self {

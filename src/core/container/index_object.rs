@@ -2,10 +2,13 @@ use rstar::{PointDistance, RTreeObject};
 
 use crate::core::geometry::{line_segment::LineSegment, site::Site};
 
+pub trait PathTreeIDTrait: Copy + PartialEq {}
+impl<T> PathTreeIDTrait for T where T: Copy + PartialEq {}
+
 #[derive(Debug, Clone)]
 pub struct PathTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     line_segment: LineSegment,
     node_ids: (ID, ID),
@@ -13,7 +16,7 @@ where
 
 impl<ID> PathTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     pub fn new(line_segment: LineSegment, node_ids: (ID, ID)) -> Self {
         Self {
@@ -33,7 +36,7 @@ where
 
 impl<ID> RTreeObject for PathTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     type Envelope = rstar::AABB<[f64; 2]>;
 
@@ -47,7 +50,7 @@ where
 
 impl<ID> PointDistance for PathTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     fn distance_2(&self, point: &[f64; 2]) -> f64 {
         let site = Site::new(point[0], point[1]);
@@ -69,7 +72,7 @@ where
 
 impl<ID> PartialEq for PathTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     fn eq(&self, other: &Self) -> bool {
         self.node_ids == other.node_ids || self.node_ids == (other.node_ids.1, other.node_ids.0)
@@ -79,7 +82,7 @@ where
 #[derive(Debug, Clone)]
 pub struct NodeTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     site: Site,
     node_id: ID,
@@ -87,7 +90,7 @@ where
 
 impl<ID> NodeTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     pub fn new(site: Site, node_id: ID) -> Self {
         Self { site, node_id }
@@ -104,7 +107,7 @@ where
 
 impl<ID> RTreeObject for NodeTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     type Envelope = rstar::AABB<[f64; 2]>;
 
@@ -115,7 +118,7 @@ where
 
 impl<ID> PointDistance for NodeTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     fn distance_2(&self, point: &[f64; 2]) -> f64 {
         let dx = self.site.x - point[0];
@@ -126,7 +129,7 @@ where
 
 impl<ID> PartialEq for NodeTreeObject<ID>
 where
-    ID: Copy + PartialEq,
+    ID: PathTreeIDTrait,
 {
     fn eq(&self, other: &Self) -> bool {
         self.node_id == other.node_id

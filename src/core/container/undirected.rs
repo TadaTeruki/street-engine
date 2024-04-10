@@ -1,17 +1,20 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+pub trait UndirectedGraphNodeTrait: Eq + Ord + Copy {}
+impl<T> UndirectedGraphNodeTrait for T where T: Eq + Ord + Copy {}
+
 /// Undirected graph.
 #[derive(Debug, Clone)]
 pub struct UndirectedGraph<N>
 where
-    N: Eq + Ord + Copy,
+    N: UndirectedGraphNodeTrait,
 {
     edges: BTreeMap<N, BTreeSet<N>>,
 }
 
 impl<N> UndirectedGraph<N>
 where
-    N: Eq + Ord + Copy,
+    N: UndirectedGraphNodeTrait,
 {
     /// Create a new undirected graph.
     pub fn new() -> Self {
