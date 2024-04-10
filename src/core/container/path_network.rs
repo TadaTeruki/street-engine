@@ -166,59 +166,59 @@ where
         Some(node_id)
     }
 
-    pub(crate) fn add_path(&mut self, from: NodeId, to: NodeId) -> Option<(NodeId, NodeId)> {
-        if from == to {
+    pub(crate) fn add_path(&mut self, start: NodeId, end: NodeId) -> Option<(NodeId, NodeId)> {
+        if start == end {
             return None;
         }
-        if self.path_connection.has_edge(from, to) {
+        if self.path_connection.has_edge(start, end) {
             return None;
         }
 
-        let (from_site, to_site) = if let (Some(from_node), Some(to_node)) =
-            (self.nodes.get(&from), self.nodes.get(&to))
+        let (start_site, end_site) = if let (Some(start_node), Some(end_node)) =
+            (self.nodes.get(&start), self.nodes.get(&end))
         {
-            (*from_node, *to_node)
+            (*start_node, *end_node)
         } else {
             return None;
         };
 
-        self.path_connection.add_edge(from, to);
+        self.path_connection.add_edge(start, end);
 
-        let (from_site, to_site) = (from_site.into(), to_site.into());
+        let (start_site, end_site) = (start_site.into(), end_site.into());
 
         self.path_tree.insert(PathTreeObject {
-            line_segment: LineSegment::new(from_site, to_site),
-            node_ids: (from, to),
+            line_segment: LineSegment::new(start_site, end_site),
+            node_ids: (start, end),
         });
 
-        Some((from, to))
+        Some((start, end))
     }
 
-    pub(crate) fn remove_path(&mut self, from: NodeId, to: NodeId) -> Option<(NodeId, NodeId)> {
-        let (from_site, to_site) = if let (Some(from_node), Some(to_node)) =
-            (self.nodes.get(&from), self.nodes.get(&to))
+    pub(crate) fn remove_path(&mut self, start: NodeId, end: NodeId) -> Option<(NodeId, NodeId)> {
+        let (start_site, end_site) = if let (Some(start_node), Some(end_node)) =
+            (self.nodes.get(&start), self.nodes.get(&end))
         {
-            (*from_node, *to_node)
+            (*start_node, *end_node)
         } else {
             return None;
         };
 
-        self.path_connection.remove_edge(from, to);
+        self.path_connection.remove_edge(start, end);
 
         self.path_tree.remove(&PathTreeObject {
-            line_segment: LineSegment::new(from_site.into(), to_site.into()),
-            node_ids: (from, to),
+            line_segment: LineSegment::new(start_site.into(), end_site.into()),
+            node_ids: (start, end),
         });
 
-        Some((from, to))
+        Some((start, end))
     }
 
     pub fn get_node(&self, node_id: NodeId) -> Option<&N> {
         self.nodes.get(&node_id)
     }
 
-    pub fn has_path(&self, from: NodeId, to: NodeId) -> bool {
-        self.path_connection.has_edge(from, to)
+    pub fn has_path(&self, start: NodeId, to: NodeId) -> bool {
+        self.path_connection.has_edge(start, to)
     }
 
     /// Search nodes around a site within a radius.

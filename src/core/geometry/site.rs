@@ -86,10 +86,6 @@ impl Site {
         }
         Angle::new(dy.atan2(dx) + std::f64::consts::PI * 0.5)
     }
-
-    fn is_around(&self, other: &Self, range: f64) -> bool {
-        self.distance_2(other) < range.powi(2)
-    }
 }
 
 #[cfg(test)]
