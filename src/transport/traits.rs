@@ -13,5 +13,5 @@ pub trait TransportRulesProvider {
 ///
 /// The range of the value is the same as the range of `f64`, not constrained.
 pub trait RandomF64Provider {
-    fn random_f64(&mut self) -> f64;
+    fn gen_f64(&mut self) -> f64;
 }

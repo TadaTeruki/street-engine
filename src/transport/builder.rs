@@ -140,7 +140,7 @@ where
                 let node_id = self.path_network.add_node(node_end);
                 self.path_network.add_path(candidate_node_id, node_id);
 
-                // add new path candidates
+                // If the node is newly created, continue to extend the path.
                 if let Some(rules) = self.rules_provider.get_rules(&node_end.into()) {
                     let straight_angle = site_start.get_angle(&site_expected_end);
                     self.path_candidate_container.push(PathCandidate::new(
@@ -150,19 +150,27 @@ where
                         rules.clone(),
                     ));
 
-                    self.path_candidate_container.push(PathCandidate::new(
-                        node_end,
-                        node_id,
-                        straight_angle.right_clockwise(),
-                        rules.clone(),
-                    ));
+                    let clockwise_branch =
+                        rng.gen_f64() < prior_candidate.get_rules().branch_probability;
+                    if clockwise_branch {
+                        self.path_candidate_container.push(PathCandidate::new(
+                            node_end,
+                            node_id,
+                            straight_angle.right_clockwise(),
+                            rules.clone(),
+                        ));
+                    }
 
-                    self.path_candidate_container.push(PathCandidate::new(
-                        node_end,
-                        node_id,
-                        straight_angle.right_counterclockwise(),
-                        rules.clone(),
-                    ));
+                    let counterclockwise_branch =
+                        rng.gen_f64() < prior_candidate.get_rules().branch_probability;
+                    if counterclockwise_branch {
+                        self.path_candidate_container.push(PathCandidate::new(
+                            node_end,
+                            node_id,
+                            straight_angle.right_counterclockwise(),
+                            rules.clone(),
+                        ));
+                    }
                 }
             }
             NextTransportNode::Existing(node_id) => {

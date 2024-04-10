@@ -10,6 +10,7 @@ rstar = "0.12.0"
 
 [dev-dependencies]
 naturalneighbor = "1.2.2"
+rand = "0.8.5"
 noise = "0.9.0"
 fastlem = "0.1.4"
 terrain-graph = "1.0.1"

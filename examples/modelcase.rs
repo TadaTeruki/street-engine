@@ -2,7 +2,8 @@ use city_engine::core::container::path_network::PathNetwork;
 use city_engine::core::geometry::site::Site;
 use city_engine::transport::builder::TransportBuilder;
 use city_engine::transport::node::TransportNode;
-use city_engine::transport::rules::{PathDirectionRules, TransportRules, TransportRulesProvider};
+use city_engine::transport::rules::{PathDirectionRules, TransportRules};
+use city_engine::transport::traits::{RandomF64Provider, TransportRulesProvider};
 use fastlem::core::{parameters::TopographicalParameters, traits::Model};
 use fastlem::lem::generator::TerrainGenerator;
 use fastlem::models::surface::builder::TerrainModel2DBulider;
@@ -10,6 +11,7 @@ use fastlem::models::surface::model::TerrainModel2D;
 use fastlem::models::surface::terrain::Terrain2D;
 use naturalneighbor::Interpolator;
 use noise::{NoiseFn, Perlin};
+use rand::SeedableRng;
 use terrain_graph::edge_attributed_undirected::EdgeAttributedUndirectedGraph;
 use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
 
@@ -55,12 +57,28 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
             population_density,
             path_normal_length: 0.5,
             path_extra_length_for_intersection: 0.3,
-            branch_probability: 0.0,
+            branch_probability: population_density * 0.5,
             path_direction_rules: PathDirectionRules {
                 max_radian: std::f64::consts::PI / 32.0,
                 comparison_step: 3,
             },
         })
+    }
+}
+
+struct RandomF64<R> {
+    rng: R,
+}
+
+impl<R: rand::Rng> RandomF64<R> {
+    fn new(rng: R) -> Self {
+        Self { rng }
+    }
+}
+
+impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
+    fn gen_f64(&mut self) -> f64 {
+        self.rng.gen()
     }
 }
 
@@ -92,10 +110,12 @@ fn main() {
 
     let map_provider = MapProvider::new(&terrain, &population_densities, interpolator);
 
+    let mut rnd = RandomF64::new(rand::rngs::StdRng::seed_from_u64(0));
+
     let network = TransportBuilder::new(&map_provider)
         .add_origin(Site { x: 0.0, y: 0.0 }, 0.0)
         .unwrap()
-        .iterate_n_times(13500)
+        .iterate_n_times(13500, &mut rnd)
         .build();
 
     write_to_image(
