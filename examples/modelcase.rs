@@ -12,6 +12,7 @@ use fastlem::models::surface::terrain::Terrain2D;
 use naturalneighbor::Interpolator;
 use noise::{NoiseFn, Perlin};
 use rand::SeedableRng;
+use rayon::prelude::*;
 use terrain_graph::edge_attributed_undirected::EdgeAttributedUndirectedGraph;
 use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
 
@@ -52,15 +53,15 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
             return None;
         }
         Some(TransportRules {
-            path_priority: population_density,
+            path_priority: (0.001 + population_density) * (-elevation),
             elevation,
             population_density,
             path_normal_length: 0.5,
             path_extra_length_for_intersection: 0.3,
-            branch_probability: population_density * 0.5,
+            branch_probability: (0.02 + population_density * 0.95),
             path_direction_rules: PathDirectionRules {
-                max_radian: std::f64::consts::PI / 32.0,
-                comparison_step: 3,
+                max_radian: std::f64::consts::PI / (4.0 + 28.0 * population_density),
+                comparison_step: 5,
             },
         })
     }
@@ -83,8 +84,8 @@ impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
 }
 
 fn main() {
-    let node_num = 10000;
-    let seed = 14;
+    let node_num = 50000;
+    let seed = 20;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,
@@ -94,10 +95,17 @@ fn main() {
     let img_height = 1500;
     let filename = "modelcase.png";
 
+    println!("Creating terrain...");
+
     let (terrain, is_outlet, graph) = create_terrain(node_num, seed, bound_min, bound_max);
+
+    println!("Calculating population densities...");
 
     let sites = terrain.sites();
     let population_densities = calculate_population_density(&terrain, &graph, &is_outlet);
+
+    println!("Creating network...");
+
     let interpolator = Interpolator::new(
         &sites
             .iter()
@@ -115,8 +123,10 @@ fn main() {
     let network = TransportBuilder::new(&map_provider)
         .add_origin(Site { x: 0.0, y: 0.0 }, 0.0)
         .unwrap()
-        .iterate_n_times(13500, &mut rnd)
+        .iterate_as_possible(&mut rnd)
         .build();
+
+    println!("Writing to image...");
 
     write_to_image(
         bound_min,
@@ -141,7 +151,7 @@ fn write_to_image(
     filename: &str,
 ) {
     let sites = terrain.sites();
-    let interpolator = Interpolator::new(
+    let interpolator = &Interpolator::new(
         &sites
             .iter()
             .map(|site| naturalneighbor::Point {
@@ -151,36 +161,46 @@ fn write_to_image(
             .collect::<Vec<_>>(),
     );
 
+    let pixels: Vec<_> = (0..img_width)
+        .into_par_iter()
+        .flat_map(|imgx| {
+            (0..img_height).into_par_iter().filter_map(move |imgy| {
+                let x = bound_min.x
+                    + (bound_max.x - bound_min.x) * ((imgx as f64 + 0.5) / img_width as f64);
+                let y = bound_min.y
+                    + (bound_max.y - bound_min.y) * ((imgy as f64 + 0.5) / img_height as f64);
+                let site = Site { x, y };
+                let elevation = terrain.get_elevation(&into_fastlem_site(site));
+                let population_density = interpolator.interpolate(
+                    &population_densities,
+                    naturalneighbor::Point {
+                        x: site.x,
+                        y: site.y,
+                    },
+                );
+                if let (Some(elevation), Ok(Some(population_density))) =
+                    (elevation, population_density)
+                {
+                    let color = get_color(elevation, population_density);
+                    Some((imgx, imgy, color))
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+
     let mut pixmap = Pixmap::new(img_width, img_height).unwrap();
     let mut paint = Paint::default();
 
-    for imgx in 0..img_width {
-        for imgy in 0..img_height {
-            let x = bound_min.x
-                + (bound_max.x - bound_min.x) * ((imgx as f64 + 0.5) / img_width as f64);
-            let y = bound_min.y
-                + (bound_max.y - bound_min.y) * ((imgy as f64 + 0.5) / img_height as f64);
-            let site = Site { x, y };
-            let elevation = terrain.get_elevation(&into_fastlem_site(site));
-            let population_density = interpolator.interpolate(
-                &population_densities,
-                naturalneighbor::Point {
-                    x: site.x,
-                    y: site.y,
-                },
-            );
-            if let (Some(elevation), Ok(Some(population_density))) = (elevation, population_density)
-            {
-                let color = get_color(elevation, population_density);
-                paint.set_color_rgba8(color[0], color[1], color[2], 255);
-                pixmap.fill_rect(
-                    Rect::from_xywh(imgx as f32, imgy as f32, 1.0, 1.0).unwrap(),
-                    &paint,
-                    Transform::identity(),
-                    None,
-                );
-            }
-        }
+    for (imgx, imgy, color) in pixels {
+        paint.set_color_rgba8(color[0], color[1], color[2], 255);
+        pixmap.fill_rect(
+            Rect::from_xywh(imgx as f32, imgy as f32, 1.0, 1.0).unwrap(),
+            &paint,
+            Transform::identity(),
+            None,
+        );
     }
 
     let stroke = Stroke {
@@ -290,7 +310,7 @@ fn calculate_population_density(
     graph: &EdgeAttributedUndirectedGraph<f64>,
     is_outlet: &Vec<bool>,
 ) -> Vec<f64> {
-    let max_slope_livable = std::f64::consts::PI / 4.5;
+    let max_slope_livable = std::f64::consts::PI / 3.0;
     let slopes = (0..terrain.sites().len())
         .map(|i| {
             let slopes = graph
@@ -307,7 +327,7 @@ fn calculate_population_density(
         })
         .collect::<Vec<_>>();
 
-    let mut densities = (0..terrain.sites().len())
+    let densities = (0..terrain.sites().len())
         .map(|i| {
             if is_outlet[i] {
                 return 0.0;
@@ -317,48 +337,6 @@ fn calculate_population_density(
             (1.0 - slope_avg / max_slope_livable).max(0.0).min(1.0)
         })
         .collect::<Vec<_>>();
-
-    loop {
-        let mut next_densities = vec![0.0; terrain.sites().len()];
-
-        densities.iter().enumerate().for_each(|(i, density)| {
-            if is_outlet[i] || *density == 0.0 {
-                next_densities[i] = *density;
-                return;
-            }
-            let drain_prop = density;
-            let densities_sum = graph.neighbors_of(i).iter().fold(0.0, |acc, neighbor| {
-                if is_outlet[i] {
-                    return acc;
-                }
-                let neighbor_density = densities[neighbor.0];
-                acc + neighbor_density
-            });
-            graph.neighbors_of(i).iter().for_each(|neighbor| {
-                if is_outlet[i] || densities_sum == 0.0 {
-                    return;
-                }
-                let neighbor_density = densities[neighbor.0];
-                let density_prop = neighbor_density / densities_sum;
-                let final_prop = drain_prop * density_prop;
-                next_densities[neighbor.0] += final_prop * density;
-            });
-            next_densities[i] += density * (1.0 - drain_prop);
-        });
-
-        let mut is_same = true;
-        for i in 0..densities.len() {
-            if (densities[i] - next_densities[i]).abs() > 0.01 {
-                is_same = false;
-                break;
-            }
-        }
-        if is_same {
-            break;
-        }
-
-        densities = next_densities;
-    }
 
     densities
 }

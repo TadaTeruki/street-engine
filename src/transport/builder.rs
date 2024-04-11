@@ -57,12 +57,22 @@ where
     }
 
     /// Iterate the path network `n` times.
-    /// See [`iterate`](Self::iterate) for details.
     pub fn iterate_n_times<R>(mut self, n: usize, rng: &mut R) -> Self
     where
         R: RandomF64Provider,
     {
         for _ in 0..n {
+            self = self.iterate::<R>(rng);
+        }
+        self
+    }
+
+    /// Iterate network generation until there are no more candidates of new paths.
+    pub fn iterate_as_possible<R>(mut self, rng: &mut R) -> Self
+    where
+        R: RandomF64Provider,
+    {
+        while !self.path_candidate_container.is_empty() {
             self = self.iterate::<R>(rng);
         }
         self
