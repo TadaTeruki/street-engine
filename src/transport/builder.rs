@@ -7,6 +7,7 @@ use crate::core::{
 
 use super::{
     node::{NextTransportNode, PathCandidate, TransportNode},
+    rules::PathDirectionRules,
     traits::{RandomF64Provider, TransportRulesProvider},
 };
 
@@ -78,6 +79,27 @@ where
         self
     }
 
+    /// Query the expected end of the path.
+    fn query_expected_end_of_path(
+        &self,
+        site_start: Site,
+        angle_expected: Angle,
+        path_length: f64,
+        path_direction_rules: &PathDirectionRules,
+    ) -> Option<Site> {
+        angle_expected
+            .iter_range_around(
+                path_direction_rules.max_radian,
+                path_direction_rules.comparison_step,
+            )
+            .map(|angle| site_start.extend(angle, path_length))
+            .filter_map(|site| Some((site, self.rules_provider.get_rules(&site)?)))
+            .max_by(|(_, rules1), (_, rules2)| {
+                rules1.path_priority.total_cmp(&rules2.path_priority)
+            })
+            .map(|(site, _)| site)
+    }
+
     /// Iterate the path network to the next step.
     pub fn iterate<R>(mut self, rng: &mut R) -> Self
     where
@@ -89,25 +111,15 @@ where
             return self;
         };
 
-        let site_start = prior_candidate.get_site_start();
+        let rules = prior_candidate.get_rules();
 
-        let site_expected_end_opt = {
-            let path_direction_rules = &prior_candidate.get_rules().path_direction_rules;
-            prior_candidate
-                .angle_expected_end()
-                .iter_range_around(
-                    path_direction_rules.max_radian,
-                    path_direction_rules.comparison_step,
-                )
-                .map(|angle| {
-                    site_start.extend(angle, prior_candidate.get_rules().path_normal_length)
-                })
-                .filter_map(|site| Some((site, self.rules_provider.get_rules(&site)?)))
-                .max_by(|(_, rules1), (_, rules2)| {
-                    rules1.path_priority.total_cmp(&rules2.path_priority)
-                })
-                .map(|(site, _)| site)
-        };
+        let site_start = prior_candidate.get_site_start();
+        let site_expected_end_opt = self.query_expected_end_of_path(
+            site_start,
+            prior_candidate.angle_expected_end(),
+            rules.path_normal_length,
+            &rules.path_direction_rules,
+        );
 
         let site_expected_end = if let Some(site_expected_end) = site_expected_end_opt {
             site_expected_end
@@ -150,9 +162,53 @@ where
                 let node_id = self.path_network.add_node(node_end);
                 self.path_network.add_path(candidate_node_id, node_id);
 
-                // If the node is newly created, continue to extend the path.
+                // If the node is newly created, extend the path.
                 if let Some(rules) = self.rules_provider.get_rules(&node_end.into()) {
                     let straight_angle = site_start.get_angle(&site_expected_end);
+                    // pre-check if the path can be extended to the straight direction.
+                    // If it can, the straight path candidate is added. The branch paths are added probabilistically.
+                    // If it can't, the branch paths are added instead.
+                    let extend_to_straight = self
+                        .query_expected_end_of_path(
+                            node_end.into(),
+                            straight_angle,
+                            rules.path_normal_length,
+                            &rules.path_direction_rules,
+                        )
+                        .is_some();
+
+                    if extend_to_straight {
+                        self.path_candidate_container.push(PathCandidate::new(
+                            node_end,
+                            node_id,
+                            straight_angle,
+                            rules.clone(),
+                        ));
+                    }
+
+                    let clockwise_branch =
+                        rng.gen_f64() < prior_candidate.get_rules().branch_probability;
+                    if clockwise_branch || !extend_to_straight {
+                        self.path_candidate_container.push(PathCandidate::new(
+                            node_end,
+                            node_id,
+                            straight_angle.right_clockwise(),
+                            rules.clone(),
+                        ));
+                    }
+
+                    let counterclockwise_branch =
+                        rng.gen_f64() < prior_candidate.get_rules().branch_probability;
+                    if counterclockwise_branch || !extend_to_straight {
+                        self.path_candidate_container.push(PathCandidate::new(
+                            node_end,
+                            node_id,
+                            straight_angle.right_counterclockwise(),
+                            rules.clone(),
+                        ));
+                    }
+
+                    /*
                     self.path_candidate_container.push(PathCandidate::new(
                         node_end,
                         node_id,
@@ -181,6 +237,7 @@ where
                             rules.clone(),
                         ));
                     }
+                    */
                 }
             }
             NextTransportNode::Existing(node_id) => {

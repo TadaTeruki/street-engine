@@ -53,15 +53,15 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
             return None;
         }
         Some(TransportRules {
-            path_priority: (0.001 + population_density) * (-elevation),
+            path_priority: (1e-9 + population_density) * (-elevation),
             elevation,
             population_density,
             path_normal_length: 0.5,
             path_extra_length_for_intersection: 0.3,
-            branch_probability: (0.02 + population_density * 0.95),
+            branch_probability: 0.01 + population_density * 0.99,
             path_direction_rules: PathDirectionRules {
-                max_radian: std::f64::consts::PI / (4.0 + 28.0 * population_density),
-                comparison_step: 5,
+                max_radian: std::f64::consts::PI / (4.0 + 30.0 * population_density),
+                comparison_step: 3,
             },
         })
     }
@@ -85,7 +85,7 @@ impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
 
 fn main() {
     let node_num = 50000;
-    let seed = 20;
+    let seed = 0;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,
