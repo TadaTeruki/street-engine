@@ -1,5 +1,6 @@
 use city_engine::core::container::path_network::PathNetwork;
 use city_engine::core::geometry::site::Site;
+use city_engine::core::Stage;
 use city_engine::transport::builder::TransportBuilder;
 use city_engine::transport::node::TransportNode;
 use city_engine::transport::rules::{BranchRules, PathDirectionRules, TransportRules};
@@ -37,7 +38,7 @@ impl<'a> MapProvider<'a> {
 }
 
 impl<'a> TransportRulesProvider for MapProvider<'a> {
-    fn get_rules(&self, site: &Site, stage_num: usize) -> Option<TransportRules> {
+    fn get_rules(&self, site: &Site, _: Stage) -> Option<TransportRules> {
         let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
         let population_density = self
             .interpolator
@@ -60,7 +61,7 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
             path_extra_length_for_intersection: 0.3,
             branch_rules: BranchRules {
                 branch_density: 0.01 + population_density * 0.99,
-                staging_probability: 0.0,
+                staging_probability: 0.5,
             },
             path_direction_rules: PathDirectionRules {
                 max_radian: std::f64::consts::PI / (4.0 + 30.0 * population_density),
@@ -206,11 +207,6 @@ fn write_to_image(
         );
     }
 
-    let stroke = Stroke {
-        width: 1.3,
-        ..Default::default()
-    };
-
     network.nodes_iter().for_each(|(inode_id, inode)| {
         // draw node
         let site = inode.site;
@@ -230,10 +226,18 @@ fn write_to_image(
             Transform::identity(),
             None,
         );
-        paint.set_color_rgba8(100, 100, 100, 100);
-        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+
         network.neighbors_iter(inode_id).map(|neighbors_iter| {
             neighbors_iter.for_each(|(_, jnode)| {
+                paint.set_color_rgba8(100, 100, 100, 100);
+
+                let width = if jnode.stage.get() == 0 { 4.0 } else { 1.0 };
+
+                let stroke = Stroke {
+                    width,
+                    ..Default::default()
+                };
+                pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
                 let site_a = inode.site;
                 let site_b = jnode.site;
                 let x_a = (site_a.x - bound_min.x) / (bound_max.x - bound_min.x) * img_width as f64;

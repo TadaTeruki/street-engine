@@ -13,14 +13,12 @@ pub struct TransportNode {
 }
 
 impl TransportNode {
-    pub fn new(site: Site) -> Self {
-        Self {
-            site,
-            stage: Stage::default(),
-        }
+    pub fn new(site: Site, stage: Stage) -> Self {
+        Self { site, stage }
     }
 
-    pub fn set_site(mut self, site: Site) -> Self {
+    #[allow(dead_code)]
+    fn set_site(mut self, site: Site) -> Self {
         self.site = site;
         self
     }
@@ -134,6 +132,7 @@ impl PathCandidate {
     pub fn determine_next_node(
         &self,
         site_expected_end: Site,
+        stage: Stage,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
     ) -> NextTransportNode {
@@ -184,7 +183,10 @@ impl PathCandidate {
                     let path_line = LineSegment::new(path_start.0.site, path_end.0.site);
 
                     if let Some(intersect) = path_line.get_intersection(&search_line) {
-                        return Some((TransportNode::new(intersect), (path_start.1, path_end.1)));
+                        return Some((
+                            TransportNode::new(intersect, stage),
+                            (path_start.1, path_end.1),
+                        ));
                     }
                     None
                 })
@@ -202,7 +204,7 @@ impl PathCandidate {
 
         // New Node
         // Path crosses are already checked in the previous steps.
-        NextTransportNode::New(TransportNode::new(site_expected_end))
+        NextTransportNode::New(TransportNode::new(site_expected_end, stage))
     }
 }
 
@@ -257,15 +259,23 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
+
+        let static_stage = Stage::default();
+
         // New node
         let new = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            Stage::default(),
+            static_stage,
             rules.clone(),
         )
-        .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
+        .determine_next_node(
+            site_expected_end,
+            static_stage,
+            &nodes_parsed,
+            &paths_parsed,
+        );
 
         if let NextTransportNode::New(node) = new {
             assert_eq_f64!(
@@ -291,10 +301,15 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            Stage::default(),
+            static_stage,
             rules.clone(),
         )
-        .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
+        .determine_next_node(
+            site_expected_end,
+            static_stage,
+            &nodes_parsed,
+            &paths_parsed,
+        );
 
         if let NextTransportNode::Intersect(node, _) = intersect {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
@@ -314,10 +329,15 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            Stage::default(),
+            static_stage,
             rules.clone(),
         )
-        .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
+        .determine_next_node(
+            site_expected_end,
+            static_stage,
+            &nodes_parsed,
+            &paths_parsed,
+        );
 
         if let NextTransportNode::Existing(node_id) = existing {
             assert_eq!(node_id, NodeId::new(1));
@@ -337,10 +357,15 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            Stage::default(),
+            static_stage,
             rules.clone(),
         )
-        .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
+        .determine_next_node(
+            site_expected_end,
+            static_stage,
+            &nodes_parsed,
+            &paths_parsed,
+        );
 
         if let NextTransportNode::Existing(node_id) = existing {
             assert_eq!(node_id, NodeId::new(1));
@@ -392,14 +417,22 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
+
+        let static_stage = Stage::default();
+
         let next = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            Stage::default(),
+            static_stage,
             rules.clone(),
         )
-        .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
+        .determine_next_node(
+            site_expected_end,
+            static_stage,
+            &nodes_parsed,
+            &paths_parsed,
+        );
 
         println!("{:?}", next);
 

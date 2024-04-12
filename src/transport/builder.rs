@@ -41,16 +41,17 @@ where
         mut self,
         origin_site: Site,
         angle_radian: f64,
-        stage_num: Option<usize>,
+        stage: Option<Stage>,
     ) -> Option<Self> {
-        let node = TransportNode::new(origin_site);
-        let node_id = self.path_network.add_node(node);
-        let stage = if let Some(stage_num) = stage_num {
-            Stage::new(stage_num)
+        let stage = if let Some(stage) = stage {
+            stage
         } else {
-            Stage::default()
+            Stage::new(0)
         };
-        let rules = self.rules_provider.get_rules(&node.into(), stage.get())?;
+        let node = TransportNode::new(origin_site, stage);
+        let node_id = self.path_network.add_node(node);
+
+        let rules = self.rules_provider.get_rules(&node.into(), stage)?;
         self.path_candidate_container.push(PathCandidate::new(
             node,
             node_id,
@@ -97,7 +98,7 @@ where
         &self,
         site_start: Site,
         angle_expected: Angle,
-        stage_num: usize,
+        stage: Stage,
         path_length: f64,
         path_direction_rules: &PathDirectionRules,
     ) -> Option<Site> {
@@ -107,7 +108,7 @@ where
                 path_direction_rules.comparison_step,
             )
             .map(|angle| site_start.extend(angle, path_length))
-            .filter_map(|site| Some((site, self.rules_provider.get_rules(&site, stage_num)?)))
+            .filter_map(|site| Some((site, self.rules_provider.get_rules(&site, stage)?)))
             .max_by(|(_, rules1), (_, rules2)| {
                 rules1.path_priority.total_cmp(&rules2.path_priority)
             })
@@ -131,7 +132,7 @@ where
         let site_expected_end_opt = self.query_expected_end_of_path(
             site_start,
             prior_candidate.angle_expected_end(),
-            prior_candidate.get_stage().get(),
+            prior_candidate.get_stage(),
             rules.path_normal_length,
             &rules.path_direction_rules,
         );
@@ -169,8 +170,12 @@ where
             .collect::<Vec<_>>();
 
         let candidate_node_id = prior_candidate.get_node_start_id();
-        let next_node =
-            prior_candidate.determine_next_node(site_expected_end, &related_nodes, &related_paths);
+        let next_node = prior_candidate.determine_next_node(
+            site_expected_end,
+            prior_candidate.get_stage(),
+            &related_nodes,
+            &related_paths,
+        );
 
         match next_node {
             NextTransportNode::New(node_end) => {
@@ -180,7 +185,7 @@ where
                 // If the node is newly created, extend the path.
                 if let Some(rules) = self
                     .rules_provider
-                    .get_rules(&node_end.into(), prior_candidate.get_stage().get())
+                    .get_rules(&node_end.into(), prior_candidate.get_stage())
                 {
                     let straight_angle = site_start.get_angle(&site_expected_end);
                     let straight_stage = prior_candidate.get_stage();
@@ -191,7 +196,7 @@ where
                         .query_expected_end_of_path(
                             node_end.into(),
                             straight_angle,
-                            straight_stage.get(),
+                            straight_stage,
                             rules.path_normal_length,
                             &rules.path_direction_rules,
                         )
