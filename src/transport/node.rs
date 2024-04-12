@@ -1,6 +1,7 @@
 use crate::core::{
     container::path_network::NodeId,
     geometry::{angle::Angle, line_segment::LineSegment, site::Site},
+    Stage,
 };
 
 use super::rules::TransportRules;
@@ -8,11 +9,15 @@ use super::rules::TransportRules;
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct TransportNode {
     pub site: Site,
+    pub stage: Stage,
 }
 
 impl TransportNode {
     pub fn new(site: Site) -> Self {
-        Self { site }
+        Self {
+            site,
+            stage: Stage::default(),
+        }
     }
 
     pub fn set_site(mut self, site: Site) -> Self {
@@ -51,6 +56,7 @@ pub struct PathCandidate {
     node_start: TransportNode,
     node_start_id: NodeId,
     angle_expected_end: Angle,
+    stage: Stage,
     rules: TransportRules,
 }
 
@@ -78,12 +84,14 @@ impl PathCandidate {
         node_start: TransportNode,
         node_start_id: NodeId,
         angle_expected_end: Angle,
+        stage: Stage,
         rules: TransportRules,
     ) -> Self {
         Self {
             node_start,
             node_start_id,
             angle_expected_end,
+            stage,
             rules,
         }
     }
@@ -106,6 +114,11 @@ impl PathCandidate {
     /// Get rules of the path.
     pub fn get_rules(&self) -> &TransportRules {
         &self.rules
+    }
+
+    /// Get stage of the path.
+    pub fn get_stage(&self) -> Stage {
+        self.stage
     }
 
     /// Get the end site of the path with extra length.
@@ -195,7 +208,7 @@ impl PathCandidate {
 
 #[cfg(test)]
 mod tests {
-    use crate::transport::rules::PathDirectionRules;
+    use crate::transport::rules::{BranchRules, PathDirectionRules};
 
     use super::*;
 
@@ -233,7 +246,7 @@ mod tests {
             population_density: 0.0,
             path_normal_length: 1.0,
             path_extra_length_for_intersection: 0.25,
-            branch_probability: 0.0,
+            branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
         };
 
@@ -249,6 +262,7 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            Stage::default(),
             rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
@@ -277,6 +291,7 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            Stage::default(),
             rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
@@ -299,6 +314,7 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            Stage::default(),
             rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
@@ -321,6 +337,7 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            Stage::default(),
             rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);
@@ -364,7 +381,7 @@ mod tests {
             population_density: 0.0,
             path_normal_length: 10000.0,
             path_extra_length_for_intersection: 0.0,
-            branch_probability: 0.0,
+            branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
         };
 
@@ -379,6 +396,7 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            Stage::default(),
             rules.clone(),
         )
         .determine_next_node(site_expected_end, &nodes_parsed, &paths_parsed);

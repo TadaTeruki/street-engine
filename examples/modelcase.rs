@@ -2,7 +2,7 @@ use city_engine::core::container::path_network::PathNetwork;
 use city_engine::core::geometry::site::Site;
 use city_engine::transport::builder::TransportBuilder;
 use city_engine::transport::node::TransportNode;
-use city_engine::transport::rules::{PathDirectionRules, TransportRules};
+use city_engine::transport::rules::{BranchRules, PathDirectionRules, TransportRules};
 use city_engine::transport::traits::{RandomF64Provider, TransportRulesProvider};
 use fastlem::core::{parameters::TopographicalParameters, traits::Model};
 use fastlem::lem::generator::TerrainGenerator;
@@ -37,7 +37,7 @@ impl<'a> MapProvider<'a> {
 }
 
 impl<'a> TransportRulesProvider for MapProvider<'a> {
-    fn get_rules(&self, site: &Site) -> Option<TransportRules> {
+    fn get_rules(&self, site: &Site, stage_num: usize) -> Option<TransportRules> {
         let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
         let population_density = self
             .interpolator
@@ -58,7 +58,10 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
             population_density,
             path_normal_length: 0.5,
             path_extra_length_for_intersection: 0.3,
-            branch_probability: 0.01 + population_density * 0.99,
+            branch_rules: BranchRules {
+                branch_density: 0.01 + population_density * 0.99,
+                staging_probability: 0.0,
+            },
             path_direction_rules: PathDirectionRules {
                 max_radian: std::f64::consts::PI / (4.0 + 30.0 * population_density),
                 comparison_step: 3,
@@ -121,7 +124,7 @@ fn main() {
     let mut rnd = RandomF64::new(rand::rngs::StdRng::seed_from_u64(0));
 
     let network = TransportBuilder::new(&map_provider)
-        .add_origin(Site { x: 0.0, y: 0.0 }, 0.0)
+        .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, None)
         .unwrap()
         .iterate_as_possible(&mut rnd)
         .build();

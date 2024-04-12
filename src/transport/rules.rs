@@ -15,31 +15,36 @@ pub struct TransportRules {
     pub path_extra_length_for_intersection: f64,
 
     /// Probability of branching. If 1.0, the path will always create branch.
-    pub branch_probability: f64,
+    pub branch_rules: BranchRules,
 
     /// Rules to determine the direction of the path.
     pub path_direction_rules: PathDirectionRules,
 }
 
-impl Default for TransportRules {
-    /// With default values, the path is always constructed as a straight line.
+/// Rules to create branches.
+///
+/// With `Default` values, the path will never create a branch.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BranchRules {
+    /// Density of intersections (probability of branching). If 1.0, the path will always create intersection.
+    pub branch_density: f64,
+
+    /// Probability of staging.
+    pub staging_probability: f64,
+}
+
+impl Default for BranchRules {
     fn default() -> Self {
         Self {
-            path_priority: 0.0,
-            elevation: 0.0,
-            population_density: 0.0,
-            path_normal_length: 0.0,
-            path_extra_length_for_intersection: 0.0,
-            branch_probability: 0.0,
-            path_direction_rules: PathDirectionRules::default(),
+            branch_density: 0.0,
+            staging_probability: 0.0,
         }
     }
 }
 
 /// Rules to determine the direction of a path.
 ///
-/// This struct implements `Default` method.
-/// With default values, the path is always constructed as a straight line.
+/// With `Default` values, the path is always constructed as a straight line.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PathDirectionRules {
     /// Maximum angle of curves.
