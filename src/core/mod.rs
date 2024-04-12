@@ -9,7 +9,7 @@ impl Stage {
         Self(stage)
     }
 
-    pub fn get(&self) -> usize {
+    pub fn as_num(&self) -> usize {
         self.0
     }
 

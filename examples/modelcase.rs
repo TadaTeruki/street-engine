@@ -38,7 +38,7 @@ impl<'a> MapProvider<'a> {
 }
 
 impl<'a> TransportRulesProvider for MapProvider<'a> {
-    fn get_rules(&self, site: &Site, _: Stage) -> Option<TransportRules> {
+    fn get_rules(&self, site: &Site, stage: Stage) -> Option<TransportRules> {
         let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
         let population_density = self
             .interpolator
@@ -53,21 +53,42 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
         if elevation < 1e-3 {
             return None;
         }
-        Some(TransportRules {
-            path_priority: (1e-9 + population_density) * (-elevation),
-            elevation,
-            population_density,
-            path_normal_length: 0.5,
-            path_extra_length_for_intersection: 0.3,
-            branch_rules: BranchRules {
-                branch_density: 0.01 + population_density * 0.99,
-                staging_probability: 0.5,
-            },
-            path_direction_rules: PathDirectionRules {
-                max_radian: std::f64::consts::PI / (4.0 + 30.0 * population_density),
-                comparison_step: 3,
-            },
-        })
+
+        let path_priority = (1e-9 + population_density) * (-elevation);
+
+        if stage.as_num() > 0 {
+            Some(TransportRules {
+                path_priority,
+                elevation,
+                population_density,
+                path_normal_length: 0.5,
+                path_extra_length_for_intersection: 0.3,
+                branch_rules: BranchRules {
+                    branch_density: 0.01 + population_density * 0.99,
+                    staging_probability: 0.0,
+                },
+                path_direction_rules: PathDirectionRules {
+                    max_radian: std::f64::consts::PI / (5.0 + 100.0 * population_density),
+                    comparison_step: 3,
+                },
+            })
+        } else {
+            Some(TransportRules {
+                path_priority: path_priority + 1e5,
+                elevation,
+                population_density,
+                path_normal_length: 0.5,
+                path_extra_length_for_intersection: 0.3,
+                branch_rules: BranchRules {
+                    branch_density: 1.0,
+                    staging_probability: (1.0 - population_density.powi(5)) * 0.1 + 0.86,
+                },
+                path_direction_rules: PathDirectionRules {
+                    max_radian: std::f64::consts::PI / (10.0 + 40.0 * population_density),
+                    comparison_step: 5,
+                },
+            })
+        }
     }
 }
 
@@ -89,7 +110,7 @@ impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
 
 fn main() {
     let node_num = 50000;
-    let seed = 0;
+    let seed = 20;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,
@@ -212,12 +233,14 @@ fn write_to_image(
         let site = inode.site;
         let x = (site.x - bound_min.x) / (bound_max.x - bound_min.x) * img_width as f64;
         let y = (site.y - bound_min.y) / (bound_max.y - bound_min.y) * img_height as f64;
+        /*
         let r = 2.0;
         let path = {
             let mut path = PathBuilder::new();
             path.push_circle(x as f32, y as f32, r as f32);
             path.finish().unwrap()
         };
+
         paint.set_color_rgba8(255, 255, 255, 100);
         pixmap.fill_path(
             &path,
@@ -226,18 +249,23 @@ fn write_to_image(
             Transform::identity(),
             None,
         );
+        */
 
         network.neighbors_iter(inode_id).map(|neighbors_iter| {
             neighbors_iter.for_each(|(_, jnode)| {
                 paint.set_color_rgba8(100, 100, 100, 100);
 
-                let width = if jnode.stage.get() == 0 { 4.0 } else { 1.0 };
+                let width = if jnode.stage.as_num().max(inode.stage.as_num()) == 0 {
+                    4.0
+                } else {
+                    1.0
+                };
 
                 let stroke = Stroke {
                     width,
                     ..Default::default()
                 };
-                pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+                //pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
                 let site_a = inode.site;
                 let site_b = jnode.site;
                 let x_a = (site_a.x - bound_min.x) / (bound_max.x - bound_min.x) * img_width as f64;
