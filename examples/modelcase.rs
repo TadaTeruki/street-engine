@@ -15,7 +15,7 @@ use noise::{NoiseFn, Perlin};
 use rand::SeedableRng;
 use rayon::prelude::*;
 use terrain_graph::edge_attributed_undirected::EdgeAttributedUndirectedGraph;
-use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
+use tiny_skia::{Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
 
 struct MapProvider<'a> {
     terrain: &'a Terrain2D,
@@ -61,14 +61,14 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                 path_priority,
                 elevation,
                 population_density,
-                path_normal_length: 0.5,
-                path_extra_length_for_intersection: 0.3,
+                path_normal_length: 0.25,
+                path_extra_length_for_intersection: 0.15,
                 branch_rules: BranchRules {
                     branch_density: 0.01 + population_density * 0.99,
                     staging_probability: 0.0,
                 },
                 path_direction_rules: PathDirectionRules {
-                    max_radian: std::f64::consts::PI / (5.0 + 100.0 * population_density),
+                    max_radian: std::f64::consts::PI / (5.0 + 1000.0 * population_density),
                     comparison_step: 3,
                 },
             })
@@ -77,14 +77,14 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                 path_priority: path_priority + 1e5,
                 elevation,
                 population_density,
-                path_normal_length: 0.5,
-                path_extra_length_for_intersection: 0.3,
+                path_normal_length: 0.25,
+                path_extra_length_for_intersection: 0.15,
                 branch_rules: BranchRules {
-                    branch_density: 1.0,
-                    staging_probability: (1.0 - population_density.powi(5)) * 0.1 + 0.86,
+                    branch_density: 0.2 + population_density * 0.8,
+                    staging_probability: 0.97,
                 },
                 path_direction_rules: PathDirectionRules {
-                    max_radian: std::f64::consts::PI / (10.0 + 40.0 * population_density),
+                    max_radian: std::f64::consts::PI / (10.0 + 100.0 * population_density),
                     comparison_step: 5,
                 },
             })
@@ -230,33 +230,12 @@ fn write_to_image(
 
     network.nodes_iter().for_each(|(inode_id, inode)| {
         // draw node
-        let site = inode.site;
-        let x = (site.x - bound_min.x) / (bound_max.x - bound_min.x) * img_width as f64;
-        let y = (site.y - bound_min.y) / (bound_max.y - bound_min.y) * img_height as f64;
-        /*
-        let r = 2.0;
-        let path = {
-            let mut path = PathBuilder::new();
-            path.push_circle(x as f32, y as f32, r as f32);
-            path.finish().unwrap()
-        };
-
-        paint.set_color_rgba8(255, 255, 255, 100);
-        pixmap.fill_path(
-            &path,
-            &paint,
-            FillRule::Winding,
-            Transform::identity(),
-            None,
-        );
-        */
-
         network.neighbors_iter(inode_id).map(|neighbors_iter| {
             neighbors_iter.for_each(|(_, jnode)| {
                 paint.set_color_rgba8(100, 100, 100, 100);
 
                 let width = if jnode.stage.as_num().max(inode.stage.as_num()) == 0 {
-                    4.0
+                    3.0
                 } else {
                     1.0
                 };

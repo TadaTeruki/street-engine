@@ -1,7 +1,7 @@
 use std::collections::BinaryHeap;
 
 use crate::core::{
-    container::path_network::PathNetwork,
+    container::path_network::{NodeId, PathNetwork},
     geometry::{angle::Angle, line_segment::LineSegment, site::Site},
     Stage,
 };
@@ -34,6 +34,29 @@ where
         }
     }
 
+    fn create_new_candidate(
+        &mut self,
+        node_start: TransportNode,
+        node_start_id: NodeId,
+        angle_expected_end: Angle,
+        stage: Stage,
+    ) -> bool {
+        let rules = if let Some(rules) = self.rules_provider.get_rules(&node_start.into(), stage) {
+            rules
+        } else {
+            return false;
+        };
+        self.path_candidate_container.push(PathCandidate::new(
+            node_start,
+            node_start_id,
+            angle_expected_end,
+            stage,
+            rules,
+        ));
+
+        true
+    }
+
     /// Add an origin node to the path network.
     ///
     /// The path which is extended from `origin_site` by `angle_radian` (and the opposite path) will be the first candidates.
@@ -51,22 +74,8 @@ where
         let node = TransportNode::new(origin_site, stage);
         let node_id = self.path_network.add_node(node);
 
-        let rules = self.rules_provider.get_rules(&node.into(), stage)?;
-        self.path_candidate_container.push(PathCandidate::new(
-            node,
-            node_id,
-            Angle::new(angle_radian),
-            stage,
-            rules.clone(),
-        ));
-
-        self.path_candidate_container.push(PathCandidate::new(
-            node,
-            node_id,
-            Angle::new(angle_radian).opposite(),
-            stage,
-            rules.clone(),
-        ));
+        self.create_new_candidate(node, node_id, Angle::new(angle_radian), stage);
+        self.create_new_candidate(node, node_id, Angle::new(angle_radian).opposite(), stage);
 
         Some(self)
     }
@@ -182,75 +191,47 @@ where
                 let node_id = self.path_network.add_node(node_end);
                 self.path_network.add_path(candidate_node_id, node_id);
 
-                // If the node is newly created, extend the path.
-                if let Some(rules) = self
-                    .rules_provider
-                    .get_rules(&node_end.into(), prior_candidate.get_stage())
-                {
-                    let straight_angle = site_start.get_angle(&site_expected_end);
-                    let straight_stage = prior_candidate.get_stage();
-                    // pre-check if the path can be extended to the straight direction.
-                    // If it can, the straight path candidate is added. The branch paths are added probabilistically.
-                    // If it can't, the branch paths are added instead.
-                    let extend_to_straight = self
-                        .query_expected_end_of_path(
-                            node_end.into(),
-                            straight_angle,
-                            straight_stage,
-                            rules.path_normal_length,
-                            &rules.path_direction_rules,
-                        )
-                        .is_some();
+                let straight_angle = site_start.get_angle(&site_expected_end);
+                let straight_stage = prior_candidate.get_stage();
+                let extend_to_straight =
+                    self.create_new_candidate(node_end, node_id, straight_angle, straight_stage);
 
-                    if extend_to_straight {
-                        self.path_candidate_container.push(PathCandidate::new(
-                            node_end,
-                            node_id,
-                            straight_angle,
-                            straight_stage,
-                            rules.clone(),
-                        ));
-                    }
+                let clockwise_branch =
+                    rng.gen_f64() < prior_candidate.get_rules().branch_rules.branch_density;
+                if clockwise_branch || !extend_to_straight {
+                    let clockwise_staging = rng.gen_f64()
+                        < prior_candidate.get_rules().branch_rules.staging_probability;
+                    let next_stage = if clockwise_staging {
+                        prior_candidate.get_stage().incremented()
+                    } else {
+                        prior_candidate.get_stage()
+                    };
 
-                    let clockwise_branch =
-                        rng.gen_f64() < prior_candidate.get_rules().branch_rules.branch_density;
-                    if clockwise_branch || !extend_to_straight {
-                        let clockwise_staging = rng.gen_f64()
-                            < prior_candidate.get_rules().branch_rules.staging_probability;
-                        let next_stage = if clockwise_staging {
-                            prior_candidate.get_stage().incremented()
-                        } else {
-                            prior_candidate.get_stage()
-                        };
+                    self.create_new_candidate(
+                        node_end,
+                        node_id,
+                        straight_angle.right_clockwise(),
+                        next_stage,
+                    );
+                }
 
-                        self.path_candidate_container.push(PathCandidate::new(
-                            node_end,
-                            node_id,
-                            straight_angle.right_clockwise(),
-                            next_stage,
-                            rules.clone(),
-                        ));
-                    }
+                let counterclockwise_branch =
+                    rng.gen_f64() < prior_candidate.get_rules().branch_rules.branch_density;
+                if counterclockwise_branch || !extend_to_straight {
+                    let counterclockwise_staging = rng.gen_f64()
+                        < prior_candidate.get_rules().branch_rules.staging_probability;
+                    let next_stage = if counterclockwise_staging {
+                        prior_candidate.get_stage().incremented()
+                    } else {
+                        prior_candidate.get_stage()
+                    };
 
-                    let counterclockwise_branch =
-                        rng.gen_f64() < prior_candidate.get_rules().branch_rules.branch_density;
-                    if counterclockwise_branch || !extend_to_straight {
-                        let counterclockwise_staging = rng.gen_f64()
-                            < prior_candidate.get_rules().branch_rules.staging_probability;
-                        let next_stage = if counterclockwise_staging {
-                            prior_candidate.get_stage().incremented()
-                        } else {
-                            prior_candidate.get_stage()
-                        };
-
-                        self.path_candidate_container.push(PathCandidate::new(
-                            node_end,
-                            node_id,
-                            straight_angle.right_counterclockwise(),
-                            next_stage,
-                            rules.clone(),
-                        ));
-                    }
+                    self.create_new_candidate(
+                        node_end,
+                        node_id,
+                        straight_angle.right_counterclockwise(),
+                        next_stage,
+                    );
                 }
             }
             NextTransportNode::Existing(node_id) => {
