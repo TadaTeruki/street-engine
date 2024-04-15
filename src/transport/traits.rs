@@ -9,7 +9,7 @@ use super::rules::TransportRules;
 ///
 /// Rules for constructing a path are associated with sites.
 pub trait TransportRulesProvider {
-    fn get_rules(&self, site_end: &Site, stage: Stage, angle: Angle) -> Option<TransportRules>;
+    fn get_rules(&self, site_end: &Site, angle: Angle, stage: Stage) -> Option<TransportRules>;
 }
 
 /// Provider of random f64 values.

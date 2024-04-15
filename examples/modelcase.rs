@@ -1,4 +1,5 @@
 use city_engine::core::container::path_network::PathNetwork;
+use city_engine::core::geometry::angle::Angle;
 use city_engine::core::geometry::site::Site;
 use city_engine::core::Stage;
 use city_engine::transport::builder::TransportBuilder;
@@ -38,7 +39,7 @@ impl<'a> MapProvider<'a> {
 }
 
 impl<'a> TransportRulesProvider for MapProvider<'a> {
-    fn get_rules(&self, site: &Site, stage: Stage) -> Option<TransportRules> {
+    fn get_rules(&self, site: &Site, _: Angle, stage: Stage) -> Option<TransportRules> {
         let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
         let population_density = self
             .interpolator

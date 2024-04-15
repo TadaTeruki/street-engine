@@ -45,7 +45,7 @@ where
         let site_expected_end = node_start.site.extend(angle_expected_end, path_length);
         let rules = if let Some(rules) =
             self.rules_provider
-                .get_rules(&site_expected_end, stage, angle_expected_end)
+                .get_rules(&site_expected_end, angle_expected_end, stage)
         {
             rules
         } else {
@@ -81,7 +81,7 @@ where
 
         let origin_path_length = if let Some(rules) =
             self.rules_provider
-                .get_rules(&origin_site, stage, Angle::new(angle_radian))
+                .get_rules(&origin_site, Angle::new(angle_radian), stage)
         {
             rules.path_normal_length
         } else {
@@ -146,7 +146,7 @@ where
                 let site_end = site_start.extend(angle, path_length);
                 Some((
                     site_end,
-                    self.rules_provider.get_rules(&site_end, stage, angle)?,
+                    self.rules_provider.get_rules(&site_end, angle, stage)?,
                 ))
             })
             .max_by(|(_, rules1), (_, rules2)| {
