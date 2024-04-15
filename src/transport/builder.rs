@@ -38,10 +38,15 @@ where
         &mut self,
         node_start: TransportNode,
         node_start_id: NodeId,
+        path_length: f64,
         angle_expected_end: Angle,
         stage: Stage,
     ) -> bool {
-        let rules = if let Some(rules) = self.rules_provider.get_rules(&node_start.into(), stage) {
+        let site_expected_end = node_start.site.extend(angle_expected_end, path_length);
+        let rules = if let Some(rules) =
+            self.rules_provider
+                .get_rules(&site_expected_end, stage, angle_expected_end)
+        {
             rules
         } else {
             return false;
@@ -71,11 +76,32 @@ where
         } else {
             Stage::new(0)
         };
-        let node = TransportNode::new(origin_site, stage);
-        let node_id = self.path_network.add_node(node);
+        let origin_node = TransportNode::new(origin_site, stage);
+        let origin_node_id = self.path_network.add_node(origin_node);
 
-        self.create_new_candidate(node, node_id, Angle::new(angle_radian), stage);
-        self.create_new_candidate(node, node_id, Angle::new(angle_radian).opposite(), stage);
+        let origin_path_length = if let Some(rules) =
+            self.rules_provider
+                .get_rules(&origin_site, stage, Angle::new(angle_radian))
+        {
+            rules.path_normal_length
+        } else {
+            return None;
+        };
+
+        self.create_new_candidate(
+            origin_node,
+            origin_node_id,
+            origin_path_length,
+            Angle::new(angle_radian),
+            stage,
+        );
+        self.create_new_candidate(
+            origin_node,
+            origin_node_id,
+            origin_path_length,
+            Angle::new(angle_radian).opposite(),
+            stage,
+        );
 
         Some(self)
     }
@@ -116,8 +142,13 @@ where
                 path_direction_rules.max_radian,
                 path_direction_rules.comparison_step,
             )
-            .map(|angle| site_start.extend(angle, path_length))
-            .filter_map(|site| Some((site, self.rules_provider.get_rules(&site, stage)?)))
+            .filter_map(|angle| {
+                let site_end = site_start.extend(angle, path_length);
+                Some((
+                    site_end,
+                    self.rules_provider.get_rules(&site_end, stage, angle)?,
+                ))
+            })
             .max_by(|(_, rules1), (_, rules2)| {
                 rules1.path_priority.total_cmp(&rules2.path_priority)
             })
@@ -179,22 +210,28 @@ where
             .collect::<Vec<_>>();
 
         let candidate_node_id = prior_candidate.get_node_start_id();
-        let next_node = prior_candidate.determine_next_node(
+        let next_node_type = prior_candidate.determine_next_node(
             site_expected_end,
             prior_candidate.get_stage(),
             &related_nodes,
             &related_paths,
         );
 
-        match next_node {
-            NextTransportNode::New(node_end) => {
-                let node_id = self.path_network.add_node(node_end);
+        match next_node_type {
+            NextTransportNode::New(node_next) => {
+                let node_id = self.path_network.add_node(node_next);
                 self.path_network.add_path(candidate_node_id, node_id);
 
                 let straight_angle = site_start.get_angle(&site_expected_end);
                 let straight_stage = prior_candidate.get_stage();
-                let extend_to_straight =
-                    self.create_new_candidate(node_end, node_id, straight_angle, straight_stage);
+
+                let extend_to_straight = self.create_new_candidate(
+                    node_next,
+                    node_id,
+                    rules.path_normal_length,
+                    straight_angle,
+                    straight_stage,
+                );
 
                 let clockwise_branch =
                     rng.gen_f64() < prior_candidate.get_rules().branch_rules.branch_density;
@@ -208,8 +245,9 @@ where
                     };
 
                     self.create_new_candidate(
-                        node_end,
+                        node_next,
                         node_id,
+                        rules.path_normal_length,
                         straight_angle.right_clockwise(),
                         next_stage,
                     );
@@ -227,8 +265,9 @@ where
                     };
 
                     self.create_new_candidate(
-                        node_end,
+                        node_next,
                         node_id,
+                        rules.path_normal_length,
                         straight_angle.right_counterclockwise(),
                         next_stage,
                     );
@@ -237,8 +276,8 @@ where
             NextTransportNode::Existing(node_id) => {
                 self.path_network.add_path(candidate_node_id, node_id);
             }
-            NextTransportNode::Intersect(node_end, encount_path) => {
-                let next_node_id = self.path_network.add_node(node_end);
+            NextTransportNode::Intersect(node_next, encount_path) => {
+                let next_node_id = self.path_network.add_node(node_next);
                 self.path_network
                     .remove_path(encount_path.0, encount_path.1);
                 self.path_network.add_path(candidate_node_id, next_node_id);

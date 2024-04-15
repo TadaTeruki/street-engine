@@ -1,4 +1,7 @@
-use crate::core::{geometry::site::Site, Stage};
+use crate::core::{
+    geometry::{angle::Angle, site::Site},
+    Stage,
+};
 
 use super::rules::TransportRules;
 
@@ -6,7 +9,7 @@ use super::rules::TransportRules;
 ///
 /// Rules for constructing a path are associated with sites.
 pub trait TransportRulesProvider {
-    fn get_rules(&self, site: &Site, stage: Stage) -> Option<TransportRules>;
+    fn get_rules(&self, site_end: &Site, stage: Stage, angle: Angle) -> Option<TransportRules>;
 }
 
 /// Provider of random f64 values.
