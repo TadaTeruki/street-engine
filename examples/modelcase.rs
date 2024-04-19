@@ -1,11 +1,3 @@
-use city_engine::core::container::path_network::PathNetwork;
-use city_engine::core::geometry::angle::Angle;
-use city_engine::core::geometry::site::Site;
-use city_engine::core::Stage;
-use city_engine::transport::builder::TransportBuilder;
-use city_engine::transport::node::TransportNode;
-use city_engine::transport::rules::{BranchRules, PathDirectionRules, TransportRules};
-use city_engine::transport::traits::{RandomF64Provider, TransportRulesProvider};
 use fastlem::core::{parameters::TopographicalParameters, traits::Model};
 use fastlem::lem::generator::TerrainGenerator;
 use fastlem::models::surface::builder::TerrainModel2DBulider;
@@ -17,6 +9,14 @@ use rand::SeedableRng;
 use rayon::prelude::*;
 use terrain_graph::edge_attributed_undirected::EdgeAttributedUndirectedGraph;
 use tiny_skia::{Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
+use transport_engine::core::container::path_network::PathNetwork;
+use transport_engine::core::geometry::angle::Angle;
+use transport_engine::core::geometry::site::Site;
+use transport_engine::core::Stage;
+use transport_engine::transport::builder::TransportBuilder;
+use transport_engine::transport::node::TransportNode;
+use transport_engine::transport::rules::{BranchRules, PathDirectionRules, TransportRules};
+use transport_engine::transport::traits::{RandomF64Provider, TransportRulesProvider};
 
 struct MapProvider<'a> {
     terrain: &'a Terrain2D,
