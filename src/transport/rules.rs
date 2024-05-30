@@ -60,16 +60,15 @@ pub struct BridgeRules {
     /// Maximum length of bridges.
     pub max_bridge_length: f64,
 
-    /// Number of comparison steps to create a bridge.
-    /// When creating a bridge, the generator checks the nearest land site with no
-    pub comparison_step: usize,
+    /// Number of check steps to create a bridge.
+    pub check_step: usize,
 }
 
 impl Default for BridgeRules {
     fn default() -> Self {
         Self {
             max_bridge_length: 0.0,
-            comparison_step: 0,
+            check_step: 0,
         }
     }
 }
