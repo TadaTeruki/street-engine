@@ -210,7 +210,7 @@ impl PathCandidate {
 
 #[cfg(test)]
 mod tests {
-    use crate::transport::rules::{BranchRules, PathDirectionRules};
+    use crate::transport::rules::{BranchRules, BridgeRules, PathDirectionRules};
 
     use super::*;
 
@@ -248,8 +248,10 @@ mod tests {
             population_density: 0.0,
             path_normal_length: 1.0,
             path_extra_length_for_intersection: 0.25,
+            path_max_elevation_diff: None,
             branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
+            bridge_rules: BridgeRules::default(),
         };
 
         let (node_start, angle_expected_end) = (
@@ -406,8 +408,10 @@ mod tests {
             population_density: 0.0,
             path_normal_length: 10000.0,
             path_extra_length_for_intersection: 0.0,
+            path_max_elevation_diff: None,
             branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
+            bridge_rules: BridgeRules::default(),
         };
 
         let (node_start, angle_expected_end) = (

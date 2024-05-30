@@ -15,7 +15,7 @@ pub struct TransportRules {
     pub path_extra_length_for_intersection: f64,
 
     /// Maximum elevation difference of the path per 1.0 length.
-    pub max_elevation_diff: f64,
+    pub path_max_elevation_diff: Option<f64>,
 
     /// Probability of branching. If 1.0, the path will always create branch.
     pub branch_rules: BranchRules,
