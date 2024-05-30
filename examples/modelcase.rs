@@ -62,8 +62,8 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                 path_priority,
                 elevation,
                 population_density,
-                path_normal_length: 0.25,
-                path_extra_length_for_intersection: 0.15,
+                path_normal_length: 0.5,
+                path_extra_length_for_intersection: 0.3,
                 branch_rules: BranchRules {
                     branch_density: 0.01 + population_density * 0.99,
                     staging_probability: 0.0,
@@ -78,8 +78,8 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                 path_priority: path_priority + 1e5,
                 elevation,
                 population_density,
-                path_normal_length: 0.25,
-                path_extra_length_for_intersection: 0.15,
+                path_normal_length: 0.5,
+                path_extra_length_for_intersection: 0.3,
                 branch_rules: BranchRules {
                     branch_density: 0.2 + population_density * 0.8,
                     staging_probability: 0.97,
@@ -117,8 +117,8 @@ fn main() {
         y: -50.0,
     };
     let bound_max = Site { x: 100.0, y: 50.0 };
-    let img_width = 3000;
-    let img_height = 1500;
+    let img_width = 1200;
+    let img_height = 600;
     let filename = "modelcase.png";
 
     println!("Creating terrain...");
@@ -236,9 +236,9 @@ fn write_to_image(
                 paint.set_color_rgba8(100, 100, 100, 100);
 
                 let width = if jnode.stage.as_num().max(inode.stage.as_num()) == 0 {
-                    3.0
-                } else {
                     1.0
+                } else {
+                    0.5
                 };
 
                 let stroke = Stroke {
