@@ -85,14 +85,13 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
-            rules.clone(),
             static_stage,
             false,
             &nodes_parsed,
             &paths_parsed,
         );
 
-        if let NextTransportNode::New(node) = new {
+        if let (NextTransportNode::New(node), _) = new {
             assert_eq_f64!(
                 node.site.distance(&Site::new(
                     1.0 + 1.0 / 2.0_f64.sqrt(),
@@ -121,14 +120,13 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
-            rules.clone(),
             static_stage,
             false,
             &nodes_parsed,
             &paths_parsed,
         );
 
-        if let NextTransportNode::Intersect(node, _) = intersect {
+        if let (NextTransportNode::Intersect(node, _), _) = intersect {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
         } else {
             panic!("Unexpected node type");
@@ -151,14 +149,13 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
-            rules.clone(),
             static_stage,
             false,
             &nodes_parsed,
             &paths_parsed,
         );
 
-        if let NextTransportNode::Existing(node_id) = existing {
+        if let (NextTransportNode::Existing(node_id), _) = existing {
             assert_eq!(node_id, NodeId::new(1));
         } else {
             panic!("Unexpected node type");
@@ -181,14 +178,13 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
-            rules.clone(),
             static_stage,
             false,
             &nodes_parsed,
             &paths_parsed,
         );
 
-        if let NextTransportNode::Existing(node_id) = existing {
+        if let (NextTransportNode::Existing(node_id), _) = existing {
             assert_eq!(node_id, NodeId::new(1));
         } else {
             panic!("Unexpected node type");
@@ -252,17 +248,16 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
-            rules.clone(),
             static_stage,
             false,
             &nodes_parsed,
             &paths_parsed,
         );
 
-        println!("{:?}", next);
+        println!("{:?}", next.0);
 
-        assert!(matches!(next, NextTransportNode::Intersect(_, _)));
-        if let NextTransportNode::Intersect(node, _) = next {
+        assert!(matches!(next.0, NextTransportNode::Intersect(_, _)));
+        if let (NextTransportNode::Intersect(node, _), _) = next {
             assert!(
                 (node.site.x >= 0.0 && node.site.x <= 0.3)
                     && (node.site.y >= 0.0 && node.site.y <= 5.0)

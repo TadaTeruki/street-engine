@@ -100,7 +100,7 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                 },
                 bridge_rules: BridgeRules {
                     max_bridge_length: 45.0,
-                    check_step: 6,
+                    check_step: 40,
                 },
             })
         }
@@ -125,7 +125,7 @@ impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
 
 fn main() {
     let node_num = 50000;
-    let seed = 20;
+    let seed = 47;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,

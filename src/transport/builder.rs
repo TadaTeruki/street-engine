@@ -8,10 +8,10 @@ use crate::core::{
 
 use super::{
     node::{
-        candidate::{NextTransportNode, PathCandidate},
+        candidate::{BridgeNode, NextTransportNode, PathCandidate},
         node::TransportNode,
     },
-    rules::TransportRules,
+    rules::{check_slope, TransportRules},
     traits::{RandomF64Provider, TransportRulesProvider},
 };
 
@@ -140,7 +140,16 @@ where
                     let site_end = site_start.extend(angle, path_length);
                     if let Some(rules_end) = self.rules_provider.get_rules(&site_end, angle, stage)
                     {
+                        /*
                         if rules_start.check_slope(&rules_end, path_length) {
+                            return Some((site_end, rules_end, i > 0));
+                        }*/
+                        if check_slope(
+                            rules_start.elevation,
+                            rules_end.elevation,
+                            path_length,
+                            rules_start.path_max_elevation_diff,
+                        ) {
                             return Some((site_end, rules_end, i > 0));
                         }
                     }
@@ -180,16 +189,6 @@ where
             return self;
         };
 
-        let rules_end = if let Some(rules_end) = self.rules_provider.get_rules(
-            &site_expected_end,
-            prior_candidate.angle_expected_end(),
-            prior_candidate.get_stage(),
-        ) {
-            rules_end
-        } else {
-            return self;
-        };
-
         let related_nodes = self
             .path_network
             .nodes_around_line_iter(
@@ -217,23 +216,37 @@ where
             .collect::<Vec<_>>();
 
         let candidate_node_id = prior_candidate.get_node_start_id();
-        let next_node_type = prior_candidate.determine_next_node(
+        let (next_node_type, bridge_node) = prior_candidate.determine_next_node(
             site_expected_end,
-            rules_end,
             prior_candidate.get_stage(),
             to_be_bridge_end,
             &related_nodes,
             &related_paths,
         );
 
-        self.add_path(
-            rng,
-            next_node_type,
-            site_start,
-            candidate_node_id,
-            prior_candidate.get_stage(),
-            prior_candidate.get_rules_start(),
-        )
+        if let BridgeNode::Middle(bridge_node) = bridge_node {
+            let bridge_node_id = self.path_network.add_node(bridge_node);
+            self.path_network
+                .add_path(candidate_node_id, bridge_node_id);
+
+            self.add_path(
+                rng,
+                next_node_type,
+                bridge_node.site,
+                bridge_node_id,
+                prior_candidate.get_stage(),
+                prior_candidate.get_rules_start(),
+            )
+        } else {
+            self.add_path(
+                rng,
+                next_node_type,
+                site_start,
+                candidate_node_id,
+                prior_candidate.get_stage(),
+                prior_candidate.get_rules_start(),
+            )
+        }
     }
 
     fn add_path<R>(
@@ -249,18 +262,19 @@ where
         R: RandomF64Provider,
     {
         match next_node_type {
-            NextTransportNode::NewBridge(node_middle, node_end) => {
-                let middle_node_id = self.path_network.add_node(node_middle);
-
-                self.path_network.add_path(start_node_id, middle_node_id);
-                self = self.add_path(
-                    rng,
-                    NextTransportNode::New(node_end),
-                    node_middle.site,
-                    middle_node_id,
-                    stage,
-                    rules_start,
-                );
+            NextTransportNode::IntersectBridge => {
+                return self;
+            }
+            NextTransportNode::Existing(node_id) => {
+                self.path_network.add_path(start_node_id, node_id);
+            }
+            NextTransportNode::Intersect(node_next, encount_path) => {
+                let next_node_id = self.path_network.add_node(node_next);
+                self.path_network
+                    .remove_path(encount_path.0, encount_path.1);
+                self.path_network.add_path(start_node_id, next_node_id);
+                self.path_network.add_path(next_node_id, encount_path.0);
+                self.path_network.add_path(next_node_id, encount_path.1);
             }
             NextTransportNode::New(node_next) => {
                 let node_id = self.path_network.add_node(node_next);
@@ -307,18 +321,6 @@ where
                         next_stage,
                     );
                 }
-            }
-
-            NextTransportNode::Existing(node_id) => {
-                self.path_network.add_path(start_node_id, node_id);
-            }
-            NextTransportNode::Intersect(node_next, encount_path) => {
-                let next_node_id = self.path_network.add_node(node_next);
-                self.path_network
-                    .remove_path(encount_path.0, encount_path.1);
-                self.path_network.add_path(start_node_id, next_node_id);
-                self.path_network.add_path(next_node_id, encount_path.0);
-                self.path_network.add_path(next_node_id, encount_path.1);
             }
         }
 

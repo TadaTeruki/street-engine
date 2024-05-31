@@ -12,9 +12,14 @@ use super::node::TransportNode;
 #[derive(Debug)]
 pub enum NextTransportNode {
     New(TransportNode),
-    NewBridge(TransportNode, TransportNode),
     Existing(NodeId),
     Intersect(TransportNode, (NodeId, NodeId)),
+    IntersectBridge,
+}
+
+pub enum BridgeNode {
+    Middle(TransportNode),
+    None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -100,18 +105,18 @@ impl PathCandidate {
     pub fn determine_next_node(
         &self,
         site_expected_end: Site,
-        rules_end: TransportRules,
+        // TODO: rules_providerを引数に入れslopeの確認
         stage: Stage,
         to_be_bridge_end: bool,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
-    ) -> NextTransportNode {
+    ) -> (NextTransportNode, BridgeNode) {
         let search_start = self.node_start.site;
 
         // Existing Node
         // For this situation, path crosses are needed to be checked again because the direction of the path can be changed from original.
         {
-            let existing_node = related_nodes
+            let existing_node_id = related_nodes
                 .iter()
                 .filter(|(existing_node, _)| {
                     // distance check
@@ -137,20 +142,20 @@ impl PathCandidate {
                     });
                     !has_intersection
                 })
-                .filter(|(existing_node, _)| {
-                    // slope check
-                    let path_length = search_start.distance(&existing_node.site);
-                    self.rules_start.check_slope(&rules_end, path_length)
-                })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
                     let distance_b = b.0.site.distance_2(&search_start);
                     distance_a.total_cmp(&distance_b)
-                })
-                .map(|(_, node_id)| NextTransportNode::Existing(*node_id));
+                });
 
-            if let Some(existing_node) = existing_node {
-                return existing_node;
+            if let Some((existing_node, existing_node_id)) = existing_node_id {
+                let middle = if to_be_bridge_end {
+                    let middle_site = search_start.midpoint(&existing_node.site);
+                    BridgeNode::Middle(TransportNode::new(middle_site, stage, true))
+                } else {
+                    BridgeNode::None
+                };
+                return (NextTransportNode::Existing(*existing_node_id), middle);
             }
         }
 
@@ -162,48 +167,53 @@ impl PathCandidate {
 
             let crossing_path = related_paths
                 .iter()
-                .filter(|(path_start, path_end)| {
-                    // is_bridge check
-                    !path_start.0.path_is_bridge(path_end.0)
-                })
                 .filter_map(|(path_start, path_end)| {
                     let path_line = LineSegment::new(path_start.0.site, path_end.0.site);
 
                     if let Some(intersect) = path_line.get_intersection(&search_line) {
                         return Some((
                             TransportNode::new(intersect, stage, false),
-                            (path_start.1, path_end.1),
+                            (path_start, path_end),
                         ));
                     }
                     None
-                })
-                .filter(|(crossing_node, _)| {
-                    // slope check
-                    let path_length = search_start.distance(&crossing_node.site);
-                    self.rules_start.check_slope(&rules_end, path_length)
                 })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
                     let distance_b = b.0.site.distance_2(&search_start);
                     distance_a.total_cmp(&distance_b)
-                })
-                .map(|(node, node_ids)| NextTransportNode::Intersect(node, node_ids));
+                });
 
-            if let Some(crossing_path) = crossing_path {
-                return crossing_path;
+            if let Some((crossing_node, path_nodes)) = crossing_path {
+                // if it cross the bridge, it cannot be connected.
+                if path_nodes.0 .0.path_is_bridge(path_nodes.1 .0) {
+                    return (NextTransportNode::IntersectBridge, BridgeNode::None);
+                }
+                let middle = if to_be_bridge_end {
+                    let middle_site = search_start.midpoint(&crossing_node.site);
+                    BridgeNode::Middle(TransportNode::new(middle_site, stage, true))
+                } else {
+                    BridgeNode::None
+                };
+
+                return (
+                    NextTransportNode::Intersect(crossing_node, (path_nodes.0 .1, path_nodes.1 .1)),
+                    middle,
+                );
             }
         }
 
         // New Node
         // Path crosses are already checked in the previous steps.
-        if to_be_bridge_end {
+        let middle = if to_be_bridge_end {
             let middle_site = search_start.midpoint(&site_expected_end);
-            NextTransportNode::NewBridge(
-                TransportNode::new(middle_site, stage, true),
-                TransportNode::new(site_expected_end, stage, false),
-            )
+            BridgeNode::Middle(TransportNode::new(middle_site, stage, true))
         } else {
-            NextTransportNode::New(TransportNode::new(site_expected_end, stage, false))
-        }
+            BridgeNode::None
+        };
+        (
+            NextTransportNode::New(TransportNode::new(site_expected_end, stage, false)),
+            middle,
+        )
     }
 }
