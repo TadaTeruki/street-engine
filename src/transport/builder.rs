@@ -7,7 +7,10 @@ use crate::core::{
 };
 
 use super::{
-    node::{NextTransportNode, PathCandidate, TransportNode},
+    node::{
+        candidate::{NextTransportNode, PathCandidate},
+        node::TransportNode,
+    },
     rules::TransportRules,
     traits::{RandomF64Provider, TransportRulesProvider},
 };

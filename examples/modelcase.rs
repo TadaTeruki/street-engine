@@ -12,7 +12,7 @@ use street_engine::core::geometry::angle::Angle;
 use street_engine::core::geometry::site::Site;
 use street_engine::core::Stage;
 use street_engine::transport::builder::TransportBuilder;
-use street_engine::transport::node::TransportNode;
+use street_engine::transport::node::node::TransportNode;
 use street_engine::transport::rules::{
     BranchRules, BridgeRules, PathDirectionRules, TransportRules,
 };
