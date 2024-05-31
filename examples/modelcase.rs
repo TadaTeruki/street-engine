@@ -250,19 +250,22 @@ fn write_to_image(
         // draw node
         network.neighbors_iter(inode_id).map(|neighbors_iter| {
             neighbors_iter.for_each(|(_, jnode)| {
-                paint.set_color_rgba8(100, 100, 100, 100);
-
-                let width = if jnode.stage.as_num().max(inode.stage.as_num()) == 0 {
+                let width = if inode.path_stage(jnode).as_num() == 0 {
                     2.0
                 } else {
-                    0.5
+                    0.8
+                };
+
+                let color = if inode.path_is_bridge(jnode) {
+                    [0, 230, 240]
+                } else {
+                    [0, 0, 0]
                 };
 
                 let stroke = Stroke {
                     width,
                     ..Default::default()
                 };
-                //pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
                 let site_a = inode.site;
                 let site_b = jnode.site;
                 let x_a = (site_a.x - bound_min.x) / (bound_max.x - bound_min.x) * img_width as f64;
@@ -278,7 +281,7 @@ fn write_to_image(
                     path.finish().unwrap()
                 };
 
-                paint.set_color_rgba8(0, 0, 0, 80);
+                paint.set_color_rgba8(color[0], color[1], color[2], 100);
                 pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
             })
         });

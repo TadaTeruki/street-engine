@@ -77,6 +77,13 @@ impl Site {
         Self::new(x, y)
     }
 
+    /// Calculate the midpoint of the two sites.
+    pub fn midpoint(&self, other: &Self) -> Self {
+        let x = (self.x + other.x) / 2.0;
+        let y = (self.y + other.y) / 2.0;
+        Self::new(x, y)
+    }
+
     /// Calculate the angle to the other site.
     pub fn get_angle(&self, other: &Self) -> Angle {
         let dx = other.x - self.x;

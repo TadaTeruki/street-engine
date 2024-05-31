@@ -27,6 +27,7 @@ mod tests {
         TransportNode {
             site: Site::new(x, y),
             stage: TransportNode::default().stage,
+            is_bridge: TransportNode::default().is_bridge,
         }
     }
 
@@ -86,6 +87,7 @@ mod tests {
             site_expected_end,
             rules.clone(),
             static_stage,
+            false,
             &nodes_parsed,
             &paths_parsed,
         );
@@ -121,6 +123,7 @@ mod tests {
             site_expected_end,
             rules.clone(),
             static_stage,
+            false,
             &nodes_parsed,
             &paths_parsed,
         );
@@ -150,6 +153,7 @@ mod tests {
             site_expected_end,
             rules.clone(),
             static_stage,
+            false,
             &nodes_parsed,
             &paths_parsed,
         );
@@ -179,6 +183,7 @@ mod tests {
             site_expected_end,
             rules.clone(),
             static_stage,
+            false,
             &nodes_parsed,
             &paths_parsed,
         );
@@ -249,6 +254,7 @@ mod tests {
             site_expected_end,
             rules.clone(),
             static_stage,
+            false,
             &nodes_parsed,
             &paths_parsed,
         );
@@ -265,4 +271,79 @@ mod tests {
             panic!("Unexpected node type");
         }
     }
+
+    /*
+    #[test]
+    fn test_bridge() {
+        let nodes = vec![
+            create_node(0.0, 0.0),
+            create_node(1.0, 1.0),
+            create_node(0.0, 0.0),
+            create_node(1.0, 1.0),
+        ];
+
+        let nodes_parsed = nodes
+            .iter()
+            .enumerate()
+            .map(|(i, node)| (node, NodeId::new(i)))
+            .collect::<Vec<_>>();
+
+        let paths = vec![(0, 1), (2, 3)];
+
+        let paths_parsed = paths
+            .iter()
+            .map(|(start, end)| (nodes_parsed[*start], nodes_parsed[*end]))
+            .collect::<Vec<_>>();
+
+        let default_rules = TransportRules {
+            path_priority: 0.0,
+            elevation: 0.0,
+            population_density: 0.0,
+            path_normal_length: 1.0,
+            path_extra_length_for_intersection: 0.25,
+            path_max_elevation_diff: None,
+            branch_rules: BranchRules::default(),
+            path_direction_rules: PathDirectionRules::default(),
+            bridge_rules: BridgeRules::default(),
+        };
+
+        let (node_start, angle_expected_end) = (
+            create_node(1.0, 1.0),
+            Angle::new(std::f64::consts::PI * 0.75),
+        );
+        let site_expected_end = node_start
+            .site
+            .extend(angle_expected_end, rules.path_normal_length);
+
+        let static_stage = Stage::default();
+
+        // New node
+        let new = PathCandidate::new(
+            node_start,
+            NodeId::new(10000),
+            angle_expected_end,
+            static_stage,
+            rules.clone(),
+        )
+        .determine_next_node(
+            site_expected_end,
+            rules.clone(),
+            static_stage,
+            &nodes_parsed,
+            &paths_parsed,
+        );
+
+        if let NextTransportNode::New(node) = new {
+            assert_eq_f64!(
+                node.site.distance(&Site::new(
+                    1.0 + 1.0 / 2.0_f64.sqrt(),
+                    1.0 + 1.0 / 2.0_f64.sqrt()
+                )),
+                0.0
+            );
+        } else {
+            panic!("Unexpected node type");
+        }
+    }
+    */
 }

@@ -12,6 +12,7 @@ use super::node::TransportNode;
 #[derive(Debug)]
 pub enum NextTransportNode {
     New(TransportNode),
+    NewBridge(TransportNode, TransportNode),
     Existing(NodeId),
     Intersect(TransportNode, (NodeId, NodeId)),
 }
@@ -101,6 +102,7 @@ impl PathCandidate {
         site_expected_end: Site,
         rules_end: TransportRules,
         stage: Stage,
+        to_be_bridge_end: bool,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
     ) -> NextTransportNode {
@@ -116,6 +118,11 @@ impl PathCandidate {
                     LineSegment::new(search_start, site_expected_end)
                         .get_distance(&existing_node.site)
                         < self.rules_start.path_extra_length_for_intersection
+                })
+                .filter(|(existing_node, _)| {
+                    // is_bridge check
+                    // if the existing node is is_bridge, the path cannot be connected.
+                    !existing_node.is_bridge
                 })
                 .filter(|(existing_node, existing_node_id)| {
                     // no intersection check
@@ -155,12 +162,16 @@ impl PathCandidate {
 
             let crossing_path = related_paths
                 .iter()
+                .filter(|(path_start, path_end)| {
+                    // is_bridge check
+                    !path_start.0.path_is_bridge(path_end.0)
+                })
                 .filter_map(|(path_start, path_end)| {
                     let path_line = LineSegment::new(path_start.0.site, path_end.0.site);
 
                     if let Some(intersect) = path_line.get_intersection(&search_line) {
                         return Some((
-                            TransportNode::new(intersect, stage),
+                            TransportNode::new(intersect, stage, false),
                             (path_start.1, path_end.1),
                         ));
                     }
@@ -185,6 +196,14 @@ impl PathCandidate {
 
         // New Node
         // Path crosses are already checked in the previous steps.
-        NextTransportNode::New(TransportNode::new(site_expected_end, stage))
+        if to_be_bridge_end {
+            let middle_site = search_start.midpoint(&site_expected_end);
+            NextTransportNode::NewBridge(
+                TransportNode::new(middle_site, stage, true),
+                TransportNode::new(site_expected_end, stage, false),
+            )
+        } else {
+            NextTransportNode::New(TransportNode::new(site_expected_end, stage, false))
+        }
     }
 }
