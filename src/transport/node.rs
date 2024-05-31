@@ -55,7 +55,7 @@ pub struct PathCandidate {
     node_start_id: NodeId,
     angle_expected_end: Angle,
     stage: Stage,
-    rules: TransportRules,
+    rules_start: TransportRules,
 }
 
 impl Eq for PathCandidate {}
@@ -68,9 +68,9 @@ impl PartialOrd for PathCandidate {
 
 impl Ord for PathCandidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.rules
+        self.rules_start
             .path_priority
-            .total_cmp(&other.rules.path_priority)
+            .total_cmp(&other.rules_start.path_priority)
     }
 }
 
@@ -83,14 +83,14 @@ impl PathCandidate {
         node_start_id: NodeId,
         angle_expected_end: Angle,
         stage: Stage,
-        rules: TransportRules,
+        rules_start: TransportRules,
     ) -> Self {
         Self {
             node_start,
             node_start_id,
             angle_expected_end,
             stage,
-            rules,
+            rules_start,
         }
     }
 
@@ -110,8 +110,8 @@ impl PathCandidate {
     }
 
     /// Get rules of the path.
-    pub fn get_rules(&self) -> &TransportRules {
-        &self.rules
+    pub fn get_rules_start(&self) -> &TransportRules {
+        &self.rules_start
     }
 
     /// Get stage of the path.
@@ -121,10 +121,10 @@ impl PathCandidate {
 
     /// Get the end site of the path with extra length.
     /// This is temporary used for searching intersections.
-    fn get_expected_site_to_with_extra_length(&self) -> Site {
+    fn get_expected_site_to_with_extra_length(&self, path_length: f64) -> Site {
         self.node_start.site.extend(
             self.angle_expected_end,
-            self.rules.path_normal_length + self.rules.path_extra_length_for_intersection,
+            path_length + self.rules_start.path_extra_length_for_intersection,
         )
     }
 
@@ -146,7 +146,7 @@ impl PathCandidate {
                 .filter(|(existing_node, _)| {
                     LineSegment::new(search_start, site_expected_end)
                         .get_distance(&existing_node.site)
-                        < self.rules.path_extra_length_for_intersection
+                        < self.rules_start.path_extra_length_for_intersection
                 })
                 .filter(|(existing_node, existing_node_id)| {
                     let has_intersection = related_paths.iter().any(|(path_start, path_end)| {
@@ -174,7 +174,8 @@ impl PathCandidate {
 
         // Crossing Paths
         {
-            let search_end = self.get_expected_site_to_with_extra_length();
+            let search_end = self
+                .get_expected_site_to_with_extra_length(site_expected_end.distance(&search_start));
             let search_line = LineSegment::new(search_start, search_end);
 
             let crossing_path = related_paths

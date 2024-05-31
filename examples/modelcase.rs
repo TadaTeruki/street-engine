@@ -13,7 +13,9 @@ use street_engine::core::geometry::site::Site;
 use street_engine::core::Stage;
 use street_engine::transport::builder::TransportBuilder;
 use street_engine::transport::node::TransportNode;
-use street_engine::transport::rules::{BranchRules, PathDirectionRules, TransportRules};
+use street_engine::transport::rules::{
+    BranchRules, BridgeRules, PathDirectionRules, TransportRules,
+};
 use street_engine::transport::traits::{RandomF64Provider, TransportRulesProvider};
 use terrain_graph::edge_attributed_undirected::EdgeAttributedUndirectedGraph;
 use tiny_skia::{Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
@@ -41,6 +43,9 @@ impl<'a> MapProvider<'a> {
 impl<'a> TransportRulesProvider for MapProvider<'a> {
     fn get_rules(&self, site: &Site, _: Angle, stage: Stage) -> Option<TransportRules> {
         let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
+        if elevation < 1e-3 {
+            return None;
+        }
         let population_density = self
             .interpolator
             .interpolate(
@@ -51,19 +56,18 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                 },
             )
             .unwrap_or(None)?;
-        if elevation < 1e-3 {
-            return None;
-        }
 
         let path_priority = (1e-9 + population_density) * (-elevation);
 
         if stage.as_num() > 0 {
+            // street
             Some(TransportRules {
                 path_priority,
                 elevation,
                 population_density,
                 path_normal_length: 0.5,
                 path_extra_length_for_intersection: 0.3,
+                path_max_elevation_diff: None,
                 branch_rules: BranchRules {
                     branch_density: 0.01 + population_density * 0.99,
                     staging_probability: 0.0,
@@ -72,21 +76,31 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                     max_radian: std::f64::consts::PI / (5.0 + 1000.0 * population_density),
                     comparison_step: 3,
                 },
+                bridge_rules: BridgeRules {
+                    max_bridge_length: 0.0,
+                    check_step: 0,
+                },
             })
         } else {
+            // highway
             Some(TransportRules {
                 path_priority: path_priority + 1e5,
                 elevation,
                 population_density,
                 path_normal_length: 0.5,
                 path_extra_length_for_intersection: 0.3,
+                path_max_elevation_diff: None,
                 branch_rules: BranchRules {
                     branch_density: 0.2 + population_density * 0.8,
                     staging_probability: 0.97,
                 },
                 path_direction_rules: PathDirectionRules {
                     max_radian: std::f64::consts::PI / (10.0 + 100.0 * population_density),
-                    comparison_step: 5,
+                    comparison_step: 3,
+                },
+                bridge_rules: BridgeRules {
+                    max_bridge_length: 100.0,
+                    check_step: 6,
                 },
             })
         }

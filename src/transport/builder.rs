@@ -8,7 +8,7 @@ use crate::core::{
 
 use super::{
     node::{NextTransportNode, PathCandidate, TransportNode},
-    rules::PathDirectionRules,
+    rules::TransportRules,
     traits::{RandomF64Provider, TransportRulesProvider},
 };
 
@@ -38,14 +38,12 @@ where
         &mut self,
         node_start: TransportNode,
         node_start_id: NodeId,
-        path_length: f64,
         angle_expected_end: Angle,
         stage: Stage,
     ) -> bool {
-        let site_expected_end = node_start.site.extend(angle_expected_end, path_length);
-        let rules = if let Some(rules) =
+        let rules_start = if let Some(rules) =
             self.rules_provider
-                .get_rules(&site_expected_end, angle_expected_end, stage)
+                .get_rules(&node_start.site, angle_expected_end, stage)
         {
             rules
         } else {
@@ -56,7 +54,7 @@ where
             node_start_id,
             angle_expected_end,
             stage,
-            rules,
+            rules_start,
         ));
 
         true
@@ -79,26 +77,10 @@ where
         let origin_node = TransportNode::new(origin_site, stage);
         let origin_node_id = self.path_network.add_node(origin_node);
 
-        let origin_path_length = if let Some(rules) =
-            self.rules_provider
-                .get_rules(&origin_site, Angle::new(angle_radian), stage)
-        {
-            rules.path_normal_length
-        } else {
-            return None;
-        };
-
+        self.create_new_candidate(origin_node, origin_node_id, Angle::new(angle_radian), stage);
         self.create_new_candidate(
             origin_node,
             origin_node_id,
-            origin_path_length,
-            Angle::new(angle_radian),
-            stage,
-        );
-        self.create_new_candidate(
-            origin_node,
-            origin_node_id,
-            origin_path_length,
             Angle::new(angle_radian).opposite(),
             stage,
         );
@@ -134,20 +116,35 @@ where
         site_start: Site,
         angle_expected: Angle,
         stage: Stage,
-        path_length: f64,
-        path_direction_rules: &PathDirectionRules,
+        rules_start: &TransportRules,
     ) -> Option<Site> {
+        let path_direction_rules = &rules_start.path_direction_rules;
         angle_expected
             .iter_range_around(
                 path_direction_rules.max_radian,
                 path_direction_rules.comparison_step,
             )
             .filter_map(|angle| {
-                let site_end = site_start.extend(angle, path_length);
-                Some((
-                    site_end,
-                    self.rules_provider.get_rules(&site_end, angle, stage)?,
-                ))
+                for i in 0..=rules_start.bridge_rules.check_step {
+                    let bridge_path_length = if rules_start.bridge_rules.check_step == 0 {
+                        0.0
+                    } else {
+                        rules_start.bridge_rules.max_bridge_length * (i as f64)
+                            / (rules_start.bridge_rules.check_step as f64)
+                    };
+                    let path_length = rules_start.path_normal_length + bridge_path_length;
+                    if i != 0 {
+                        println!("Bridge path length: {}", path_length);
+                    }
+                    let site_end = site_start.extend(angle, path_length);
+                    if let Some(rules_end) = self.rules_provider.get_rules(&site_end, angle, stage)
+                    {
+                        if rules_start.check_slope(&rules_end, path_length) {
+                            return Some((site_end, rules_end));
+                        }
+                    }
+                }
+                return None;
             })
             .max_by(|(_, rules1), (_, rules2)| {
                 rules1.path_priority.total_cmp(&rules2.path_priority)
@@ -166,15 +163,14 @@ where
             return self;
         };
 
-        let rules = prior_candidate.get_rules();
+        let rules = prior_candidate.get_rules_start();
 
         let site_start = prior_candidate.get_site_start();
         let site_expected_end_opt = self.query_expected_end_of_path(
             site_start,
             prior_candidate.angle_expected_end(),
             prior_candidate.get_stage(),
-            rules.path_normal_length,
-            &rules.path_direction_rules,
+            &rules,
         );
 
         let site_expected_end = if let Some(site_expected_end) = site_expected_end_opt {
@@ -188,7 +184,7 @@ where
             .nodes_around_line_iter(
                 LineSegment::new(site_start, site_expected_end),
                 prior_candidate
-                    .get_rules()
+                    .get_rules_start()
                     .path_extra_length_for_intersection,
             )
             .filter(|&node_id| *node_id != prior_candidate.get_node_start_id())
@@ -225,19 +221,20 @@ where
                 let straight_angle = site_start.get_angle(&site_expected_end);
                 let straight_stage = prior_candidate.get_stage();
 
-                let extend_to_straight = self.create_new_candidate(
-                    node_next,
-                    node_id,
-                    rules.path_normal_length,
-                    straight_angle,
-                    straight_stage,
-                );
+                let extend_to_straight =
+                    self.create_new_candidate(node_next, node_id, straight_angle, straight_stage);
 
-                let clockwise_branch =
-                    rng.gen_f64() < prior_candidate.get_rules().branch_rules.branch_density;
+                let clockwise_branch = rng.gen_f64()
+                    < prior_candidate
+                        .get_rules_start()
+                        .branch_rules
+                        .branch_density;
                 if clockwise_branch || !extend_to_straight {
                     let clockwise_staging = rng.gen_f64()
-                        < prior_candidate.get_rules().branch_rules.staging_probability;
+                        < prior_candidate
+                            .get_rules_start()
+                            .branch_rules
+                            .staging_probability;
                     let next_stage = if clockwise_staging {
                         prior_candidate.get_stage().incremented()
                     } else {
@@ -247,17 +244,22 @@ where
                     self.create_new_candidate(
                         node_next,
                         node_id,
-                        rules.path_normal_length,
                         straight_angle.right_clockwise(),
                         next_stage,
                     );
                 }
 
-                let counterclockwise_branch =
-                    rng.gen_f64() < prior_candidate.get_rules().branch_rules.branch_density;
+                let counterclockwise_branch = rng.gen_f64()
+                    < prior_candidate
+                        .get_rules_start()
+                        .branch_rules
+                        .branch_density;
                 if counterclockwise_branch || !extend_to_straight {
                     let counterclockwise_staging = rng.gen_f64()
-                        < prior_candidate.get_rules().branch_rules.staging_probability;
+                        < prior_candidate
+                            .get_rules_start()
+                            .branch_rules
+                            .staging_probability;
                     let next_stage = if counterclockwise_staging {
                         prior_candidate.get_stage().incremented()
                     } else {
@@ -267,7 +269,6 @@ where
                     self.create_new_candidate(
                         node_next,
                         node_id,
-                        rules.path_normal_length,
                         straight_angle.right_counterclockwise(),
                         next_stage,
                     );
