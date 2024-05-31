@@ -133,9 +133,6 @@ where
                             / (rules_start.bridge_rules.check_step as f64)
                     };
                     let path_length = rules_start.path_normal_length + bridge_path_length;
-                    if i != 0 {
-                        println!("Bridge path length: {}", path_length);
-                    }
                     let site_end = site_start.extend(angle, path_length);
                     if let Some(rules_end) = self.rules_provider.get_rules(&site_end, angle, stage)
                     {
@@ -163,18 +160,28 @@ where
             return self;
         };
 
-        let rules = prior_candidate.get_rules_start();
+        let rules_start = prior_candidate.get_rules_start();
 
         let site_start = prior_candidate.get_site_start();
         let site_expected_end_opt = self.query_expected_end_of_path(
             site_start,
             prior_candidate.angle_expected_end(),
             prior_candidate.get_stage(),
-            &rules,
+            &rules_start,
         );
 
         let site_expected_end = if let Some(site_expected_end) = site_expected_end_opt {
             site_expected_end
+        } else {
+            return self;
+        };
+
+        let rules_end = if let Some(rules_end) = self.rules_provider.get_rules(
+            &site_expected_end,
+            prior_candidate.angle_expected_end(),
+            prior_candidate.get_stage(),
+        ) {
+            rules_end
         } else {
             return self;
         };
@@ -208,6 +215,7 @@ where
         let candidate_node_id = prior_candidate.get_node_start_id();
         let next_node_type = prior_candidate.determine_next_node(
             site_expected_end,
+            rules_end,
             prior_candidate.get_stage(),
             &related_nodes,
             &related_paths,

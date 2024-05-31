@@ -89,7 +89,7 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                 population_density,
                 path_normal_length: 0.5,
                 path_extra_length_for_intersection: 0.3,
-                path_max_elevation_diff: None,
+                path_max_elevation_diff: Some(10.0),
                 branch_rules: BranchRules {
                     branch_density: 0.2 + population_density * 0.8,
                     staging_probability: 0.97,
@@ -99,7 +99,7 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                     comparison_step: 3,
                 },
                 bridge_rules: BridgeRules {
-                    max_bridge_length: 100.0,
+                    max_bridge_length: 45.0,
                     check_step: 6,
                 },
             })
@@ -131,13 +131,16 @@ fn main() {
         y: -50.0,
     };
     let bound_max = Site { x: 100.0, y: 50.0 };
-    let img_width = 1200;
-    let img_height = 600;
+    let img_width = 2400;
+    let img_height = 1200;
     let filename = "modelcase.png";
 
     println!("Creating terrain...");
 
     let (terrain, is_outlet, graph) = create_terrain(node_num, seed, bound_min, bound_max);
+
+    let max_elevation = terrain.elevations().iter().cloned().fold(0.0, f64::max);
+    println!("Max elevation: {}", max_elevation);
 
     println!("Calculating population densities...");
 
@@ -250,7 +253,7 @@ fn write_to_image(
                 paint.set_color_rgba8(100, 100, 100, 100);
 
                 let width = if jnode.stage.as_num().max(inode.stage.as_num()) == 0 {
-                    1.0
+                    2.0
                 } else {
                     0.5
                 };

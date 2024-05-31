@@ -132,6 +132,7 @@ impl PathCandidate {
     pub fn determine_next_node(
         &self,
         site_expected_end: Site,
+        rules_end: TransportRules,
         stage: Stage,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
@@ -144,11 +145,13 @@ impl PathCandidate {
             let existing_node = related_nodes
                 .iter()
                 .filter(|(existing_node, _)| {
+                    // distance check
                     LineSegment::new(search_start, site_expected_end)
                         .get_distance(&existing_node.site)
                         < self.rules_start.path_extra_length_for_intersection
                 })
                 .filter(|(existing_node, existing_node_id)| {
+                    // no intersection check
                     let has_intersection = related_paths.iter().any(|(path_start, path_end)| {
                         if *existing_node_id == path_start.1 || *existing_node_id == path_end.1 {
                             // ignore
@@ -159,6 +162,11 @@ impl PathCandidate {
                         path_line.get_intersection(&search_line).is_some()
                     });
                     !has_intersection
+                })
+                .filter(|(existing_node, _)| {
+                    // slope check
+                    let path_length = search_start.distance(&existing_node.site);
+                    self.rules_start.check_slope(&rules_end, path_length)
                 })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
@@ -190,6 +198,11 @@ impl PathCandidate {
                         ));
                     }
                     None
+                })
+                .filter(|(crossing_node, _)| {
+                    // slope check
+                    let path_length = search_start.distance(&crossing_node.site);
+                    self.rules_start.check_slope(&rules_end, path_length)
                 })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
@@ -275,6 +288,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            rules.clone(),
             static_stage,
             &nodes_parsed,
             &paths_parsed,
@@ -309,6 +323,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            rules.clone(),
             static_stage,
             &nodes_parsed,
             &paths_parsed,
@@ -337,6 +352,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            rules.clone(),
             static_stage,
             &nodes_parsed,
             &paths_parsed,
@@ -365,6 +381,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            rules.clone(),
             static_stage,
             &nodes_parsed,
             &paths_parsed,
@@ -434,6 +451,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            rules.clone(),
             static_stage,
             &nodes_parsed,
             &paths_parsed,

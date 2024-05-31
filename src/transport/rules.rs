@@ -59,7 +59,7 @@ impl Default for BranchRules {
 pub struct BridgeRules {
     /// Maximum length of bridges.
     pub max_bridge_length: f64,
-
+    
     /// Number of check steps to create a bridge.
     pub check_step: usize,
 }
