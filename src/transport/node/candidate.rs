@@ -119,16 +119,18 @@ impl PathCandidate {
             let existing_node_id = related_nodes
                 .iter()
                 .filter(|(existing_node, _)| {
-                    // distance check
+                    // distance check for decreasing the number of candidates
                     LineSegment::new(search_start, site_expected_end)
                         .get_distance(&existing_node.site)
                         < self.rules_start.path_extra_length_for_intersection
                 })
+                /*
                 .filter(|(existing_node, _)| {
                     // is_bridge check
                     // if the existing node is is_bridge, the path cannot be connected.
                     !existing_node.is_bridge
                 })
+                */
                 .filter(|(existing_node, existing_node_id)| {
                     // no intersection check
                     let has_intersection = related_paths.iter().any(|(path_start, path_end)| {
@@ -178,14 +180,14 @@ impl PathCandidate {
                     if let Some(intersect) = path_line.get_intersection(&search_line) {
                         let distance_0 = path_start.0.site.distance(&intersect);
                         let distance_1 = path_end.0.site.distance(&intersect);
-                        let prop_0 = distance_1 / (distance_0 + distance_1);
+                        let prop_start = distance_1 / (distance_0 + distance_1);
                         return Some((
                             TransportNode::new(
                                 intersect,
-                                stage,
-                                path_start.0.elevation * prop_0
-                                    + path_end.0.elevation * (1.0 - prop_0),
-                                false,
+                                path_start.0.path_stage(path_end.0),
+                                path_start.0.elevation * prop_start
+                                    + path_end.0.elevation * (1.0 - prop_start),
+                                path_start.0.path_is_bridge(path_end.0),
                             ),
                             (path_start, path_end),
                         ));
@@ -200,9 +202,11 @@ impl PathCandidate {
 
             if let Some((crossing_node, path_nodes)) = crossing_path {
                 // if it cross the bridge, it cannot be connected.
+                /*
                 if path_nodes.0 .0.path_is_bridge(path_nodes.1 .0) {
                     return (NextTransportNode::IntersectBridge, BridgeNode::None);
                 }
+                */
                 let middle = if to_be_bridge_end {
                     let middle_site = search_start.midpoint(&crossing_node.site);
                     BridgeNode::Middle(TransportNode::new(
