@@ -1,17 +1,19 @@
 use crate::core::{geometry::site::Site, Stage};
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct TransportNode {
     pub site: Site,
     pub stage: Stage,
+    pub elevation: f64,
     pub is_bridge: bool,
 }
 
 impl TransportNode {
-    pub fn new(site: Site, stage: Stage, is_bridge: bool) -> Self {
+    pub fn new(site: Site, stage: Stage, elevation: f64, is_bridge: bool) -> Self {
         Self {
             site,
             stage,
+            elevation,
             is_bridge,
         }
     }
@@ -24,6 +26,8 @@ impl TransportNode {
         self.stage.max(other.stage)
     }
 }
+
+impl Eq for TransportNode {}
 
 impl From<TransportNode> for Site {
     fn from(node: TransportNode) -> Self {

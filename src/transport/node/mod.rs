@@ -27,6 +27,7 @@ mod tests {
         TransportNode {
             site: Site::new(x, y),
             stage: TransportNode::default().stage,
+            elevation: TransportNode::default().elevation,
             is_bridge: TransportNode::default().is_bridge,
         }
     }
@@ -55,7 +56,6 @@ mod tests {
 
         let rules = TransportRules {
             path_priority: 0.0,
-            elevation: 0.0,
             population_density: 0.0,
             path_normal_length: 1.0,
             path_extra_length_for_intersection: 0.25,
@@ -85,6 +85,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            0.0,
             static_stage,
             false,
             &nodes_parsed,
@@ -120,6 +121,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            0.0,
             static_stage,
             false,
             &nodes_parsed,
@@ -149,6 +151,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            0.0,
             static_stage,
             false,
             &nodes_parsed,
@@ -178,6 +181,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            0.0,
             static_stage,
             false,
             &nodes_parsed,
@@ -219,7 +223,6 @@ mod tests {
 
         let rules = TransportRules {
             path_priority: 0.0,
-            elevation: 0.0,
             population_density: 0.0,
             path_normal_length: 10000.0,
             path_extra_length_for_intersection: 0.0,
@@ -248,6 +251,7 @@ mod tests {
         )
         .determine_next_node(
             site_expected_end,
+            0.0,
             static_stage,
             false,
             &nodes_parsed,

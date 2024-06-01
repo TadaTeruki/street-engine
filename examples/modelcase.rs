@@ -16,7 +16,9 @@ use street_engine::transport::node::node::TransportNode;
 use street_engine::transport::rules::{
     BranchRules, BridgeRules, PathDirectionRules, TransportRules,
 };
-use street_engine::transport::traits::{RandomF64Provider, TransportRulesProvider};
+use street_engine::transport::traits::{
+    RandomF64Provider, TerrainProvider, TransportRulesProvider,
+};
 use terrain_graph::edge_attributed_undirected::EdgeAttributedUndirectedGraph;
 use tiny_skia::{Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
 
@@ -40,12 +42,19 @@ impl<'a> MapProvider<'a> {
     }
 }
 
-impl<'a> TransportRulesProvider for MapProvider<'a> {
-    fn get_rules(&self, site: &Site, _: Angle, stage: Stage) -> Option<TransportRules> {
+impl<'a> TerrainProvider for MapProvider<'a> {
+    fn get_elevation(&self, site: &Site) -> Option<f64> {
         let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
         if elevation < 1e-3 {
             return None;
         }
+        return Some(elevation);
+    }
+}
+
+impl<'a> TransportRulesProvider for MapProvider<'a> {
+    fn get_rules(&self, site: &Site, _: Angle, stage: Stage) -> Option<TransportRules> {
+        let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
         let population_density = self
             .interpolator
             .interpolate(
@@ -63,7 +72,6 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
             // street
             Some(TransportRules {
                 path_priority,
-                elevation,
                 population_density,
                 path_normal_length: 0.5,
                 path_extra_length_for_intersection: 0.3,
@@ -85,11 +93,10 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
             // highway
             Some(TransportRules {
                 path_priority: path_priority + 1e5,
-                elevation,
                 population_density,
                 path_normal_length: 0.5,
                 path_extra_length_for_intersection: 0.3,
-                path_max_elevation_diff: Some(10.0),
+                path_max_elevation_diff: Some(7.0),
                 branch_rules: BranchRules {
                     branch_density: 0.2 + population_density * 0.8,
                     staging_probability: 0.97,
@@ -125,7 +132,7 @@ impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
 
 fn main() {
     let node_num = 50000;
-    let seed = 47;
+    let seed = 472;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,
@@ -163,7 +170,7 @@ fn main() {
 
     let mut rnd = RandomF64::new(rand::rngs::StdRng::seed_from_u64(0));
 
-    let network = TransportBuilder::new(&map_provider)
+    let network = TransportBuilder::new(&map_provider, &map_provider)
         .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, None)
         .unwrap()
         .iterate_as_possible(&mut rnd)

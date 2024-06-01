@@ -4,8 +4,6 @@ pub struct TransportRules {
     /// Priority to construct a path to this site.
     pub path_priority: f64,
 
-    /// Elevation.
-    pub elevation: f64,
     /// Population density.
     pub population_density: f64,
 

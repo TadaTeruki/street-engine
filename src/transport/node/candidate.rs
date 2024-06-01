@@ -105,7 +105,7 @@ impl PathCandidate {
     pub fn determine_next_node(
         &self,
         site_expected_end: Site,
-        // TODO: rules_providerを引数に入れslopeの確認
+        elevation_expected_end: f64,
         stage: Stage,
         to_be_bridge_end: bool,
         related_nodes: &[RelatedNode],
@@ -151,7 +151,12 @@ impl PathCandidate {
             if let Some((existing_node, existing_node_id)) = existing_node_id {
                 let middle = if to_be_bridge_end {
                     let middle_site = search_start.midpoint(&existing_node.site);
-                    BridgeNode::Middle(TransportNode::new(middle_site, stage, true))
+                    BridgeNode::Middle(TransportNode::new(
+                        middle_site,
+                        stage,
+                        (existing_node.elevation + self.node_start.elevation) / 2.0,
+                        true,
+                    ))
                 } else {
                     BridgeNode::None
                 };
@@ -171,8 +176,17 @@ impl PathCandidate {
                     let path_line = LineSegment::new(path_start.0.site, path_end.0.site);
 
                     if let Some(intersect) = path_line.get_intersection(&search_line) {
+                        let distance_0 = path_start.0.site.distance(&intersect);
+                        let distance_1 = path_end.0.site.distance(&intersect);
+                        let prop_0 = distance_1 / (distance_0 + distance_1);
                         return Some((
-                            TransportNode::new(intersect, stage, false),
+                            TransportNode::new(
+                                intersect,
+                                stage,
+                                path_start.0.elevation * prop_0
+                                    + path_end.0.elevation * (1.0 - prop_0),
+                                false,
+                            ),
                             (path_start, path_end),
                         ));
                     }
@@ -191,7 +205,12 @@ impl PathCandidate {
                 }
                 let middle = if to_be_bridge_end {
                     let middle_site = search_start.midpoint(&crossing_node.site);
-                    BridgeNode::Middle(TransportNode::new(middle_site, stage, true))
+                    BridgeNode::Middle(TransportNode::new(
+                        middle_site,
+                        stage,
+                        (crossing_node.elevation + self.node_start.elevation) / 2.0,
+                        true,
+                    ))
                 } else {
                     BridgeNode::None
                 };
@@ -207,12 +226,22 @@ impl PathCandidate {
         // Path crosses are already checked in the previous steps.
         let middle = if to_be_bridge_end {
             let middle_site = search_start.midpoint(&site_expected_end);
-            BridgeNode::Middle(TransportNode::new(middle_site, stage, true))
+            BridgeNode::Middle(TransportNode::new(
+                middle_site,
+                stage,
+                (elevation_expected_end + self.node_start.elevation) / 2.0,
+                true,
+            ))
         } else {
             BridgeNode::None
         };
         (
-            NextTransportNode::New(TransportNode::new(site_expected_end, stage, false)),
+            NextTransportNode::New(TransportNode::new(
+                site_expected_end,
+                stage,
+                elevation_expected_end,
+                false,
+            )),
             middle,
         )
     }

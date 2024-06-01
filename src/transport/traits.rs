@@ -12,6 +12,11 @@ pub trait TransportRulesProvider {
     fn get_rules(&self, site_end: &Site, angle: Angle, stage: Stage) -> Option<TransportRules>;
 }
 
+/// Provider of Terrain.
+pub trait TerrainProvider {
+    fn get_elevation(&self, site: &Site) -> Option<f64>;
+}
+
 /// Provider of random f64 values.
 ///
 /// The range of the value is the same as the range of `f64` (not constrained).

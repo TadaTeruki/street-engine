@@ -1,4 +1,4 @@
-use std::collections::BinaryHeap;
+use std::{collections::BinaryHeap, f32::consts::E};
 
 use crate::core::{
     container::path_network::{NodeId, PathNetwork},
@@ -12,27 +12,31 @@ use super::{
         node::TransportNode,
     },
     rules::{check_slope, TransportRules},
-    traits::{RandomF64Provider, TransportRulesProvider},
+    traits::{RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };
 
-pub struct TransportBuilder<'a, TP>
+pub struct TransportBuilder<'a, RP, TP>
 where
-    TP: TransportRulesProvider,
+    RP: TransportRulesProvider,
+    TP: TerrainProvider,
 {
     path_network: PathNetwork<TransportNode>,
-    rules_provider: &'a TP,
+    rules_provider: &'a RP,
+    terrain_provider: &'a TP,
     path_candidate_container: BinaryHeap<PathCandidate>,
 }
 
-impl<'a, TP> TransportBuilder<'a, TP>
+impl<'a, RP, TP> TransportBuilder<'a, RP, TP>
 where
-    TP: TransportRulesProvider,
+    RP: TransportRulesProvider,
+    TP: TerrainProvider,
 {
     /// Create a new `TransportBuilder`.
-    pub fn new(rules_provider: &'a TP) -> Self {
+    pub fn new(rules_provider: &'a RP, terrain_provider: &'a TP) -> Self {
         Self {
             path_network: PathNetwork::new(),
             rules_provider,
+            terrain_provider,
             path_candidate_container: BinaryHeap::new(),
         }
     }
@@ -77,7 +81,12 @@ where
         } else {
             Stage::new(0)
         };
-        let origin_node = TransportNode::new(origin_site, stage, false);
+        let origin_node = TransportNode::new(
+            origin_site,
+            stage,
+            self.terrain_provider.get_elevation(&origin_site)?,
+            false,
+        );
         let origin_node_id = self.path_network.add_node(origin_node);
 
         self.create_new_candidate(origin_node, origin_node_id, Angle::new(angle_radian), stage);
@@ -140,17 +149,18 @@ where
                     let site_end = site_start.extend(angle, path_length);
                     if let Some(rules_end) = self.rules_provider.get_rules(&site_end, angle, stage)
                     {
-                        /*
-                        if rules_start.check_slope(&rules_end, path_length) {
-                            return Some((site_end, rules_end, i > 0));
-                        }*/
-                        if check_slope(
-                            rules_start.elevation,
-                            rules_end.elevation,
-                            path_length,
-                            rules_start.path_max_elevation_diff,
+                        if let (Some(elevation_start), Some(elevation_end)) = (
+                            self.terrain_provider.get_elevation(&site_start),
+                            self.terrain_provider.get_elevation(&site_end),
                         ) {
-                            return Some((site_end, rules_end, i > 0));
+                            if check_slope(
+                                elevation_start,
+                                elevation_end,
+                                path_length,
+                                rules_start.path_max_elevation_diff,
+                            ) {
+                                return Some((site_end, rules_end, i > 0));
+                            }
                         }
                     }
                 }
@@ -215,9 +225,17 @@ where
             })
             .collect::<Vec<_>>();
 
+        let elevation_expected_end =
+            if let Some(elevation) = self.terrain_provider.get_elevation(&site_expected_end) {
+                elevation
+            } else {
+                return self;
+            };
+
         let candidate_node_id = prior_candidate.get_node_start_id();
         let (next_node_type, bridge_node) = prior_candidate.determine_next_node(
             site_expected_end,
+            elevation_expected_end,
             prior_candidate.get_stage(),
             to_be_bridge_end,
             &related_nodes,
