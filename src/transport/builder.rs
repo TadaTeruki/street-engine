@@ -1,4 +1,4 @@
-use std::{collections::BinaryHeap, f32::consts::E};
+use std::collections::BinaryHeap;
 
 use crate::core::{
     container::path_network::{NodeId, PathNetwork},
@@ -9,7 +9,7 @@ use crate::core::{
 use super::{
     node::{
         candidate::{BridgeNode, NextTransportNode, PathCandidate},
-        node::TransportNode,
+        transport_node::TransportNode,
     },
     rules::{check_slope, TransportRules},
     traits::{RandomF64Provider, TerrainProvider, TransportRulesProvider},
@@ -164,7 +164,7 @@ where
                         }
                     }
                 }
-                return None;
+                None
             })
             .max_by(|(_, rules1, _), (_, rules2, _)| {
                 rules1.path_priority.total_cmp(&rules2.path_priority)
@@ -190,7 +190,7 @@ where
             site_start,
             prior_candidate.angle_expected_end(),
             prior_candidate.get_stage(),
-            &rules_start,
+            rules_start,
         );
 
         let (site_expected_end, to_be_bridge_end) = if let Some(end) = site_expected_end_opt {

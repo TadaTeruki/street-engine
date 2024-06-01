@@ -7,7 +7,7 @@ use crate::{
     transport::rules::TransportRules,
 };
 
-use super::node::TransportNode;
+use super::transport_node::TransportNode;
 
 #[derive(Debug)]
 pub enum NextTransportNode {
@@ -94,10 +94,13 @@ impl PathCandidate {
 
     /// Get the end site of the path with extra length.
     /// This is temporary used for searching intersections.
-    fn get_expected_site_to_with_extra_length(&self, path_length: f64) -> Site {
-        self.node_start.site.extend(
-            self.angle_expected_end,
-            path_length + self.rules_start.path_extra_length_for_intersection,
+    fn get_expected_site_to_with_extra_length(&self, site_expected_end: Site) -> Site {
+        let path_length = site_expected_end.distance(&self.node_start.site);
+        let scale =
+            (path_length + self.rules_start.path_extra_length_for_intersection) / path_length;
+        Site::new(
+            self.node_start.site.x + (site_expected_end.x - self.node_start.site.x) * scale,
+            self.node_start.site.y + (site_expected_end.y - self.node_start.site.y) * scale,
         )
     }
 
@@ -124,13 +127,11 @@ impl PathCandidate {
                         .get_distance(&existing_node.site)
                         < self.rules_start.path_extra_length_for_intersection
                 })
-                /*
                 .filter(|(existing_node, _)| {
                     // is_bridge check
                     // if the existing node is is_bridge, the path cannot be connected.
                     !existing_node.is_bridge
                 })
-                */
                 .filter(|(existing_node, existing_node_id)| {
                     // no intersection check
                     let has_intersection = related_paths.iter().any(|(path_start, path_end)| {
@@ -168,8 +169,7 @@ impl PathCandidate {
 
         // Crossing Paths
         {
-            let search_end = self
-                .get_expected_site_to_with_extra_length(site_expected_end.distance(&search_start));
+            let search_end = self.get_expected_site_to_with_extra_length(site_expected_end);
             let search_line = LineSegment::new(search_start, search_end);
 
             let crossing_path = related_paths
@@ -202,11 +202,9 @@ impl PathCandidate {
 
             if let Some((crossing_node, path_nodes)) = crossing_path {
                 // if it cross the bridge, it cannot be connected.
-                /*
                 if path_nodes.0 .0.path_is_bridge(path_nodes.1 .0) {
                     return (NextTransportNode::IntersectBridge, BridgeNode::None);
                 }
-                */
                 let middle = if to_be_bridge_end {
                     let middle_site = search_start.midpoint(&crossing_node.site);
                     BridgeNode::Middle(TransportNode::new(

@@ -12,7 +12,7 @@ use street_engine::core::geometry::angle::Angle;
 use street_engine::core::geometry::site::Site;
 use street_engine::core::Stage;
 use street_engine::transport::builder::TransportBuilder;
-use street_engine::transport::node::node::TransportNode;
+use street_engine::transport::node::transport_node::TransportNode;
 use street_engine::transport::rules::{
     BranchRules, BridgeRules, PathDirectionRules, TransportRules,
 };
@@ -45,7 +45,7 @@ impl<'a> MapProvider<'a> {
 impl<'a> TerrainProvider for MapProvider<'a> {
     fn get_elevation(&self, site: &Site) -> Option<f64> {
         let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
-        if elevation < 1e-3 {
+        if elevation < 1e-1 {
             return None;
         }
         return Some(elevation);
@@ -96,7 +96,7 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                 population_density,
                 path_normal_length: 0.5,
                 path_extra_length_for_intersection: 0.3,
-                path_max_elevation_diff: Some(7.0),
+                path_max_elevation_diff: Some(10.0),
                 branch_rules: BranchRules {
                     branch_density: 0.2 + population_density * 0.8,
                     staging_probability: 0.97,
@@ -106,8 +106,8 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                     comparison_step: 3,
                 },
                 bridge_rules: BridgeRules {
-                    max_bridge_length: 45.0,
-                    check_step: 40,
+                    max_bridge_length: 15.0,
+                    check_step: 10,
                 },
             })
         }
@@ -132,7 +132,7 @@ impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
 
 fn main() {
     let node_num = 50000;
-    let seed = 472;
+    let seed = 2;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,

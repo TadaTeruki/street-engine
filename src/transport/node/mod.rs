@@ -1,5 +1,5 @@
 pub mod candidate;
-pub mod node;
+pub mod transport_node;
 
 #[cfg(test)]
 mod tests {
@@ -14,7 +14,7 @@ mod tests {
 
     use super::{
         candidate::{NextTransportNode, PathCandidate},
-        node::TransportNode,
+        transport_node::TransportNode,
     };
 
     macro_rules! assert_eq_f64 {
@@ -296,7 +296,6 @@ mod tests {
 
         let default_rules = TransportRules {
             path_priority: 0.0,
-            elevation: 0.0,
             population_density: 0.0,
             path_normal_length: 1.0,
             path_extra_length_for_intersection: 0.25,
@@ -322,12 +321,13 @@ mod tests {
             NodeId::new(10000),
             angle_expected_end,
             static_stage,
-            rules.clone(),
+            default_rules.clone(),
         )
         .determine_next_node(
             site_expected_end,
-            rules.clone(),
+            0.0,
             static_stage,
+            true,
             &nodes_parsed,
             &paths_parsed,
         );
