@@ -12,12 +12,13 @@ use street_engine::core::geometry::angle::Angle;
 use street_engine::core::geometry::site::Site;
 use street_engine::core::Stage;
 use street_engine::transport::builder::TransportBuilder;
+use street_engine::transport::evaluation::PathEvaluationFactors;
 use street_engine::transport::node::transport_node::TransportNode;
 use street_engine::transport::rules::{
     BranchRules, BridgeRules, PathDirectionRules, TransportRules,
 };
 use street_engine::transport::traits::{
-    RandomF64Provider, TerrainProvider, TransportRulesProvider,
+    PathEvaluator, RandomF64Provider, TerrainProvider, TransportRulesProvider,
 };
 use terrain_graph::edge_attributed_undirected::EdgeAttributedUndirectedGraph;
 use tiny_skia::{Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
@@ -40,6 +41,18 @@ impl<'a> MapProvider<'a> {
             interpolator,
         }
     }
+
+    fn get_population_density(&self, site: &Site) -> Option<f64> {
+        self.interpolator
+            .interpolate(
+                &self.population_densities,
+                naturalneighbor::Point {
+                    x: site.x,
+                    y: site.y,
+                },
+            )
+            .unwrap_or(None)
+    }
 }
 
 impl<'a> TerrainProvider for MapProvider<'a> {
@@ -52,27 +65,30 @@ impl<'a> TerrainProvider for MapProvider<'a> {
     }
 }
 
-impl<'a> TransportRulesProvider for MapProvider<'a> {
-    fn get_rules(&self, site: &Site, _: Angle, stage: Stage) -> Option<TransportRules> {
-        let elevation = self.terrain.get_elevation(&into_fastlem_site(*site))?;
-        let population_density = self
-            .interpolator
-            .interpolate(
-                &self.population_densities,
-                naturalneighbor::Point {
-                    x: site.x,
-                    y: site.y,
-                },
-            )
-            .unwrap_or(None)?;
+impl<'a> PathEvaluator for MapProvider<'a> {
+    fn evaluate(&self, factor: PathEvaluationFactors) -> Option<f64> {
+        let site = factor.site_end;
+        let elevation = self.terrain.get_elevation(&into_fastlem_site(site))?;
+        let population_density = self.get_population_density(&site)?;
 
         let path_priority = (1e-9 + population_density) * (-elevation);
+
+        let stage = factor.stage;
+        if stage.as_num() > 0 {
+            return Some(path_priority);
+        } else {
+            return Some(path_priority + 1e5);
+        }
+    }
+}
+
+impl<'a> TransportRulesProvider for MapProvider<'a> {
+    fn get_rules(&self, site: &Site, _: Angle, stage: Stage) -> Option<TransportRules> {
+        let population_density = self.get_population_density(site)?;
 
         if stage.as_num() > 0 {
             // street
             Some(TransportRules {
-                path_priority,
-                population_density,
                 path_normal_length: 0.5,
                 path_extra_length_for_intersection: 0.3,
                 path_max_elevation_diff: None,
@@ -92,8 +108,6 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
         } else {
             // highway
             Some(TransportRules {
-                path_priority: path_priority + 1e5,
-                population_density,
                 path_normal_length: 0.5,
                 path_extra_length_for_intersection: 0.3,
                 path_max_elevation_diff: Some(10.0),
@@ -132,7 +146,7 @@ impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
 
 fn main() {
     let node_num = 50000;
-    let seed = 2;
+    let seed = 2188;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,
@@ -170,7 +184,7 @@ fn main() {
 
     let mut rnd = RandomF64::new(rand::rngs::StdRng::seed_from_u64(0));
 
-    let network = TransportBuilder::new(&map_provider, &map_provider)
+    let network = TransportBuilder::new(&map_provider, &map_provider, &map_provider)
         .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, None)
         .unwrap()
         .iterate_as_possible(&mut rnd)

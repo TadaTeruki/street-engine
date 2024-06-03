@@ -2,10 +2,10 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransportRules {
     /// Priority to construct a path to this site.
-    pub path_priority: f64,
+    //pub path_priority: f64,
 
     /// Population density.
-    pub population_density: f64,
+    //pub population_density: f64,
 
     /// Normal length of the path.
     pub path_normal_length: f64,

@@ -29,6 +29,7 @@ pub struct PathCandidate {
     angle_expected_end: Angle,
     stage: Stage,
     rules_start: TransportRules,
+    evaluation: f64,
 }
 
 impl Eq for PathCandidate {}
@@ -41,9 +42,7 @@ impl PartialOrd for PathCandidate {
 
 impl Ord for PathCandidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.rules_start
-            .path_priority
-            .total_cmp(&other.rules_start.path_priority)
+        self.evaluation.total_cmp(&other.evaluation)
     }
 }
 
@@ -57,6 +56,7 @@ impl PathCandidate {
         angle_expected_end: Angle,
         stage: Stage,
         rules_start: TransportRules,
+        evaluation: f64,
     ) -> Self {
         Self {
             node_start,
@@ -64,6 +64,7 @@ impl PathCandidate {
             angle_expected_end,
             stage,
             rules_start,
+            evaluation,
         }
     }
 
@@ -110,7 +111,7 @@ impl PathCandidate {
         site_expected_end: Site,
         elevation_expected_end: f64,
         stage: Stage,
-        to_be_bridge_end: bool,
+        to_be_bridge: bool,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
     ) -> (NextTransportNode, BridgeNode) {
@@ -152,7 +153,7 @@ impl PathCandidate {
                 });
 
             if let Some((existing_node, existing_node_id)) = existing_node_id {
-                let middle = if to_be_bridge_end {
+                let middle = if to_be_bridge {
                     let middle_site = search_start.midpoint(&existing_node.site);
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
@@ -205,7 +206,7 @@ impl PathCandidate {
                 if path_nodes.0 .0.path_is_bridge(path_nodes.1 .0) {
                     return (NextTransportNode::IntersectBridge, BridgeNode::None);
                 }
-                let middle = if to_be_bridge_end {
+                let middle = if to_be_bridge {
                     let middle_site = search_start.midpoint(&crossing_node.site);
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
@@ -226,7 +227,7 @@ impl PathCandidate {
 
         // New Node
         // Path crosses are already checked in the previous steps.
-        let middle = if to_be_bridge_end {
+        let middle = if to_be_bridge {
             let middle_site = search_start.midpoint(&site_expected_end);
             BridgeNode::Middle(TransportNode::new(
                 middle_site,

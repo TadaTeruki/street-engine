@@ -55,8 +55,6 @@ mod tests {
             .collect::<Vec<_>>();
 
         let rules = TransportRules {
-            path_priority: 0.0,
-            population_density: 0.0,
             path_normal_length: 1.0,
             path_extra_length_for_intersection: 0.25,
             path_max_elevation_diff: None,
@@ -82,6 +80,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            0.0,
         )
         .determine_next_node(
             site_expected_end,
@@ -118,6 +117,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            0.0,
         )
         .determine_next_node(
             site_expected_end,
@@ -148,6 +148,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            0.0,
         )
         .determine_next_node(
             site_expected_end,
@@ -178,6 +179,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            0.0,
         )
         .determine_next_node(
             site_expected_end,
@@ -222,8 +224,6 @@ mod tests {
             .collect::<Vec<_>>();
 
         let rules = TransportRules {
-            path_priority: 0.0,
-            population_density: 0.0,
             path_normal_length: 10000.0,
             path_extra_length_for_intersection: 0.0,
             path_max_elevation_diff: None,
@@ -248,6 +248,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            0.0,
         )
         .determine_next_node(
             site_expected_end,

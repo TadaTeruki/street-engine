@@ -7,64 +7,80 @@ use crate::core::{
 };
 
 use super::{
+    evaluation::PathEvaluationFactors,
     node::{
         candidate::{BridgeNode, NextTransportNode, PathCandidate},
         transport_node::TransportNode,
     },
     rules::{check_slope, TransportRules},
-    traits::{RandomF64Provider, TerrainProvider, TransportRulesProvider},
+    traits::{PathEvaluator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };
 
-pub struct TransportBuilder<'a, RP, TP>
+pub struct TransportBuilder<'a, RP, TP, PE>
 where
     RP: TransportRulesProvider,
     TP: TerrainProvider,
+    PE: PathEvaluator,
 {
     path_network: PathNetwork<TransportNode>,
     rules_provider: &'a RP,
     terrain_provider: &'a TP,
+    path_evaluator: &'a PE,
     path_candidate_container: BinaryHeap<PathCandidate>,
 }
 
-impl<'a, RP, TP> TransportBuilder<'a, RP, TP>
+impl<'a, RP, TP, PE> TransportBuilder<'a, RP, TP, PE>
 where
     RP: TransportRulesProvider,
     TP: TerrainProvider,
+    PE: PathEvaluator,
 {
     /// Create a new `TransportBuilder`.
-    pub fn new(rules_provider: &'a RP, terrain_provider: &'a TP) -> Self {
+    pub fn new(rules_provider: &'a RP, terrain_provider: &'a TP, path_evaluator: &'a PE) -> Self {
         Self {
             path_network: PathNetwork::new(),
             rules_provider,
             terrain_provider,
+            path_evaluator,
             path_candidate_container: BinaryHeap::new(),
         }
     }
 
-    fn create_new_candidate(
+    fn push_new_candidate(
         &mut self,
         node_start: TransportNode,
         node_start_id: NodeId,
         angle_expected_end: Angle,
         stage: Stage,
-    ) -> bool {
-        let rules_start = if let Some(rules) =
+    ) -> Option<PathCandidate> {
+        let rules_start =
             self.rules_provider
-                .get_rules(&node_start.site, angle_expected_end, stage)
-        {
-            rules
-        } else {
-            return false;
-        };
-        self.path_candidate_container.push(PathCandidate::new(
+                .get_rules(&node_start.site, angle_expected_end, stage)?;
+
+        let (estimated_end_site, estimated_end_is_bridge) =
+            self.expect_end_of_path(node_start.site, angle_expected_end, stage, &rules_start)?;
+
+        let evaluation = self.path_evaluator.evaluate(PathEvaluationFactors {
+            site_start: node_start.site,
+            site_end: estimated_end_site,
+            angle: angle_expected_end,
+            path_length: rules_start.path_normal_length,
+            stage,
+            is_bridge: estimated_end_is_bridge,
+        })?;
+
+        let candidate = PathCandidate::new(
             node_start,
             node_start_id,
             angle_expected_end,
             stage,
             rules_start,
-        ));
+            evaluation,
+        );
 
-        true
+        self.path_candidate_container.push(candidate.clone());
+
+        Some(candidate)
     }
 
     /// Add an origin node to the path network.
@@ -89,8 +105,8 @@ where
         );
         let origin_node_id = self.path_network.add_node(origin_node);
 
-        self.create_new_candidate(origin_node, origin_node_id, Angle::new(angle_radian), stage);
-        self.create_new_candidate(
+        self.push_new_candidate(origin_node, origin_node_id, Angle::new(angle_radian), stage);
+        self.push_new_candidate(
             origin_node,
             origin_node_id,
             Angle::new(angle_radian).opposite(),
@@ -124,7 +140,7 @@ where
 
     /// Query the expected end of the path.
     /// Return the site and is the path to be a bridge.
-    fn query_expected_end_of_path(
+    fn expect_end_of_path(
         &self,
         site_start: Site,
         angle_expected: Angle,
@@ -147,8 +163,15 @@ where
                     };
                     let path_length = rules_start.path_normal_length + bridge_path_length;
                     let site_end = site_start.extend(angle, path_length);
-                    if let Some(rules_end) = self.rules_provider.get_rules(&site_end, angle, stage)
-                    {
+                    let is_bridge = i > 0;
+                    if let Some(evaluation) = self.path_evaluator.evaluate(PathEvaluationFactors {
+                        site_start,
+                        site_end,
+                        angle,
+                        path_length,
+                        stage,
+                        is_bridge,
+                    }) {
                         if let (Some(elevation_start), Some(elevation_end)) = (
                             self.terrain_provider.get_elevation(&site_start),
                             self.terrain_provider.get_elevation(&site_end),
@@ -159,16 +182,14 @@ where
                                 path_length,
                                 rules_start.path_max_elevation_diff,
                             ) {
-                                return Some((site_end, rules_end, i > 0));
+                                return Some((site_end, evaluation, is_bridge));
                             }
                         }
                     }
                 }
                 None
             })
-            .max_by(|(_, rules1, _), (_, rules2, _)| {
-                rules1.path_priority.total_cmp(&rules2.path_priority)
-            })
+            .max_by(|(_, ev0, _), (_, ev1, _)| ev0.total_cmp(ev1))
             .map(|(site, _, is_bridge)| (site, is_bridge))
     }
 
@@ -186,7 +207,8 @@ where
         let rules_start = prior_candidate.get_rules_start();
 
         let site_start = prior_candidate.get_site_start();
-        let site_expected_end_opt = self.query_expected_end_of_path(
+        // Set the end site of the path again.
+        let site_expected_end_opt = self.expect_end_of_path(
             site_start,
             prior_candidate.angle_expected_end(),
             prior_candidate.get_stage(),
@@ -198,6 +220,13 @@ where
         } else {
             return self;
         };
+
+        let elevation_expected_end =
+            if let Some(elevation) = self.terrain_provider.get_elevation(&site_expected_end) {
+                elevation
+            } else {
+                return self;
+            };
 
         let related_nodes = self
             .path_network
@@ -224,13 +253,6 @@ where
                 Some(((node_start, *node_id_start), (node_end, *node_id_end)))
             })
             .collect::<Vec<_>>();
-
-        let elevation_expected_end =
-            if let Some(elevation) = self.terrain_provider.get_elevation(&site_expected_end) {
-                elevation
-            } else {
-                return self;
-            };
 
         let candidate_node_id = prior_candidate.get_node_start_id();
         let (next_node_type, bridge_node) = prior_candidate.determine_next_node(
@@ -299,12 +321,9 @@ where
                 self.path_network.add_path(start_node_id, node_id);
 
                 let straight_angle = site_start.get_angle(&node_next.site);
-
-                let extend_to_straight =
-                    self.create_new_candidate(node_next, node_id, straight_angle, stage);
-
+                self.push_new_candidate(node_next, node_id, straight_angle, stage);
                 let clockwise_branch = rng.gen_f64() < rules_start.branch_rules.branch_density;
-                if clockwise_branch || !extend_to_straight {
+                if clockwise_branch {
                     let clockwise_staging =
                         rng.gen_f64() < rules_start.branch_rules.staging_probability;
                     let next_stage = if clockwise_staging {
@@ -312,8 +331,7 @@ where
                     } else {
                         stage
                     };
-
-                    self.create_new_candidate(
+                    self.push_new_candidate(
                         node_next,
                         node_id,
                         straight_angle.right_clockwise(),
@@ -323,7 +341,7 @@ where
 
                 let counterclockwise_branch =
                     rng.gen_f64() < rules_start.branch_rules.branch_density;
-                if counterclockwise_branch || !extend_to_straight {
+                if counterclockwise_branch {
                     let counterclockwise_staging =
                         rng.gen_f64() < rules_start.branch_rules.staging_probability;
                     let next_stage = if counterclockwise_staging {
@@ -331,8 +349,7 @@ where
                     } else {
                         stage
                     };
-
-                    self.create_new_candidate(
+                    self.push_new_candidate(
                         node_next,
                         node_id,
                         straight_angle.right_counterclockwise(),
