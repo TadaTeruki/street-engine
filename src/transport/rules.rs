@@ -91,31 +91,7 @@ impl Default for PathDirectionRules {
         }
     }
 }
-/*
-impl TransportRules {
-    pub fn check_slope(&self, elevation_end: f64, path_length: f64) -> bool {
-        let allowed_elevation_diff =
-            if let (Some(max_elevation_diff), Some(max_elevation_diff_end)) = (
-                self.path_max_elevation_diff,
-                rules_end.path_max_elevation_diff,
-            ) {
-                (max_elevation_diff + max_elevation_diff_end) / 2.0
-            } else if let Some(max_elevation_diff) = rules_end.path_max_elevation_diff {
-                max_elevation_diff
-            } else if let Some(max_elevation_diff) = self.path_max_elevation_diff {
-                max_elevation_diff
-            } else {
-                // always allowed
-                return true;
-            };
 
-        let real_elevation_diff = (rules_end.elevation - self.elevation).abs();
-
-        real_elevation_diff <= allowed_elevation_diff * path_length
-    }
-}
-
-*/
 pub(crate) fn check_slope(
     elevation_start: f64,
     elevation_end: f64,
