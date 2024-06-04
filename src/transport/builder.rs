@@ -8,6 +8,7 @@ use crate::core::{
 
 use super::{
     evaluation::PathEvaluationFactors,
+    metrics::PathMetrics,
     node::{
         candidate::{BridgeNode, NextTransportNode, PathCandidate},
         transport_node::TransportNode,
@@ -52,10 +53,11 @@ where
         node_start_id: NodeId,
         angle_expected_end: Angle,
         stage: Stage,
+        metrics: PathMetrics,
     ) -> Option<PathCandidate> {
         let rules_start =
             self.rules_provider
-                .get_rules(&node_start.site, angle_expected_end, stage)?;
+                .get_rules(&node_start.site, angle_expected_end, stage, &metrics)?;
 
         let (estimated_end_site, estimated_end_is_bridge) =
             self.expect_end_of_path(node_start.site, angle_expected_end, stage, &rules_start)?;
@@ -75,6 +77,7 @@ where
             angle_expected_end,
             stage,
             rules_start,
+            metrics,
             evaluation,
         );
 
@@ -104,13 +107,21 @@ where
             false,
         );
         let origin_node_id = self.path_network.add_node(origin_node);
+        let origin_metrics = PathMetrics::default();
 
-        self.push_new_candidate(origin_node, origin_node_id, Angle::new(angle_radian), stage);
+        self.push_new_candidate(
+            origin_node,
+            origin_node_id,
+            Angle::new(angle_radian),
+            stage,
+            origin_metrics.increment(false, false),
+        );
         self.push_new_candidate(
             origin_node,
             origin_node_id,
             Angle::new(angle_radian).opposite(),
             stage,
+            origin_metrics.increment(false, false),
         );
 
         Some(self)
@@ -271,20 +282,18 @@ where
 
             self.add_path(
                 rng,
+                prior_candidate,
                 next_node_type,
                 bridge_node.site,
                 bridge_node_id,
-                prior_candidate.get_stage(),
-                prior_candidate.get_rules_start(),
             )
         } else {
             self.add_path(
                 rng,
+                prior_candidate,
                 next_node_type,
                 site_start,
                 candidate_node_id,
-                prior_candidate.get_stage(),
-                prior_candidate.get_rules_start(),
             )
         }
     }
@@ -292,15 +301,17 @@ where
     fn add_path<R>(
         mut self,
         rng: &mut R,
+        base_candidate: PathCandidate,
         next_node_type: NextTransportNode,
         site_start: Site,
         start_node_id: NodeId,
-        stage: Stage,
-        rules_start: &TransportRules,
     ) -> Self
     where
         R: RandomF64Provider,
     {
+        let base_stage = base_candidate.get_stage();
+        let base_rules = base_candidate.get_rules_start();
+        let base_metrics = base_candidate.get_metrics();
         match next_node_type {
             NextTransportNode::None => {
                 return self;
@@ -321,39 +332,47 @@ where
                 self.path_network.add_path(start_node_id, node_id);
 
                 let straight_angle = site_start.get_angle(&node_next.site);
-                self.push_new_candidate(node_next, node_id, straight_angle, stage);
-                let clockwise_branch = rng.gen_f64() < rules_start.branch_rules.branch_density;
+                self.push_new_candidate(
+                    node_next,
+                    node_id,
+                    straight_angle,
+                    base_stage,
+                    base_candidate.get_metrics().increment(false, false),
+                );
+                let clockwise_branch = rng.gen_f64() < base_rules.branch_rules.branch_density;
                 if clockwise_branch {
                     let clockwise_staging =
-                        rng.gen_f64() < rules_start.branch_rules.staging_probability;
+                        rng.gen_f64() < base_rules.branch_rules.staging_probability;
                     let next_stage = if clockwise_staging {
-                        stage.incremented()
+                        base_stage.incremented()
                     } else {
-                        stage
+                        base_stage
                     };
                     self.push_new_candidate(
                         node_next,
                         node_id,
                         straight_angle.right_clockwise(),
                         next_stage,
+                        base_metrics.increment(clockwise_staging, true),
                     );
                 }
 
                 let counterclockwise_branch =
-                    rng.gen_f64() < rules_start.branch_rules.branch_density;
+                    rng.gen_f64() < base_rules.branch_rules.branch_density;
                 if counterclockwise_branch {
                     let counterclockwise_staging =
-                        rng.gen_f64() < rules_start.branch_rules.staging_probability;
+                        rng.gen_f64() < base_rules.branch_rules.staging_probability;
                     let next_stage = if counterclockwise_staging {
-                        stage.incremented()
+                        base_stage.incremented()
                     } else {
-                        stage
+                        base_stage
                     };
                     self.push_new_candidate(
                         node_next,
                         node_id,
                         straight_angle.right_counterclockwise(),
                         next_stage,
+                        base_metrics.increment(counterclockwise_staging, true),
                     );
                 }
             }

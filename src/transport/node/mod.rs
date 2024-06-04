@@ -9,7 +9,10 @@ mod tests {
             geometry::{angle::Angle, site::Site},
             Stage,
         },
-        transport::rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
+        transport::{
+            metrics::PathMetrics,
+            rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
+        },
     };
 
     use super::{
@@ -89,6 +92,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            PathMetrics::default(),
             0.0,
         )
         .determine_next_node(
@@ -126,6 +130,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            PathMetrics::default(),
             0.0,
         )
         .determine_next_node(
@@ -157,6 +162,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            PathMetrics::default(),
             0.0,
         )
         .determine_next_node(
@@ -188,6 +194,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            PathMetrics::default(),
             0.0,
         )
         .determine_next_node(
@@ -257,6 +264,7 @@ mod tests {
             angle_expected_end,
             static_stage,
             rules.clone(),
+            PathMetrics::default(),
             0.0,
         )
         .determine_next_node(
@@ -329,6 +337,7 @@ mod tests {
                 angle_expected_end,
                 static_stage,
                 rules.clone(),
+                PathMetrics::default(),
                 0.0,
             )
             .determine_next_node(

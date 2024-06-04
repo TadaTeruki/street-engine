@@ -4,7 +4,10 @@ use crate::{
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
         Stage,
     },
-    transport::rules::{check_slope, TransportRules},
+    transport::{
+        metrics::PathMetrics,
+        rules::{check_slope, TransportRules},
+    },
 };
 
 use super::transport_node::TransportNode;
@@ -53,6 +56,7 @@ pub struct PathCandidate {
     angle_expected_end: Angle,
     stage: Stage,
     rules_start: TransportRules,
+    metrics: PathMetrics,
     evaluation: f64,
 }
 
@@ -80,6 +84,7 @@ impl PathCandidate {
         angle_expected_end: Angle,
         stage: Stage,
         rules_start: TransportRules,
+        metrics: PathMetrics,
         evaluation: f64,
     ) -> Self {
         Self {
@@ -88,6 +93,7 @@ impl PathCandidate {
             angle_expected_end,
             stage,
             rules_start,
+            metrics,
             evaluation,
         }
     }
@@ -115,6 +121,11 @@ impl PathCandidate {
     /// Get stage of the path.
     pub fn get_stage(&self) -> Stage {
         self.stage
+    }
+
+    /// Get metrics of the path.
+    pub fn get_metrics(&self) -> &PathMetrics {
+        &self.metrics
     }
 
     /// Get the end site of the path with extra length.

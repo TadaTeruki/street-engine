@@ -3,11 +3,17 @@ use crate::core::{
     Stage,
 };
 
-use super::{evaluation::PathEvaluationFactors, rules::TransportRules};
+use super::{evaluation::PathEvaluationFactors, metrics::PathMetrics, rules::TransportRules};
 
 /// Provider of transport rules.
 pub trait TransportRulesProvider {
-    fn get_rules(&self, site: &Site, angle: Angle, stage: Stage) -> Option<TransportRules>;
+    fn get_rules(
+        &self,
+        site: &Site,
+        angle: Angle,
+        stage: Stage,
+        metrics: &PathMetrics,
+    ) -> Option<TransportRules>;
 }
 
 /// Provider of terrain elevation.
