@@ -302,7 +302,7 @@ where
         R: RandomF64Provider,
     {
         match next_node_type {
-            NextTransportNode::IntersectBridge => {
+            NextTransportNode::None => {
                 return self;
             }
             NextTransportNode::Existing(node_id) => {

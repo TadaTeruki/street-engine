@@ -4,7 +4,7 @@ use crate::{
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
         Stage,
     },
-    transport::rules::TransportRules,
+    transport::rules::{check_slope, TransportRules},
 };
 
 use super::transport_node::TransportNode;
@@ -14,12 +14,36 @@ pub enum NextTransportNode {
     New(TransportNode),
     Existing(NodeId),
     Intersect(TransportNode, (NodeId, NodeId)),
-    IntersectBridge,
+    None,
 }
 
+#[derive(Debug)]
 pub enum BridgeNode {
     Middle(TransportNode),
     None,
+}
+
+impl BridgeNode {
+    pub fn get_middle(&self) -> Option<&TransportNode> {
+        match self {
+            BridgeNode::Middle(node) => Some(node),
+            BridgeNode::None => None,
+        }
+    }
+
+    pub fn has_middle(&self) -> bool {
+        match self {
+            BridgeNode::Middle(_) => true,
+            BridgeNode::None => false,
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        match self {
+            BridgeNode::Middle(_) => false,
+            BridgeNode::None => true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -146,6 +170,17 @@ impl PathCandidate {
                     });
                     !has_intersection
                 })
+                .filter(|(existing_node, _)| {
+                    // slope check
+                    // if the elevation difference is too large, the path cannot be connected.
+                    let distance = existing_node.site.distance(&search_start);
+                    check_slope(
+                        self.node_start.elevation,
+                        existing_node.elevation,
+                        distance,
+                        self.rules_start.path_max_elevation_diff,
+                    )
+                })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
                     let distance_b = b.0.site.distance_2(&search_start);
@@ -195,6 +230,17 @@ impl PathCandidate {
                     }
                     None
                 })
+                .filter(|(crossing_node, _)| {
+                    // slope check
+                    // if the elevation difference is too large, the path cannot be connected.
+                    let distance = crossing_node.site.distance(&search_start);
+                    check_slope(
+                        self.node_start.elevation,
+                        crossing_node.elevation,
+                        distance,
+                        self.rules_start.path_max_elevation_diff,
+                    )
+                })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
                     let distance_b = b.0.site.distance_2(&search_start);
@@ -202,9 +248,9 @@ impl PathCandidate {
                 });
 
             if let Some((crossing_node, path_nodes)) = crossing_path {
-                // if it cross the bridge, it cannot be connected.
+                // if it cross the bridge, the path cannot be connected.
                 if path_nodes.0 .0.path_is_bridge(path_nodes.1 .0) {
-                    return (NextTransportNode::IntersectBridge, BridgeNode::None);
+                    return (NextTransportNode::None, BridgeNode::None);
                 }
                 let middle = if to_be_bridge {
                     let middle_site = search_start.midpoint(&crossing_node.site);
@@ -223,6 +269,17 @@ impl PathCandidate {
                     middle,
                 );
             }
+        }
+
+        // check slope
+        let distance = search_start.distance(&site_expected_end);
+        if !check_slope(
+            self.node_start.elevation,
+            elevation_expected_end,
+            distance,
+            self.rules_start.path_max_elevation_diff,
+        ) {
+            return (NextTransportNode::None, BridgeNode::None);
         }
 
         // New Node

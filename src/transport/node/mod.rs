@@ -13,7 +13,7 @@ mod tests {
     };
 
     use super::{
-        candidate::{NextTransportNode, PathCandidate},
+        candidate::{BridgeNode, NextTransportNode, PathCandidate},
         transport_node::TransportNode,
     };
 
@@ -29,6 +29,15 @@ mod tests {
             stage: TransportNode::default().stage,
             elevation: TransportNode::default().elevation,
             is_bridge: TransportNode::default().is_bridge,
+        }
+    }
+
+    fn create_node_detailed(x: f64, y: f64, elevation: f64, is_bridge: bool) -> TransportNode {
+        TransportNode {
+            site: Site::new(x, y),
+            stage: TransportNode::default().stage,
+            elevation,
+            is_bridge,
         }
     }
 
@@ -272,14 +281,13 @@ mod tests {
         }
     }
 
-    /*
     #[test]
     fn test_bridge() {
         let nodes = vec![
-            create_node(0.0, 0.0),
-            create_node(1.0, 1.0),
-            create_node(0.0, 0.0),
-            create_node(1.0, 1.0),
+            create_node_detailed(0.0, 0.0, 0.0, false),
+            create_node_detailed(1.0, 1.0, 0.0, false),
+            create_node_detailed(0.0, 0.0, 1.0, true),
+            create_node_detailed(1.0, 1.0, 1.0, true),
         ];
 
         let nodes_parsed = nodes
@@ -295,55 +303,72 @@ mod tests {
             .map(|(start, end)| (nodes_parsed[*start], nodes_parsed[*end]))
             .collect::<Vec<_>>();
 
-        let default_rules = TransportRules {
-            path_priority: 0.0,
-            population_density: 0.0,
-            path_normal_length: 1.0,
+        let rules = TransportRules {
+            path_normal_length: 2.0_f64.sqrt(),
             path_extra_length_for_intersection: 0.25,
-            path_max_elevation_diff: None,
+            path_max_elevation_diff: Some(0.7),
             branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
             bridge_rules: BridgeRules::default(),
         };
 
-        let (node_start, angle_expected_end) = (
-            create_node(1.0, 1.0),
-            Angle::new(std::f64::consts::PI * 0.75),
-        );
-        let site_expected_end = node_start
-            .site
-            .extend(angle_expected_end, rules.path_normal_length);
-
-        let static_stage = Stage::default();
-
-        // New node
-        let new = PathCandidate::new(
-            node_start,
-            NodeId::new(10000),
-            angle_expected_end,
-            static_stage,
-            default_rules.clone(),
-        )
-        .determine_next_node(
-            site_expected_end,
-            0.0,
-            static_stage,
-            true,
-            &nodes_parsed,
-            &paths_parsed,
-        );
-
-        if let NextTransportNode::New(node) = new {
-            assert_eq_f64!(
-                node.site.distance(&Site::new(
-                    1.0 + 1.0 / 2.0_f64.sqrt(),
-                    1.0 + 1.0 / 2.0_f64.sqrt()
-                )),
-                0.0
+        let check = |elevation_start: f64, elevation_end: f64| -> (NextTransportNode, BridgeNode) {
+            let (node_start, angle_expected_end) = (
+                create_node_detailed(0.0, 1.0, elevation_start, false),
+                Angle::new(std::f64::consts::PI * 0.25),
             );
+            let site_expected_end = node_start
+                .site
+                .extend(angle_expected_end, rules.path_normal_length);
+
+            let static_stage = Stage::default();
+
+            PathCandidate::new(
+                node_start,
+                NodeId::new(10000),
+                angle_expected_end,
+                static_stage,
+                rules.clone(),
+                0.0,
+            )
+            .determine_next_node(
+                site_expected_end,
+                elevation_end,
+                static_stage,
+                false,
+                &nodes_parsed,
+                &paths_parsed,
+            )
+        };
+
+        // New node which passes between two existing paths
+        let new = check(0.5, 0.5);
+
+        if let (NextTransportNode::New(node), is_bridge) = new {
+            assert_eq_f64!(node.site.distance(&Site::new(1.0, 0.0)), 0.0);
+            assert!(is_bridge.is_none());
+        } else {
+            panic!("Unexpected node type");
+        }
+
+        // Connect to the existing path (land)
+        let land = check(0.2, 0.2);
+
+        if let (NextTransportNode::Intersect(node, _), is_bridge) = land {
+            assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
+            assert!(is_bridge.is_none());
+        } else {
+            panic!("Unexpected node type");
+        }
+
+        // Connect to the existing path (bridge)
+        // This connection will be ignored because creating intersection on bridge is not allowed.
+        let bridge = check(0.8, 0.8);
+
+        if let (NextTransportNode::None, is_bridge) = bridge {
+            assert!(is_bridge.is_none());
         } else {
             panic!("Unexpected node type");
         }
     }
-    */
 }

@@ -3,9 +3,9 @@ use crate::core::{geometry::site::Site, Stage};
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct TransportNode {
     pub site: Site,
-    pub stage: Stage,
+    pub(crate) stage: Stage,
     pub elevation: f64,
-    pub is_bridge: bool,
+    pub(crate) is_bridge: bool,
 }
 
 impl TransportNode {

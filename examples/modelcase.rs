@@ -100,10 +100,7 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                     max_radian: std::f64::consts::PI / (5.0 + 1000.0 * population_density),
                     comparison_step: 3,
                 },
-                bridge_rules: BridgeRules {
-                    max_bridge_length: 0.0,
-                    check_step: 0,
-                },
+                bridge_rules: BridgeRules::default(),
             })
         } else {
             // highway
@@ -146,7 +143,7 @@ impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
 
 fn main() {
     let node_num = 50000;
-    let seed = 2188;
+    let seed = 0;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,
