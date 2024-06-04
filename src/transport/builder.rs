@@ -47,6 +47,7 @@ where
         }
     }
 
+    /// Add a path candidate to the path network.
     fn push_new_candidate(
         &mut self,
         node_start: TransportNode,
@@ -114,14 +115,14 @@ where
             origin_node_id,
             Angle::new(angle_radian),
             stage,
-            origin_metrics.increment(false, false),
+            origin_metrics.incremented(false, false),
         );
         self.push_new_candidate(
             origin_node,
             origin_node_id,
             Angle::new(angle_radian).opposite(),
             stage,
-            origin_metrics.increment(false, false),
+            origin_metrics.incremented(false, false),
         );
 
         Some(self)
@@ -239,6 +240,7 @@ where
                 return self;
             };
 
+        // Find nodes around the line from the start site to the expected end site.
         let related_nodes = self
             .path_network
             .nodes_around_line_iter(
@@ -251,6 +253,7 @@ where
             .filter_map(|node_id| Some((self.path_network.get_node(*node_id)?, *node_id)))
             .collect::<Vec<_>>();
 
+        // Find paths touching the rectangle around the line.
         let related_paths = self
             .path_network
             .paths_touching_rect_iter(site_start, site_expected_end)
@@ -266,6 +269,7 @@ where
             .collect::<Vec<_>>();
 
         let candidate_node_id = prior_candidate.get_node_start_id();
+        // Determine the next node.
         let (next_node_type, bridge_node) = prior_candidate.determine_next_node(
             site_expected_end,
             elevation_expected_end,
@@ -280,7 +284,7 @@ where
             self.path_network
                 .add_path(candidate_node_id, bridge_node_id);
 
-            self.add_path(
+            self.apply_candidate(
                 rng,
                 prior_candidate,
                 next_node_type,
@@ -288,7 +292,7 @@ where
                 bridge_node_id,
             )
         } else {
-            self.add_path(
+            self.apply_candidate(
                 rng,
                 prior_candidate,
                 next_node_type,
@@ -298,7 +302,7 @@ where
         }
     }
 
-    fn add_path<R>(
+    fn apply_candidate<R>(
         mut self,
         rng: &mut R,
         base_candidate: PathCandidate,
@@ -337,7 +341,7 @@ where
                     node_id,
                     straight_angle,
                     base_stage,
-                    base_candidate.get_metrics().increment(false, false),
+                    base_candidate.get_metrics().incremented(false, false),
                 );
                 let clockwise_branch = rng.gen_f64() < base_rules.branch_rules.branch_density;
                 if clockwise_branch {
@@ -353,7 +357,7 @@ where
                         node_id,
                         straight_angle.right_clockwise(),
                         next_stage,
-                        base_metrics.increment(clockwise_staging, true),
+                        base_metrics.incremented(clockwise_staging, true),
                     );
                 }
 
@@ -372,7 +376,7 @@ where
                         node_id,
                         straight_angle.right_counterclockwise(),
                         next_stage,
-                        base_metrics.increment(counterclockwise_staging, true),
+                        base_metrics.incremented(counterclockwise_staging, true),
                     );
                 }
             }

@@ -13,8 +13,7 @@ impl Stage {
         self.0
     }
 
-    pub fn incremented(mut self) -> Self {
-        self.0 += 1;
-        self
+    pub fn incremented(self) -> Self {
+        Self(self.0 + 1)
     }
 }

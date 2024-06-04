@@ -37,10 +37,12 @@ impl Angle {
         Self::new(self.0 - 0.5 * std::f64::consts::PI)
     }
 
+    /// X component of the unit vector.
     pub fn unit_x(&self) -> f64 {
         self.0.sin()
     }
 
+    /// Y component of the unit vector.
     pub fn unit_y(&self) -> f64 {
         -self.0.cos()
     }

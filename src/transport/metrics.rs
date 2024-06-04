@@ -1,3 +1,4 @@
+/// Metrics for a path.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PathMetrics {
     /// The number of times the path has been extended from origin node.
@@ -11,7 +12,7 @@ pub struct PathMetrics {
 }
 
 impl PathMetrics {
-    pub fn increment(&self, staged: bool, branched: bool) -> Self {
+    pub fn incremented(&self, staged: bool, branched: bool) -> Self {
         let count_last_staged = if staged {
             0
         } else {
