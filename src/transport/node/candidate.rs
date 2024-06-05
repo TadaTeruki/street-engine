@@ -1,8 +1,6 @@
 use crate::{
     core::{
-        container::path_network::NodeId,
-        geometry::{angle::Angle, line_segment::LineSegment, site::Site},
-        Stage,
+        container::path_network::NodeId, geometry::{angle::Angle, line_segment::LineSegment, site::Site}, Group, Stage
     },
     transport::params::{
         metrics::PathMetrics,
@@ -54,6 +52,7 @@ pub struct PathCandidate {
     node_start: TransportNode,
     node_start_id: NodeId,
     angle_expected_end: Angle,
+    group: Group,
     stage: Stage,
     rules_start: TransportRules,
     metrics: PathMetrics,
@@ -82,6 +81,7 @@ impl PathCandidate {
         node_start: TransportNode,
         node_start_id: NodeId,
         angle_expected_end: Angle,
+        group: Group,
         stage: Stage,
         rules_start: TransportRules,
         metrics: PathMetrics,
@@ -91,6 +91,7 @@ impl PathCandidate {
             node_start,
             node_start_id,
             angle_expected_end,
+            group,
             stage,
             rules_start,
             metrics,
@@ -121,6 +122,11 @@ impl PathCandidate {
     /// Get stage of the path.
     pub fn get_stage(&self) -> Stage {
         self.stage
+    }
+
+    /// Get group of the path.
+    pub fn get_group(&self) -> Group {
+        self.group
     }
 
     /// Get metrics of the path.
@@ -204,7 +210,7 @@ impl PathCandidate {
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
                         (existing_node.elevation + self.node_start.elevation) / 2.0,
-                        
+                        self.node_start.group,
                         stage,
                         true,
                     ))
@@ -234,7 +240,7 @@ impl PathCandidate {
                                 intersect,
                                 path_start.0.elevation * prop_start
                                     + path_end.0.elevation * (1.0 - prop_start),
-
+                                    self.node_start.group,
                                 path_start.0.path_stage(path_end.0),
                                 path_start.0.path_is_bridge(path_end.0),
                             ),
@@ -270,7 +276,7 @@ impl PathCandidate {
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
                         (crossing_node.elevation + self.node_start.elevation) / 2.0,
-
+                        self.node_start.group,
                         stage,
                         true,
                     ))
@@ -303,7 +309,7 @@ impl PathCandidate {
             BridgeNode::Middle(TransportNode::new(
                 middle_site,
                 (elevation_expected_end + self.node_start.elevation) / 2.0,
-
+                self.node_start.group,
                 stage,
                 true,
             ))
@@ -314,6 +320,7 @@ impl PathCandidate {
             NextTransportNode::New(TransportNode::new(
                 site_expected_end,
                 elevation_expected_end,
+                self.node_start.group,
                 stage,
                 false,
             )),

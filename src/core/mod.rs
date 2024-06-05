@@ -8,7 +8,7 @@ pub struct Stage(usize);
 pub struct Group(usize);
 
 impl Stage {
-    pub fn new(stage: usize) -> Self {
+    pub fn from_num(stage: usize) -> Self {
         Self(stage)
     }
 
@@ -22,7 +22,7 @@ impl Stage {
 }
 
 impl Group {
-    pub fn new(group: usize) -> Self {
+    pub fn from_num(group: usize) -> Self {
         Self(group)
     }
 

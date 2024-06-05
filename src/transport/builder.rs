@@ -1,9 +1,7 @@
 use std::collections::BinaryHeap;
 
 use crate::core::{
-    container::path_network::{NodeId, PathNetwork},
-    geometry::{angle::Angle, line_segment::LineSegment, site::Site},
-    Stage,
+    container::path_network::{NodeId, PathNetwork}, geometry::{angle::Angle, line_segment::LineSegment, site::Site}, Group, Stage
 };
 
 use super::{
@@ -55,6 +53,7 @@ where
         node_start: TransportNode,
         node_start_id: NodeId,
         angle_expected_end: Angle,
+        group: Group,
         stage: Stage,
         metrics: PathMetrics,
     ) -> Option<PathCandidate> {
@@ -78,6 +77,7 @@ where
             node_start,
             node_start_id,
             angle_expected_end,
+            group,
             stage,
             rules_start,
             metrics,
@@ -96,18 +96,18 @@ where
         mut self,
         origin_site: Site,
         angle_radian: f64,
-        
+        group: Group,
         stage: Option<Stage>,
     ) -> Option<Self> {
         let stage = if let Some(stage) = stage {
             stage
         } else {
-            Stage::new(0)
+            Stage::from_num(0)
         };
         let origin_node = TransportNode::new(
             origin_site,
             self.terrain_provider.get_elevation(&origin_site)?,
-
+            group,
             stage,
             false,
         );
@@ -118,6 +118,7 @@ where
             origin_node,
             origin_node_id,
             Angle::new(angle_radian),
+            group,
             stage,
             origin_metrics.incremented(false, false),
         );
@@ -125,6 +126,7 @@ where
             origin_node,
             origin_node_id,
             Angle::new(angle_radian).opposite(),
+            group,
             stage,
             origin_metrics.incremented(false, false),
         );
@@ -317,6 +319,7 @@ where
     where
         R: RandomF64Provider,
     {
+        let base_group = base_candidate.get_group();
         let base_stage = base_candidate.get_stage();
         let base_rules = base_candidate.get_rules_start();
         let base_metrics = base_candidate.get_metrics();
@@ -344,6 +347,7 @@ where
                     node_next,
                     node_id,
                     straight_angle,
+                    base_group,
                     base_stage,
                     base_candidate.get_metrics().incremented(false, false),
                 );
@@ -360,6 +364,7 @@ where
                         node_next,
                         node_id,
                         straight_angle.right_clockwise(),
+                        base_group,
                         next_stage,
                         base_metrics.incremented(clockwise_staging, true),
                     );
@@ -379,6 +384,7 @@ where
                         node_next,
                         node_id,
                         straight_angle.right_counterclockwise(),
+                        base_group,
                         next_stage,
                         base_metrics.incremented(counterclockwise_staging, true),
                     );

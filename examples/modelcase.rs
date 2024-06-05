@@ -10,7 +10,7 @@ use rayon::prelude::*;
 use street_engine::core::container::path_network::PathNetwork;
 use street_engine::core::geometry::angle::Angle;
 use street_engine::core::geometry::site::Site;
-use street_engine::core::Stage;
+use street_engine::core::{Group, Stage};
 use street_engine::transport::builder::TransportBuilder;
 use street_engine::transport::node::transport_node::TransportNode;
 use street_engine::transport::params::evaluation::PathEvaluationFactors;
@@ -95,16 +95,16 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
         let is_street = stage.as_num() > 0;
 
         let path_normal_length = if metrics.branch_count % 2 == 0 {
-            0.25
-        } else {
             0.35
+        } else {
+            0.45
         };
 
         if is_street {
             // street
             Some(TransportRules {
                 path_normal_length,
-                path_extra_length_for_intersection: path_normal_length * 0.4,
+                path_extra_length_for_intersection: path_normal_length * 0.7,
                 path_max_elevation_diff: None,
                 branch_rules: BranchRules {
                     branch_density: 0.01 + population_density * 0.99,
@@ -196,7 +196,7 @@ fn main() {
     let mut rnd = RandomF64::new(rand::rngs::StdRng::seed_from_u64(0));
 
     let network = TransportBuilder::new(&map_provider, &map_provider, &map_provider)
-        .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, None)
+        .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, Group::from_num(0), None)
         .unwrap()
         .iterate_as_possible(&mut rnd)
         .build();

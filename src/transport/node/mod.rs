@@ -5,9 +5,7 @@ pub mod transport_node;
 mod tests {
     use crate::{
         core::{
-            container::path_network::NodeId,
-            geometry::{angle::Angle, site::Site},
-            Stage,
+            container::path_network::NodeId, geometry::{angle::Angle, site::Site}, Group, Stage
         },
         transport::params::{
             metrics::PathMetrics,
@@ -86,12 +84,14 @@ mod tests {
             .extend(angle_expected_end, rules.path_normal_length);
 
         let static_stage = Stage::default();
+        let static_group = Group::default();
 
         // New node
         let new = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            static_group,
             static_stage,
             rules.clone(),
             PathMetrics::default(),
@@ -130,6 +130,7 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            static_group,
             static_stage,
             rules.clone(),
             PathMetrics::default(),
@@ -162,6 +163,7 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            static_group,
             static_stage,
             rules.clone(),
             PathMetrics::default(),
@@ -194,6 +196,7 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            static_group,
             static_stage,
             rules.clone(),
             PathMetrics::default(),
@@ -259,11 +262,13 @@ mod tests {
             .extend(angle_expected_end, rules.path_normal_length);
 
         let static_stage = Stage::default();
+        let static_group = Group::default();
 
         let next = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
+            static_group,
             static_stage,
             rules.clone(),
             PathMetrics::default(),
@@ -331,12 +336,14 @@ mod tests {
                 .site
                 .extend(angle_expected_end, rules.path_normal_length);
 
+            let static_group = Group::default();
             let static_stage = Stage::default();
 
             PathCandidate::new(
                 node_start,
                 NodeId::new(10000),
                 angle_expected_end,
+                static_group,
                 static_stage,
                 rules.clone(),
                 PathMetrics::default(),
