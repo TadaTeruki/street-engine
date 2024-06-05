@@ -9,7 +9,7 @@ mod tests {
             geometry::{angle::Angle, site::Site},
             Stage,
         },
-        transport::{
+        transport::params::{
             metrics::PathMetrics,
             rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
         },

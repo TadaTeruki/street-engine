@@ -12,10 +12,10 @@ use street_engine::core::geometry::angle::Angle;
 use street_engine::core::geometry::site::Site;
 use street_engine::core::Stage;
 use street_engine::transport::builder::TransportBuilder;
-use street_engine::transport::evaluation::PathEvaluationFactors;
-use street_engine::transport::metrics::PathMetrics;
 use street_engine::transport::node::transport_node::TransportNode;
-use street_engine::transport::rules::{
+use street_engine::transport::params::evaluation::PathEvaluationFactors;
+use street_engine::transport::params::metrics::PathMetrics;
+use street_engine::transport::params::rules::{
     BranchRules, BridgeRules, PathDirectionRules, TransportRules,
 };
 use street_engine::transport::traits::{
@@ -94,16 +94,17 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
         let population_density = self.get_population_density(site)?;
         let is_street = stage.as_num() > 0;
 
+        let path_normal_length = if metrics.branch_count % 2 == 0 {
+            0.25
+        } else {
+            0.35
+        };
+
         if is_street {
-            let path_normal_length = if metrics.branch_count % 2 == 0 {
-                0.25
-            } else {
-                0.35
-            };
             // street
             Some(TransportRules {
                 path_normal_length,
-                path_extra_length_for_intersection: path_normal_length * 0.7,
+                path_extra_length_for_intersection: path_normal_length * 0.4,
                 path_max_elevation_diff: None,
                 branch_rules: BranchRules {
                     branch_density: 0.01 + population_density * 0.99,
@@ -116,7 +117,6 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                 bridge_rules: BridgeRules::default(),
             })
         } else {
-            let path_normal_length = 0.25;
             // highway
             Some(TransportRules {
                 path_normal_length,
@@ -131,8 +131,8 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
                     comparison_step: 3,
                 },
                 bridge_rules: BridgeRules {
-                    max_bridge_length: 15.0,
-                    check_step: 10,
+                    max_bridge_length: 25.0,
+                    check_step: 15,
                 },
             })
         }
@@ -157,7 +157,7 @@ impl<R: rand::Rng> RandomF64Provider for RandomF64<R> {
 
 fn main() {
     let node_num = 50000;
-    let seed = 10;
+    let seed = 20;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,

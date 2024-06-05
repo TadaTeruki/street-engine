@@ -4,7 +4,7 @@ use crate::{
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
         Stage,
     },
-    transport::{
+    transport::params::{
         metrics::PathMetrics,
         rules::{check_slope, TransportRules},
     },

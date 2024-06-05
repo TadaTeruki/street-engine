@@ -7,13 +7,15 @@ use crate::core::{
 };
 
 use super::{
-    evaluation::PathEvaluationFactors,
-    metrics::PathMetrics,
     node::{
         candidate::{BridgeNode, NextTransportNode, PathCandidate},
         transport_node::TransportNode,
     },
-    rules::{check_slope, TransportRules},
+    params::{
+        evaluation::PathEvaluationFactors,
+        metrics::PathMetrics,
+        rules::{check_slope, TransportRules},
+    },
     traits::{PathEvaluator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };
 

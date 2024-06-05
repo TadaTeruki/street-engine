@@ -3,7 +3,9 @@ use crate::core::{
     Stage,
 };
 
-use super::{evaluation::PathEvaluationFactors, metrics::PathMetrics, rules::TransportRules};
+use super::params::{
+    evaluation::PathEvaluationFactors, metrics::PathMetrics, rules::TransportRules,
+};
 
 /// Provider of transport rules.
 pub trait TransportRulesProvider {
