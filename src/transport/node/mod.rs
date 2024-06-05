@@ -69,7 +69,7 @@ mod tests {
         let rules = TransportRules {
             path_normal_length: 1.0,
             path_extra_length_for_intersection: 0.25,
-            path_max_elevation_diff: None,
+            path_elevation_diff_limit: None,
             branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
             bridge_rules: BridgeRules::default(),
@@ -242,7 +242,7 @@ mod tests {
         let rules = TransportRules {
             path_normal_length: 10000.0,
             path_extra_length_for_intersection: 0.0,
-            path_max_elevation_diff: None,
+            path_elevation_diff_limit: None,
             branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
             bridge_rules: BridgeRules::default(),
@@ -314,7 +314,7 @@ mod tests {
         let rules = TransportRules {
             path_normal_length: 2.0_f64.sqrt(),
             path_extra_length_for_intersection: 0.25,
-            path_max_elevation_diff: Some(0.7),
+            path_elevation_diff_limit: Some(0.7),
             branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
             bridge_rules: BridgeRules::default(),

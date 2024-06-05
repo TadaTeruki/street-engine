@@ -6,8 +6,12 @@ pub struct TransportRules {
     /// Extra length of the path to search intersections.
     pub path_extra_length_for_intersection: f64,
 
-    /// Maximum elevation difference of the path per 1.0 length.
-    pub path_max_elevation_diff: Option<f64>,
+    /// Maximum elevation difference of the path.
+    ///
+    /// To extend a path, the elevation difference (=slope) between the start and end of the path should be less than this value.
+    ///
+    /// To construct grade-separate paths, the elevation difference between the paths should be more than this value.
+    pub path_elevation_diff_limit: Option<f64>,
 
     /// Probability of branching. If 1.0, the path will always create branch.
     pub branch_rules: BranchRules,
@@ -86,7 +90,7 @@ impl Default for PathDirectionRules {
     }
 }
 
-pub(crate) fn check_slope(
+pub(crate) fn check_elevation_diff(
     elevation_start: f64,
     elevation_end: f64,
     path_length: f64,

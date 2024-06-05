@@ -14,7 +14,7 @@ use super::{
     params::{
         evaluation::PathEvaluationFactors,
         metrics::PathMetrics,
-        rules::{check_slope, TransportRules},
+        rules::{check_elevation_diff, TransportRules},
     },
     traits::{PathEvaluator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };
@@ -190,11 +190,11 @@ where
                             self.terrain_provider.get_elevation(&site_start),
                             self.terrain_provider.get_elevation(&site_end),
                         ) {
-                            if check_slope(
+                            if check_elevation_diff(
                                 elevation_start,
                                 elevation_end,
                                 path_length,
-                                rules_start.path_max_elevation_diff,
+                                rules_start.path_elevation_diff_limit,
                             ) {
                                 return Some((site_end, evaluation, is_bridge));
                             }

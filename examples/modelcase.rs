@@ -105,7 +105,7 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
             Some(TransportRules {
                 path_normal_length,
                 path_extra_length_for_intersection: path_normal_length * 0.4,
-                path_max_elevation_diff: None,
+                path_elevation_diff_limit: None,
                 branch_rules: BranchRules {
                     branch_density: 0.01 + population_density * 0.99,
                     staging_probability: 0.0,
@@ -121,7 +121,7 @@ impl<'a> TransportRulesProvider for MapProvider<'a> {
             Some(TransportRules {
                 path_normal_length,
                 path_extra_length_for_intersection: path_normal_length * 0.7,
-                path_max_elevation_diff: Some(10.0),
+                path_elevation_diff_limit: Some(10.0),
                 branch_rules: BranchRules {
                     branch_density: 0.2 + population_density * 0.8,
                     staging_probability: 0.97,

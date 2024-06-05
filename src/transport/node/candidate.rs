@@ -6,7 +6,7 @@ use crate::{
     },
     transport::params::{
         metrics::PathMetrics,
-        rules::{check_slope, TransportRules},
+        rules::{check_elevation_diff, TransportRules},
     },
 };
 
@@ -185,11 +185,11 @@ impl PathCandidate {
                     // slope check
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = existing_node.site.distance(&search_start);
-                    check_slope(
+                    check_elevation_diff(
                         self.node_start.elevation,
                         existing_node.elevation,
                         distance,
-                        self.rules_start.path_max_elevation_diff,
+                        self.rules_start.path_elevation_diff_limit,
                     )
                 })
                 .min_by(|a, b| {
@@ -245,11 +245,11 @@ impl PathCandidate {
                     // slope check
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = crossing_node.site.distance(&search_start);
-                    check_slope(
+                    check_elevation_diff(
                         self.node_start.elevation,
                         crossing_node.elevation,
                         distance,
-                        self.rules_start.path_max_elevation_diff,
+                        self.rules_start.path_elevation_diff_limit,
                     )
                 })
                 .min_by(|a, b| {
@@ -284,11 +284,11 @@ impl PathCandidate {
 
         // check slope
         let distance = search_start.distance(&site_expected_end);
-        if !check_slope(
+        if !check_elevation_diff(
             self.node_start.elevation,
             elevation_expected_end,
             distance,
-            self.rules_start.path_max_elevation_diff,
+            self.rules_start.path_elevation_diff_limit,
         ) {
             return (NextTransportNode::None, BridgeNode::None);
         }
