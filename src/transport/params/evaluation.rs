@@ -1,7 +1,6 @@
-use crate::core::{
-    geometry::{angle::Angle, site::Site},
-    Stage,
-};
+use crate::core::geometry::{angle::Angle, site::Site};
+
+use super::numeric::Stage;
 
 /// Factors for evaluating path.
 pub struct PathEvaluationFactors {

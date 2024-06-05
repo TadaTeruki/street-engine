@@ -1,10 +1,7 @@
-use crate::core::{
-    geometry::{angle::Angle, site::Site},
-    Stage,
-};
+use crate::core::geometry::{angle::Angle, site::Site};
 
 use super::params::{
-    evaluation::PathEvaluationFactors, metrics::PathMetrics, rules::TransportRules,
+    evaluation::PathEvaluationFactors, metrics::PathMetrics, numeric::Stage, rules::TransportRules,
 };
 
 /// Provider of transport rules.

@@ -1,11 +1,9 @@
 use crate::{
     core::{
-        container::path_network::NodeId, geometry::{angle::Angle, line_segment::LineSegment, site::Site}, Group, Stage
+        container::path_network::NodeId,
+        geometry::{angle::Angle, line_segment::LineSegment, site::Site},
     },
-    transport::params::{
-        metrics::PathMetrics,
-        rules::{check_slope, TransportRules},
-    },
+    transport::params::{numeric::Stage, rules::check_slope, PathParams},
 };
 
 use super::transport_node::TransportNode;
@@ -52,11 +50,7 @@ pub struct PathCandidate {
     node_start: TransportNode,
     node_start_id: NodeId,
     angle_expected_end: Angle,
-    group: Group,
-    stage: Stage,
-    rules_start: TransportRules,
-    metrics: PathMetrics,
-    evaluation: f64,
+    params: PathParams,
 }
 
 impl Eq for PathCandidate {}
@@ -69,7 +63,7 @@ impl PartialOrd for PathCandidate {
 
 impl Ord for PathCandidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.evaluation.total_cmp(&other.evaluation)
+        self.params.evaluation.total_cmp(&other.params.evaluation)
     }
 }
 
@@ -81,21 +75,13 @@ impl PathCandidate {
         node_start: TransportNode,
         node_start_id: NodeId,
         angle_expected_end: Angle,
-        group: Group,
-        stage: Stage,
-        rules_start: TransportRules,
-        metrics: PathMetrics,
-        evaluation: f64,
+        params: PathParams,
     ) -> Self {
         Self {
             node_start,
             node_start_id,
             angle_expected_end,
-            group,
-            stage,
-            rules_start,
-            metrics,
-            evaluation,
+            params,
         }
     }
 
@@ -114,32 +100,16 @@ impl PathCandidate {
         self.angle_expected_end
     }
 
-    /// Get rules of the path.
-    pub fn get_rules_start(&self) -> &TransportRules {
-        &self.rules_start
-    }
-
-    /// Get stage of the path.
-    pub fn get_stage(&self) -> Stage {
-        self.stage
-    }
-
-    /// Get group of the path.
-    pub fn get_group(&self) -> Group {
-        self.group
-    }
-
-    /// Get metrics of the path.
-    pub fn get_metrics(&self) -> &PathMetrics {
-        &self.metrics
+    pub fn get_path_params(&self) -> &PathParams {
+        &self.params
     }
 
     /// Get the end site of the path with extra length.
     /// This is temporary used for searching intersections.
     fn get_expected_site_to_with_extra_length(&self, site_expected_end: Site) -> Site {
         let path_length = site_expected_end.distance(&self.node_start.site);
-        let scale =
-            (path_length + self.rules_start.path_extra_length_for_intersection) / path_length;
+        let scale = (path_length + self.params.rules_start.path_extra_length_for_intersection)
+            / path_length;
         Site::new(
             self.node_start.site.x + (site_expected_end.x - self.node_start.site.x) * scale,
             self.node_start.site.y + (site_expected_end.y - self.node_start.site.y) * scale,
@@ -167,7 +137,7 @@ impl PathCandidate {
                     // distance check for decreasing the number of candidates
                     LineSegment::new(search_start, site_expected_end)
                         .get_distance(&existing_node.site)
-                        < self.rules_start.path_extra_length_for_intersection
+                        < self.params.rules_start.path_extra_length_for_intersection
                 })
                 .filter(|(existing_node, _)| {
                     // is_bridge check
@@ -195,7 +165,7 @@ impl PathCandidate {
                         self.node_start.elevation,
                         existing_node.elevation,
                         distance,
-                        self.rules_start.path_max_elevation_diff,
+                        self.params.rules_start.path_max_elevation_diff,
                     )
                 })
                 .min_by(|a, b| {
@@ -240,7 +210,7 @@ impl PathCandidate {
                                 intersect,
                                 path_start.0.elevation * prop_start
                                     + path_end.0.elevation * (1.0 - prop_start),
-                                    self.node_start.group,
+                                self.node_start.group,
                                 path_start.0.path_stage(path_end.0),
                                 path_start.0.path_is_bridge(path_end.0),
                             ),
@@ -257,7 +227,7 @@ impl PathCandidate {
                         self.node_start.elevation,
                         crossing_node.elevation,
                         distance,
-                        self.rules_start.path_max_elevation_diff,
+                        self.params.rules_start.path_max_elevation_diff,
                     )
                 })
                 .min_by(|a, b| {
@@ -297,7 +267,7 @@ impl PathCandidate {
             self.node_start.elevation,
             elevation_expected_end,
             distance,
-            self.rules_start.path_max_elevation_diff,
+            self.params.rules_start.path_max_elevation_diff,
         ) {
             return (NextTransportNode::None, BridgeNode::None);
         }

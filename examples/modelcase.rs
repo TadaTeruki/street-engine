@@ -10,11 +10,11 @@ use rayon::prelude::*;
 use street_engine::core::container::path_network::PathNetwork;
 use street_engine::core::geometry::angle::Angle;
 use street_engine::core::geometry::site::Site;
-use street_engine::core::{Group, Stage};
 use street_engine::transport::builder::TransportBuilder;
 use street_engine::transport::node::transport_node::TransportNode;
 use street_engine::transport::params::evaluation::PathEvaluationFactors;
 use street_engine::transport::params::metrics::PathMetrics;
+use street_engine::transport::params::numeric::{Group, Stage};
 use street_engine::transport::params::rules::{
     BranchRules, BridgeRules, PathDirectionRules, TransportRules,
 };

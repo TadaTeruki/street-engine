@@ -1,7 +1,8 @@
 use std::collections::BinaryHeap;
 
 use crate::core::{
-    container::path_network::{NodeId, PathNetwork}, geometry::{angle::Angle, line_segment::LineSegment, site::Site}, Group, Stage
+    container::path_network::{NodeId, PathNetwork},
+    geometry::{angle::Angle, line_segment::LineSegment, site::Site},
 };
 
 use super::{
@@ -12,7 +13,9 @@ use super::{
     params::{
         evaluation::PathEvaluationFactors,
         metrics::PathMetrics,
+        numeric::{Group, Stage},
         rules::{check_slope, TransportRules},
+        PathParams,
     },
     traits::{PathEvaluator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };
@@ -77,11 +80,13 @@ where
             node_start,
             node_start_id,
             angle_expected_end,
-            group,
-            stage,
-            rules_start,
-            metrics,
-            evaluation,
+            PathParams {
+                group,
+                stage,
+                rules_start,
+                metrics,
+                evaluation,
+            },
         );
 
         self.path_candidate_container.push(candidate.clone());
@@ -222,15 +227,13 @@ where
             return self;
         };
 
-        let rules_start = prior_candidate.get_rules_start();
-
         let site_start = prior_candidate.get_site_start();
         // Set the end site of the path again.
         let site_expected_end_opt = self.expect_end_of_path(
             site_start,
             prior_candidate.angle_expected_end(),
-            prior_candidate.get_stage(),
-            rules_start,
+            prior_candidate.get_path_params().stage,
+            &prior_candidate.get_path_params().rules_start,
         );
 
         let (site_expected_end, to_be_bridge_end) = if let Some(end) = site_expected_end_opt {
@@ -252,7 +255,8 @@ where
             .nodes_around_line_iter(
                 LineSegment::new(site_start, site_expected_end),
                 prior_candidate
-                    .get_rules_start()
+                    .get_path_params()
+                    .rules_start
                     .path_extra_length_for_intersection,
             )
             .filter(|&node_id| *node_id != prior_candidate.get_node_start_id())
@@ -279,7 +283,7 @@ where
         let (next_node_type, bridge_node) = prior_candidate.determine_next_node(
             site_expected_end,
             elevation_expected_end,
-            prior_candidate.get_stage(),
+            prior_candidate.get_path_params().stage,
             to_be_bridge_end,
             &related_nodes,
             &related_paths,
@@ -319,10 +323,7 @@ where
     where
         R: RandomF64Provider,
     {
-        let base_group = base_candidate.get_group();
-        let base_stage = base_candidate.get_stage();
-        let base_rules = base_candidate.get_rules_start();
-        let base_metrics = base_candidate.get_metrics();
+        let base_params = base_candidate.get_path_params();
         match next_node_type {
             NextTransportNode::None => {
                 return self;
@@ -347,46 +348,49 @@ where
                     node_next,
                     node_id,
                     straight_angle,
-                    base_group,
-                    base_stage,
-                    base_candidate.get_metrics().incremented(false, false),
+                    base_params.group,
+                    base_params.stage,
+                    base_params.metrics.incremented(false, false),
                 );
-                let clockwise_branch = rng.gen_f64() < base_rules.branch_rules.branch_density;
+                let clockwise_branch =
+                    rng.gen_f64() < base_params.rules_start.branch_rules.branch_density;
                 if clockwise_branch {
                     let clockwise_staging =
-                        rng.gen_f64() < base_rules.branch_rules.staging_probability;
+                        rng.gen_f64() < base_params.rules_start.branch_rules.staging_probability;
                     let next_stage = if clockwise_staging {
-                        base_stage.incremented()
+                        base_params.stage.incremented()
                     } else {
-                        base_stage
+                        base_params.stage
                     };
                     self.push_new_candidate(
                         node_next,
                         node_id,
                         straight_angle.right_clockwise(),
-                        base_group,
+                        base_params.group,
                         next_stage,
-                        base_metrics.incremented(clockwise_staging, true),
+                        base_params.metrics.incremented(clockwise_staging, true),
                     );
                 }
 
                 let counterclockwise_branch =
-                    rng.gen_f64() < base_rules.branch_rules.branch_density;
+                    rng.gen_f64() < base_params.rules_start.branch_rules.branch_density;
                 if counterclockwise_branch {
                     let counterclockwise_staging =
-                        rng.gen_f64() < base_rules.branch_rules.staging_probability;
+                        rng.gen_f64() < base_params.rules_start.branch_rules.staging_probability;
                     let next_stage = if counterclockwise_staging {
-                        base_stage.incremented()
+                        base_params.stage.incremented()
                     } else {
-                        base_stage
+                        base_params.stage
                     };
                     self.push_new_candidate(
                         node_next,
                         node_id,
                         straight_angle.right_counterclockwise(),
-                        base_group,
+                        base_params.group,
                         next_stage,
-                        base_metrics.incremented(counterclockwise_staging, true),
+                        base_params
+                            .metrics
+                            .incremented(counterclockwise_staging, true),
                     );
                 }
             }

@@ -1,4 +1,7 @@
-use crate::core::{geometry::site::Site, Group, Stage};
+use crate::{
+    core::geometry::site::Site,
+    transport::params::numeric::{Group, Stage},
+};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct TransportNode {
