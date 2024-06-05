@@ -96,6 +96,7 @@ where
         mut self,
         origin_site: Site,
         angle_radian: f64,
+        
         stage: Option<Stage>,
     ) -> Option<Self> {
         let stage = if let Some(stage) = stage {
@@ -105,8 +106,9 @@ where
         };
         let origin_node = TransportNode::new(
             origin_site,
-            stage,
             self.terrain_provider.get_elevation(&origin_site)?,
+
+            stage,
             false,
         );
         let origin_node_id = self.path_network.add_node(origin_node);

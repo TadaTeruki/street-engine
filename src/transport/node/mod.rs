@@ -29,8 +29,9 @@ mod tests {
     fn create_node(x: f64, y: f64) -> TransportNode {
         TransportNode {
             site: Site::new(x, y),
-            stage: TransportNode::default().stage,
             elevation: TransportNode::default().elevation,
+            group: TransportNode::default().group,
+            stage: TransportNode::default().stage,
             is_bridge: TransportNode::default().is_bridge,
         }
     }
@@ -38,8 +39,9 @@ mod tests {
     fn create_node_detailed(x: f64, y: f64, elevation: f64, is_bridge: bool) -> TransportNode {
         TransportNode {
             site: Site::new(x, y),
-            stage: TransportNode::default().stage,
             elevation,
+            group: TransportNode::default().group,
+            stage: TransportNode::default().stage,
             is_bridge,
         }
     }

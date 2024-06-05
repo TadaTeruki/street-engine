@@ -203,8 +203,9 @@ impl PathCandidate {
                     let middle_site = search_start.midpoint(&existing_node.site);
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
-                        stage,
                         (existing_node.elevation + self.node_start.elevation) / 2.0,
+                        
+                        stage,
                         true,
                     ))
                 } else {
@@ -231,9 +232,10 @@ impl PathCandidate {
                         return Some((
                             TransportNode::new(
                                 intersect,
-                                path_start.0.path_stage(path_end.0),
                                 path_start.0.elevation * prop_start
                                     + path_end.0.elevation * (1.0 - prop_start),
+
+                                path_start.0.path_stage(path_end.0),
                                 path_start.0.path_is_bridge(path_end.0),
                             ),
                             (path_start, path_end),
@@ -267,8 +269,9 @@ impl PathCandidate {
                     let middle_site = search_start.midpoint(&crossing_node.site);
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
-                        stage,
                         (crossing_node.elevation + self.node_start.elevation) / 2.0,
+
+                        stage,
                         true,
                     ))
                 } else {
@@ -299,8 +302,9 @@ impl PathCandidate {
             let middle_site = search_start.midpoint(&site_expected_end);
             BridgeNode::Middle(TransportNode::new(
                 middle_site,
-                stage,
                 (elevation_expected_end + self.node_start.elevation) / 2.0,
+
+                stage,
                 true,
             ))
         } else {
@@ -309,8 +313,8 @@ impl PathCandidate {
         (
             NextTransportNode::New(TransportNode::new(
                 site_expected_end,
-                stage,
                 elevation_expected_end,
+                stage,
                 false,
             )),
             middle,

@@ -1,19 +1,21 @@
-use crate::core::{geometry::site::Site, Stage};
+use crate::core::{geometry::site::Site, Group, Stage};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct TransportNode {
     pub site: Site,
-    pub(crate) stage: Stage,
     pub elevation: f64,
+    pub group: Group,
+    pub(crate) stage: Stage,
     pub(crate) is_bridge: bool,
 }
 
 impl TransportNode {
-    pub fn new(site: Site, stage: Stage, elevation: f64, is_bridge: bool) -> Self {
+    pub fn new(site: Site, elevation: f64, group: Group, stage: Stage, is_bridge: bool) -> Self {
         Self {
             site,
-            stage,
             elevation,
+            group,
+            stage,
             is_bridge,
         }
     }
