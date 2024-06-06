@@ -180,7 +180,6 @@ impl PathCandidate {
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
                         (existing_node.elevation + self.node_start.elevation) / 2.0,
-                        self.node_start.group,
                         stage,
                         true,
                     ))
@@ -210,7 +209,6 @@ impl PathCandidate {
                                 intersect,
                                 path_start.0.elevation * prop_start
                                     + path_end.0.elevation * (1.0 - prop_start),
-                                self.node_start.group,
                                 path_start.0.path_stage(path_end.0),
                                 path_start.0.path_is_bridge(path_end.0),
                             ),
@@ -246,7 +244,6 @@ impl PathCandidate {
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
                         (crossing_node.elevation + self.node_start.elevation) / 2.0,
-                        self.node_start.group,
                         stage,
                         true,
                     ))
@@ -279,7 +276,6 @@ impl PathCandidate {
             BridgeNode::Middle(TransportNode::new(
                 middle_site,
                 (elevation_expected_end + self.node_start.elevation) / 2.0,
-                self.node_start.group,
                 stage,
                 true,
             ))
@@ -290,7 +286,6 @@ impl PathCandidate {
             NextTransportNode::New(TransportNode::new(
                 site_expected_end,
                 elevation_expected_end,
-                self.node_start.group,
                 stage,
                 false,
             )),

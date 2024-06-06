@@ -10,7 +10,7 @@ mod tests {
         },
         transport::params::{
             metrics::PathMetrics,
-            numeric::{Group, Stage},
+            numeric::Stage,
             rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
             PathParams,
         },
@@ -31,7 +31,6 @@ mod tests {
         TransportNode {
             site: Site::new(x, y),
             elevation: TransportNode::default().elevation,
-            group: TransportNode::default().group,
             stage: TransportNode::default().stage,
             is_bridge: TransportNode::default().is_bridge,
         }
@@ -41,7 +40,6 @@ mod tests {
         TransportNode {
             site: Site::new(x, y),
             elevation,
-            group: TransportNode::default().group,
             stage: TransportNode::default().stage,
             is_bridge,
         }
@@ -87,7 +85,6 @@ mod tests {
             .extend(angle_expected_end, rules.path_normal_length);
 
         let params = PathParams {
-            group: Group::default(),
             stage: Stage::default(),
             rules_start: rules.clone(),
             metrics: PathMetrics::default(),
@@ -254,7 +251,6 @@ mod tests {
             .extend(angle_expected_end, rules.path_normal_length);
 
         let params = PathParams {
-            group: Group::default(),
             stage: Stage::default(),
             rules_start: rules.clone(),
             metrics: PathMetrics::default(),
@@ -330,7 +326,6 @@ mod tests {
                 .extend(angle_expected_end, rules.path_normal_length);
 
             let params = PathParams {
-                group: Group::default(),
                 stage: Stage::default(),
                 rules_start: rules.clone(),
                 metrics: PathMetrics::default(),

@@ -14,7 +14,7 @@ use street_engine::transport::builder::TransportBuilder;
 use street_engine::transport::node::transport_node::TransportNode;
 use street_engine::transport::params::evaluation::PathEvaluationFactors;
 use street_engine::transport::params::metrics::PathMetrics;
-use street_engine::transport::params::numeric::{Group, Stage};
+use street_engine::transport::params::numeric::Stage;
 use street_engine::transport::params::rules::{
     BranchRules, BridgeRules, PathDirectionRules, TransportRules,
 };
@@ -196,7 +196,7 @@ fn main() {
     let mut rnd = RandomF64::new(rand::rngs::StdRng::seed_from_u64(0));
 
     let network = TransportBuilder::new(&map_provider, &map_provider, &map_provider)
-        .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, Group::from_num(0), None)
+        .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, None)
         .unwrap()
         .iterate_as_possible(&mut rnd)
         .build();
