@@ -3,7 +3,7 @@ use graphics::write_to_image;
 use map_provider::MapProvider;
 use naturalneighbor::Interpolator;
 use random::RandomF64;
-use rules_provider::road::RulesProviderForRoad;
+use rules_provider::{railway::RulesProviderForRailway, road::RulesProviderForRoad};
 use street_engine::{core::geometry::site::Site, transport::builder::TransportBuilder};
 
 mod factors;
@@ -14,7 +14,7 @@ mod rules_provider;
 
 fn main() {
     let node_num = 50000;
-    let seed = 10;
+    let seed = 0;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,
@@ -50,14 +50,16 @@ fn main() {
 
     let map_provider = MapProvider::new(&terrain, &population_densities, interpolator);
     let rules_provider_road = RulesProviderForRoad::new(&map_provider);
+    let rules_provider_railway = RulesProviderForRailway::new(&map_provider);
 
     let mut rnd = RandomF64::new();
 
-    let network = TransportBuilder::new(&rules_provider_road, &map_provider, &rules_provider_road)
-        .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, None)
-        .unwrap()
-        .iterate_as_possible(&mut rnd)
-        .build();
+    let network =
+        TransportBuilder::new(&rules_provider_railway, &map_provider, &rules_provider_road)
+            .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, None)
+            .unwrap()
+            .iterate_as_possible(&mut rnd)
+            .build();
 
     println!("Writing to image...");
 
