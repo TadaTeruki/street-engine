@@ -2,7 +2,6 @@
 name = "street-engine"
 version = "0.1.0"
 edition = "2021"
-license = "MPL-2.0"
 description = "A Rust library for procedurally generating transport networks"
 authors = ["Teruki TADA <me@peruki.dev>"]
 

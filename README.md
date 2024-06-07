@@ -21,8 +21,6 @@ Teruki TADA (me@peruki.dev)
 
  - Provide a way to divide land into parcels
 
-## License
-
-Mozilla Public License Version 2.0
+## Copyright
 
 Copyright (c) 2024 Teruki TADA
