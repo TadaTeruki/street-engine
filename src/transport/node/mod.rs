@@ -7,11 +7,12 @@ mod tests {
         core::{
             container::path_network::NodeId,
             geometry::{angle::Angle, site::Site},
-            Stage,
         },
         transport::params::{
             metrics::PathMetrics,
+            numeric::Stage,
             rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
+            PathParams,
         },
     };
 
@@ -29,8 +30,8 @@ mod tests {
     fn create_node(x: f64, y: f64) -> TransportNode {
         TransportNode {
             site: Site::new(x, y),
-            stage: TransportNode::default().stage,
             elevation: TransportNode::default().elevation,
+            stage: TransportNode::default().stage,
             is_bridge: TransportNode::default().is_bridge,
         }
     }
@@ -38,8 +39,8 @@ mod tests {
     fn create_node_detailed(x: f64, y: f64, elevation: f64, is_bridge: bool) -> TransportNode {
         TransportNode {
             site: Site::new(x, y),
-            stage: TransportNode::default().stage,
             elevation,
+            stage: TransportNode::default().stage,
             is_bridge,
         }
     }
@@ -83,22 +84,24 @@ mod tests {
             .site
             .extend(angle_expected_end, rules.path_normal_length);
 
-        let static_stage = Stage::default();
+        let params = PathParams {
+            stage: Stage::default(),
+            rules_start: rules.clone(),
+            metrics: PathMetrics::default(),
+            evaluation: 0.0,
+        };
 
         // New node
         let new = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            static_stage,
-            rules.clone(),
-            PathMetrics::default(),
-            0.0,
+            params.clone(),
         )
         .determine_next_node(
             site_expected_end,
             0.0,
-            static_stage,
+            params.stage,
             false,
             &nodes_parsed,
             &paths_parsed,
@@ -128,15 +131,12 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            static_stage,
-            rules.clone(),
-            PathMetrics::default(),
-            0.0,
+            params.clone(),
         )
         .determine_next_node(
             site_expected_end,
             0.0,
-            static_stage,
+            params.stage,
             false,
             &nodes_parsed,
             &paths_parsed,
@@ -160,15 +160,12 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            static_stage,
-            rules.clone(),
-            PathMetrics::default(),
-            0.0,
+            params.clone(),
         )
         .determine_next_node(
             site_expected_end,
             0.0,
-            static_stage,
+            params.stage,
             false,
             &nodes_parsed,
             &paths_parsed,
@@ -192,15 +189,12 @@ mod tests {
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            static_stage,
-            rules.clone(),
-            PathMetrics::default(),
-            0.0,
+            params.clone(),
         )
         .determine_next_node(
             site_expected_end,
             0.0,
-            static_stage,
+            params.stage,
             false,
             &nodes_parsed,
             &paths_parsed,
@@ -256,21 +250,23 @@ mod tests {
             .site
             .extend(angle_expected_end, rules.path_normal_length);
 
-        let static_stage = Stage::default();
+        let params = PathParams {
+            stage: Stage::default(),
+            rules_start: rules.clone(),
+            metrics: PathMetrics::default(),
+            evaluation: 0.0,
+        };
 
         let next = PathCandidate::new(
             node_start,
             NodeId::new(10000),
             angle_expected_end,
-            static_stage,
-            rules.clone(),
-            PathMetrics::default(),
-            0.0,
+            params.clone(),
         )
         .determine_next_node(
             site_expected_end,
             0.0,
-            static_stage,
+            params.stage,
             false,
             &nodes_parsed,
             &paths_parsed,
@@ -329,21 +325,23 @@ mod tests {
                 .site
                 .extend(angle_expected_end, rules.path_normal_length);
 
-            let static_stage = Stage::default();
+            let params = PathParams {
+                stage: Stage::default(),
+                rules_start: rules.clone(),
+                metrics: PathMetrics::default(),
+                evaluation: 0.0,
+            };
 
             PathCandidate::new(
                 node_start,
                 NodeId::new(10000),
                 angle_expected_end,
-                static_stage,
-                rules.clone(),
-                PathMetrics::default(),
-                0.0,
+                params.clone(),
             )
             .determine_next_node(
                 site_expected_end,
                 elevation_end,
-                static_stage,
+                params.stage,
                 false,
                 &nodes_parsed,
                 &paths_parsed,

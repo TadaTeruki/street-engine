@@ -2,12 +2,8 @@ use crate::{
     core::{
         container::path_network::NodeId,
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
-        Stage,
     },
-    transport::params::{
-        metrics::PathMetrics,
-        rules::{check_elevation_diff, TransportRules},
-    },
+    transport::params::{numeric::Stage, rules::check_elevation_diff, PathParams},
 };
 
 use super::transport_node::TransportNode;
@@ -54,10 +50,7 @@ pub struct PathCandidate {
     node_start: TransportNode,
     node_start_id: NodeId,
     angle_expected_end: Angle,
-    stage: Stage,
-    rules_start: TransportRules,
-    metrics: PathMetrics,
-    evaluation: f64,
+    params: PathParams,
 }
 
 impl Eq for PathCandidate {}
@@ -70,7 +63,7 @@ impl PartialOrd for PathCandidate {
 
 impl Ord for PathCandidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.evaluation.total_cmp(&other.evaluation)
+        self.params.evaluation.total_cmp(&other.params.evaluation)
     }
 }
 
@@ -82,19 +75,13 @@ impl PathCandidate {
         node_start: TransportNode,
         node_start_id: NodeId,
         angle_expected_end: Angle,
-        stage: Stage,
-        rules_start: TransportRules,
-        metrics: PathMetrics,
-        evaluation: f64,
+        params: PathParams,
     ) -> Self {
         Self {
             node_start,
             node_start_id,
             angle_expected_end,
-            stage,
-            rules_start,
-            metrics,
-            evaluation,
+            params,
         }
     }
 
@@ -113,27 +100,16 @@ impl PathCandidate {
         self.angle_expected_end
     }
 
-    /// Get rules of the path.
-    pub fn get_rules_start(&self) -> &TransportRules {
-        &self.rules_start
-    }
-
-    /// Get stage of the path.
-    pub fn get_stage(&self) -> Stage {
-        self.stage
-    }
-
-    /// Get metrics of the path.
-    pub fn get_metrics(&self) -> &PathMetrics {
-        &self.metrics
+    pub fn get_path_params(&self) -> &PathParams {
+        &self.params
     }
 
     /// Get the end site of the path with extra length.
     /// This is temporary used for searching intersections.
     fn get_expected_site_to_with_extra_length(&self, site_expected_end: Site) -> Site {
         let path_length = site_expected_end.distance(&self.node_start.site);
-        let scale =
-            (path_length + self.rules_start.path_extra_length_for_intersection) / path_length;
+        let scale = (path_length + self.params.rules_start.path_extra_length_for_intersection)
+            / path_length;
         Site::new(
             self.node_start.site.x + (site_expected_end.x - self.node_start.site.x) * scale,
             self.node_start.site.y + (site_expected_end.y - self.node_start.site.y) * scale,
@@ -161,7 +137,7 @@ impl PathCandidate {
                     // distance check for decreasing the number of candidates
                     LineSegment::new(search_start, site_expected_end)
                         .get_distance(&existing_node.site)
-                        < self.rules_start.path_extra_length_for_intersection
+                        < self.params.rules_start.path_extra_length_for_intersection
                 })
                 .filter(|(existing_node, _)| {
                     // is_bridge check
@@ -189,7 +165,7 @@ impl PathCandidate {
                         self.node_start.elevation,
                         existing_node.elevation,
                         distance,
-                        self.rules_start.path_elevation_diff_limit,
+                        self.params.rules_start.path_elevation_diff_limit,
                     )
                 })
                 .min_by(|a, b| {
@@ -203,8 +179,8 @@ impl PathCandidate {
                     let middle_site = search_start.midpoint(&existing_node.site);
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
-                        stage,
                         (existing_node.elevation + self.node_start.elevation) / 2.0,
+                        stage,
                         true,
                     ))
                 } else {
@@ -231,9 +207,9 @@ impl PathCandidate {
                         return Some((
                             TransportNode::new(
                                 intersect,
-                                path_start.0.path_stage(path_end.0),
                                 path_start.0.elevation * prop_start
                                     + path_end.0.elevation * (1.0 - prop_start),
+                                path_start.0.path_stage(path_end.0),
                                 path_start.0.path_is_bridge(path_end.0),
                             ),
                             (path_start, path_end),
@@ -249,7 +225,7 @@ impl PathCandidate {
                         self.node_start.elevation,
                         crossing_node.elevation,
                         distance,
-                        self.rules_start.path_elevation_diff_limit,
+                        self.params.rules_start.path_elevation_diff_limit,
                     )
                 })
                 .min_by(|a, b| {
@@ -267,8 +243,8 @@ impl PathCandidate {
                     let middle_site = search_start.midpoint(&crossing_node.site);
                     BridgeNode::Middle(TransportNode::new(
                         middle_site,
-                        stage,
                         (crossing_node.elevation + self.node_start.elevation) / 2.0,
+                        stage,
                         true,
                     ))
                 } else {
@@ -288,7 +264,7 @@ impl PathCandidate {
             self.node_start.elevation,
             elevation_expected_end,
             distance,
-            self.rules_start.path_elevation_diff_limit,
+            self.params.rules_start.path_elevation_diff_limit,
         ) {
             return (NextTransportNode::None, BridgeNode::None);
         }
@@ -299,8 +275,8 @@ impl PathCandidate {
             let middle_site = search_start.midpoint(&site_expected_end);
             BridgeNode::Middle(TransportNode::new(
                 middle_site,
-                stage,
                 (elevation_expected_end + self.node_start.elevation) / 2.0,
+                stage,
                 true,
             ))
         } else {
@@ -309,8 +285,8 @@ impl PathCandidate {
         (
             NextTransportNode::New(TransportNode::new(
                 site_expected_end,
-                stage,
                 elevation_expected_end,
+                stage,
                 false,
             )),
             middle,
