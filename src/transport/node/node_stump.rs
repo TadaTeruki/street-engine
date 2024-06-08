@@ -124,7 +124,7 @@ impl NodeStump {
                         self.params.rules_start.path_elevation_diff_limit,
                     )
                 })
-                .min_by(|a, b| {
+                .min_by(|a, b: &&(&TransportNode, NodeId)| {
                     let distance_a = a.0.site.distance_2(&search_start);
                     let distance_b = b.0.site.distance_2(&search_start);
                     distance_a.total_cmp(&distance_b)
