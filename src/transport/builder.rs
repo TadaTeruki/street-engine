@@ -7,7 +7,7 @@ use crate::core::{
 
 use super::{
     node::{
-        growth_type::{BridgeNodeType, NextNodeType},
+        growth_type::{BridgeNodeType, GrowthTypes, NextNodeType},
         node_stump::NodeStump,
         transport_node::TransportNode,
     },
@@ -31,7 +31,7 @@ where
     rules_provider: &'a RP,
     terrain_provider: &'a TP,
     path_evaluator: &'a PE,
-    open_nodes: BinaryHeap<NodeStump>,
+    stump_heap: BinaryHeap<NodeStump>,
 }
 
 impl<'a, RP, TP, PE> TransportBuilder<'a, RP, TP, PE>
@@ -47,7 +47,7 @@ where
             rules_provider,
             terrain_provider,
             path_evaluator,
-            open_nodes: BinaryHeap::new(),
+            stump_heap: BinaryHeap::new(),
         }
     }
 
@@ -88,14 +88,14 @@ where
             },
         );
 
-        self.open_nodes.push(stump.clone());
+        self.stump_heap.push(stump.clone());
 
         Some(stump)
     }
 
     /// Add an origin node to the path network.
     ///
-    /// The path which is extended from `origin_site` by `angle_radian` (and the opposite path) will be the first stumps.
+    /// The path which is extended from `origin_site` by `angle_radian` (and the opposite path) will be the first stump_heap.
     pub fn add_origin(
         mut self,
         origin_site: Site,
@@ -143,12 +143,12 @@ where
         self
     }
 
-    /// Iterate network generation until there are no more stumps of new paths.
+    /// Iterate network generation until there are no more stump_heap of new paths.
     pub fn iterate_as_possible<R>(mut self, rng: &mut R) -> Self
     where
         R: RandomF64Provider,
     {
-        while !self.open_nodes.is_empty() {
+        while !self.stump_heap.is_empty() {
             self = self.iterate::<R>(rng);
         }
         self
@@ -209,66 +209,40 @@ where
             .map(|(site, _, is_bridge)| (site, is_bridge))
     }
 
-    /// Iterate the path network to the next step.
-    pub fn iterate<R>(mut self, rng: &mut R) -> Self
-    where
-        R: RandomF64Provider,
-    {
-        let prior_open_node = if let Some(stump) = self.open_nodes.pop() {
-            stump
-        } else {
-            return self;
-        };
-
-        let prior_node =
-            if let Some(node) = self.path_network.get_node(prior_open_node.get_node_id()) {
-                node
-            } else {
-                return self;
-            };
-
+    fn determine_growth_from_stump(&self, stump: &NodeStump) -> Option<GrowthTypes> {
+        let stump_node = self.path_network.get_node(stump.get_node_id())?;
         // Set the end site of the path again.
         let site_expected_end_opt = self.expect_end_of_path(
-            prior_node.site,
-            prior_open_node.angle_expected(),
-            prior_open_node.get_path_params().stage,
-            &prior_open_node.get_path_params().rules_start,
+            stump_node.site,
+            stump.angle_expected(),
+            stump.get_path_params().stage,
+            &stump.get_path_params().rules_start,
         );
 
-        let (site_expected_end, to_be_bridge_end) = if let Some(end) = site_expected_end_opt {
-            end
-        } else {
-            return self;
-        };
+        let (site_expected_end, to_be_bridge_end) = site_expected_end_opt?;
 
-        let elevation_expected_end =
-            if let Some(elevation) = self.terrain_provider.get_elevation(&site_expected_end) {
-                elevation
-            } else {
-                return self;
-            };
+        let elevation_expected_end = self.terrain_provider.get_elevation(&site_expected_end)?;
 
         // Find nodes around the line from the start site to the expected end site.
         let related_nodes = self
             .path_network
             .nodes_around_line_iter(
-                LineSegment::new(prior_node.site, site_expected_end),
-                prior_open_node
+                LineSegment::new(stump_node.site, site_expected_end),
+                stump
                     .get_path_params()
                     .rules_start
                     .path_extra_length_for_intersection,
             )
-            .filter(|&node_id| *node_id != prior_open_node.get_node_id())
+            .filter(|&node_id| *node_id != stump.get_node_id())
             .filter_map(|node_id| Some((self.path_network.get_node(*node_id)?, *node_id)))
             .collect::<Vec<_>>();
 
         // Find paths touching the rectangle around the line.
         let related_paths = self
             .path_network
-            .paths_touching_rect_iter(prior_node.site, site_expected_end)
+            .paths_touching_rect_iter(stump_node.site, site_expected_end)
             .filter(|(node_id_start, node_id_end)| {
-                *node_id_start != prior_open_node.get_node_id()
-                    && *node_id_end != prior_open_node.get_node_id()
+                *node_id_start != stump.get_node_id() && *node_id_end != stump.get_node_id()
             })
             .filter_map(|(node_id_start, node_id_end)| {
                 let node_start = self.path_network.get_node(*node_id_start)?;
@@ -277,25 +251,45 @@ where
             })
             .collect::<Vec<_>>();
 
-        // Determine the next node.
-        let growth = prior_open_node.determine_growth(
-            prior_node,
+        // Determine the growth of the path.
+        let growth = stump.determine_growth(
+            stump_node,
             &TransportNode::new(
                 site_expected_end,
                 elevation_expected_end,
-                prior_open_node.get_path_params().stage,
+                stump.get_path_params().stage,
                 to_be_bridge_end,
             ),
             &related_nodes,
             &related_paths,
         );
 
+        Some(growth)
+    }
+
+    /// Iterate the path network to the next step.
+    pub fn iterate<R>(mut self, rng: &mut R) -> Self
+    where
+        R: RandomF64Provider,
+    {
+        let prior_stump = if let Some(stump) = self.stump_heap.pop() {
+            stump
+        } else {
+            return self;
+        };
+
+        let growth = if let Some(growth) = self.determine_growth_from_stump(&prior_stump) {
+            growth
+        } else {
+            return self;
+        };
+
         self.apply_next_growth(
             rng,
             growth.next_node,
             growth.bridge_node,
-            prior_open_node.get_node_id(),
-            prior_open_node.get_path_params(),
+            prior_stump.get_node_id(),
+            prior_stump.get_path_params(),
         )
     }
 
@@ -304,7 +298,7 @@ where
         rng: &mut R,
         next_node_type: NextNodeType,
         bridge_node_type: BridgeNodeType,
-        base_node_id: NodeId,
+        stump_node_id: NodeId,
         path_params: &PathParams,
     ) -> Self
     where
@@ -312,7 +306,7 @@ where
     {
         if let BridgeNodeType::Middle(bridge_node) = bridge_node_type {
             let bridge_node_id = self.path_network.add_node(bridge_node);
-            self.path_network.add_path(base_node_id, bridge_node_id);
+            self.path_network.add_path(stump_node_id, bridge_node_id);
 
             return self.apply_next_growth(
                 rng,
@@ -323,7 +317,7 @@ where
             );
         }
 
-        let start_site = if let Some(node) = self.path_network.get_node(base_node_id) {
+        let start_site = if let Some(node) = self.path_network.get_node(stump_node_id) {
             node.site
         } else {
             return self;
@@ -334,19 +328,19 @@ where
                 return self;
             }
             NextNodeType::Existing(node_id) => {
-                self.path_network.add_path(base_node_id, node_id);
+                self.path_network.add_path(stump_node_id, node_id);
             }
             NextNodeType::Intersect(node_next, encount_path) => {
                 let next_node_id = self.path_network.add_node(node_next);
                 self.path_network
                     .remove_path(encount_path.0, encount_path.1);
-                self.path_network.add_path(base_node_id, next_node_id);
+                self.path_network.add_path(stump_node_id, next_node_id);
                 self.path_network.add_path(next_node_id, encount_path.0);
                 self.path_network.add_path(next_node_id, encount_path.1);
             }
             NextNodeType::New(node_next) => {
                 let node_id = self.path_network.add_node(node_next);
-                self.path_network.add_path(base_node_id, node_id);
+                self.path_network.add_path(stump_node_id, node_id);
 
                 let straight_angle = start_site.get_angle(&node_next.site);
                 self.push_new_stump(
