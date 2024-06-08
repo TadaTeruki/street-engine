@@ -54,12 +54,13 @@ where
     /// Add a path stump to the path network.
     fn push_new_stump(
         &mut self,
-        node_start: TransportNode,
         node_start_id: NodeId,
         angle_expected_end: Angle,
         stage: Stage,
         metrics: PathMetrics,
     ) -> Option<NodeStump> {
+        let node_start = self.path_network.get_node(node_start_id)?;
+
         let rules_start =
             self.rules_provider
                 .get_rules(&node_start.site, angle_expected_end, stage, &metrics)?;
@@ -116,14 +117,12 @@ where
         let origin_metrics = PathMetrics::default();
 
         self.push_new_stump(
-            origin_node,
             origin_node_id,
             Angle::new(angle_radian),
             stage,
             origin_metrics.incremented(false, false),
         );
         self.push_new_stump(
-            origin_node,
             origin_node_id,
             Angle::new(angle_radian).opposite(),
             stage,
@@ -351,7 +350,6 @@ where
 
                 let straight_angle = start_site.get_angle(&node_next.site);
                 self.push_new_stump(
-                    node_next,
                     node_id,
                     straight_angle,
                     path_params.stage,
@@ -368,7 +366,6 @@ where
                         path_params.stage
                     };
                     self.push_new_stump(
-                        node_next,
                         node_id,
                         straight_angle.right_clockwise(),
                         next_stage,
@@ -387,7 +384,6 @@ where
                         path_params.stage
                     };
                     self.push_new_stump(
-                        node_next,
                         node_id,
                         straight_angle.right_counterclockwise(),
                         next_stage,
