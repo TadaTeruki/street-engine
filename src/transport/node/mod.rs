@@ -1,5 +1,5 @@
-pub mod growable_node;
 pub mod growth_type;
+pub mod node_stump;
 pub mod transport_node;
 
 #[cfg(test)]
@@ -18,8 +18,8 @@ mod tests {
     };
 
     use super::{
-        growable_node::NodeStump,
         growth_type::{GrowthTypes, NextNodeType},
+        node_stump::NodeStump,
         transport_node::TransportNode,
     };
 

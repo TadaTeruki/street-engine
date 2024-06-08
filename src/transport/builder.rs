@@ -7,8 +7,8 @@ use crate::core::{
 
 use super::{
     node::{
-        growable_node::NodeStump,
         growth_type::{BridgeNodeType, NextNodeType},
+        node_stump::NodeStump,
         transport_node::TransportNode,
     },
     params::{
