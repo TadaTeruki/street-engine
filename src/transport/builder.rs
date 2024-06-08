@@ -7,7 +7,8 @@ use crate::core::{
 
 use super::{
     node::{
-        candidate::{BridgeNode, NextTransportNode, PathCandidate},
+        growable_node::NodeStump,
+        growth_type::{BridgeNodeType, NextNodeType},
         transport_node::TransportNode,
     },
     params::{
@@ -30,7 +31,7 @@ where
     rules_provider: &'a RP,
     terrain_provider: &'a TP,
     path_evaluator: &'a PE,
-    path_candidate_container: BinaryHeap<PathCandidate>,
+    open_nodes: BinaryHeap<NodeStump>,
 }
 
 impl<'a, RP, TP, PE> TransportBuilder<'a, RP, TP, PE>
@@ -46,19 +47,19 @@ where
             rules_provider,
             terrain_provider,
             path_evaluator,
-            path_candidate_container: BinaryHeap::new(),
+            open_nodes: BinaryHeap::new(),
         }
     }
 
-    /// Add a path candidate to the path network.
-    fn push_new_candidate(
+    /// Add a path stump to the path network.
+    fn push_new_stump(
         &mut self,
         node_start: TransportNode,
         node_start_id: NodeId,
         angle_expected_end: Angle,
         stage: Stage,
         metrics: PathMetrics,
-    ) -> Option<PathCandidate> {
+    ) -> Option<NodeStump> {
         let rules_start =
             self.rules_provider
                 .get_rules(&node_start.site, angle_expected_end, stage, &metrics)?;
@@ -75,8 +76,7 @@ where
             is_bridge: estimated_end_is_bridge,
         })?;
 
-        let candidate = PathCandidate::new(
-            node_start,
+        let stump = NodeStump::new(
             node_start_id,
             angle_expected_end,
             PathParams {
@@ -87,14 +87,14 @@ where
             },
         );
 
-        self.path_candidate_container.push(candidate.clone());
+        self.open_nodes.push(stump.clone());
 
-        Some(candidate)
+        Some(stump)
     }
 
     /// Add an origin node to the path network.
     ///
-    /// The path which is extended from `origin_site` by `angle_radian` (and the opposite path) will be the first candidates.
+    /// The path which is extended from `origin_site` by `angle_radian` (and the opposite path) will be the first stumps.
     pub fn add_origin(
         mut self,
         origin_site: Site,
@@ -115,14 +115,14 @@ where
         let origin_node_id = self.path_network.add_node(origin_node);
         let origin_metrics = PathMetrics::default();
 
-        self.push_new_candidate(
+        self.push_new_stump(
             origin_node,
             origin_node_id,
             Angle::new(angle_radian),
             stage,
             origin_metrics.incremented(false, false),
         );
-        self.push_new_candidate(
+        self.push_new_stump(
             origin_node,
             origin_node_id,
             Angle::new(angle_radian).opposite(),
@@ -144,12 +144,12 @@ where
         self
     }
 
-    /// Iterate network generation until there are no more candidates of new paths.
+    /// Iterate network generation until there are no more stumps of new paths.
     pub fn iterate_as_possible<R>(mut self, rng: &mut R) -> Self
     where
         R: RandomF64Provider,
     {
-        while !self.path_candidate_container.is_empty() {
+        while !self.open_nodes.is_empty() {
             self = self.iterate::<R>(rng);
         }
         self
@@ -215,19 +215,25 @@ where
     where
         R: RandomF64Provider,
     {
-        let prior_candidate = if let Some(candidate) = self.path_candidate_container.pop() {
-            candidate
+        let prior_open_node = if let Some(stump) = self.open_nodes.pop() {
+            stump
         } else {
             return self;
         };
 
-        let site_start = prior_candidate.get_site_start();
+        let prior_node =
+            if let Some(node) = self.path_network.get_node(prior_open_node.get_node_id()) {
+                node
+            } else {
+                return self;
+            };
+
         // Set the end site of the path again.
         let site_expected_end_opt = self.expect_end_of_path(
-            site_start,
-            prior_candidate.angle_expected_end(),
-            prior_candidate.get_path_params().stage,
-            &prior_candidate.get_path_params().rules_start,
+            prior_node.site,
+            prior_open_node.angle_expected(),
+            prior_open_node.get_path_params().stage,
+            &prior_open_node.get_path_params().rules_start,
         );
 
         let (site_expected_end, to_be_bridge_end) = if let Some(end) = site_expected_end_opt {
@@ -247,23 +253,23 @@ where
         let related_nodes = self
             .path_network
             .nodes_around_line_iter(
-                LineSegment::new(site_start, site_expected_end),
-                prior_candidate
+                LineSegment::new(prior_node.site, site_expected_end),
+                prior_open_node
                     .get_path_params()
                     .rules_start
                     .path_extra_length_for_intersection,
             )
-            .filter(|&node_id| *node_id != prior_candidate.get_node_start_id())
+            .filter(|&node_id| *node_id != prior_open_node.get_node_id())
             .filter_map(|node_id| Some((self.path_network.get_node(*node_id)?, *node_id)))
             .collect::<Vec<_>>();
 
         // Find paths touching the rectangle around the line.
         let related_paths = self
             .path_network
-            .paths_touching_rect_iter(site_start, site_expected_end)
+            .paths_touching_rect_iter(prior_node.site, site_expected_end)
             .filter(|(node_id_start, node_id_end)| {
-                *node_id_start != prior_candidate.get_node_start_id()
-                    && *node_id_end != prior_candidate.get_node_start_id()
+                *node_id_start != prior_open_node.get_node_id()
+                    && *node_id_end != prior_open_node.get_node_id()
             })
             .filter_map(|(node_id_start, node_id_end)| {
                 let node_start = self.path_network.get_node(*node_id_start)?;
@@ -272,114 +278,120 @@ where
             })
             .collect::<Vec<_>>();
 
-        let candidate_node_id = prior_candidate.get_node_start_id();
         // Determine the next node.
-        let (next_node_type, bridge_node) = prior_candidate.determine_next_node(
-            site_expected_end,
-            elevation_expected_end,
-            prior_candidate.get_path_params().stage,
-            to_be_bridge_end,
+        let growth = prior_open_node.determine_growth(
+            prior_node,
+            &TransportNode::new(
+                site_expected_end,
+                elevation_expected_end,
+                prior_open_node.get_path_params().stage,
+                to_be_bridge_end,
+            ),
             &related_nodes,
             &related_paths,
         );
 
-        if let BridgeNode::Middle(bridge_node) = bridge_node {
-            let bridge_node_id = self.path_network.add_node(bridge_node);
-            self.path_network
-                .add_path(candidate_node_id, bridge_node_id);
-
-            self.apply_candidate(
-                rng,
-                prior_candidate,
-                next_node_type,
-                bridge_node.site,
-                bridge_node_id,
-            )
-        } else {
-            self.apply_candidate(
-                rng,
-                prior_candidate,
-                next_node_type,
-                site_start,
-                candidate_node_id,
-            )
-        }
+        self.apply_next_growth(
+            rng,
+            growth.next_node,
+            growth.bridge_node,
+            prior_open_node.get_node_id(),
+            prior_open_node.get_path_params(),
+        )
     }
 
-    fn apply_candidate<R>(
+    fn apply_next_growth<R>(
         mut self,
         rng: &mut R,
-        base_candidate: PathCandidate,
-        next_node_type: NextTransportNode,
-        site_start: Site,
-        start_node_id: NodeId,
+        next_node_type: NextNodeType,
+        bridge_node_type: BridgeNodeType,
+        base_node_id: NodeId,
+        path_params: &PathParams,
     ) -> Self
     where
         R: RandomF64Provider,
     {
-        let base_params = base_candidate.get_path_params();
+        if let BridgeNodeType::Middle(bridge_node) = bridge_node_type {
+            let bridge_node_id = self.path_network.add_node(bridge_node);
+            self.path_network.add_path(base_node_id, bridge_node_id);
+
+            return self.apply_next_growth(
+                rng,
+                next_node_type,
+                BridgeNodeType::None,
+                bridge_node_id,
+                path_params,
+            );
+        }
+
+        let start_site = if let Some(node) = self.path_network.get_node(base_node_id) {
+            node.site
+        } else {
+            return self;
+        };
+
         match next_node_type {
-            NextTransportNode::None => {
+            NextNodeType::None => {
                 return self;
             }
-            NextTransportNode::Existing(node_id) => {
-                self.path_network.add_path(start_node_id, node_id);
+            NextNodeType::Existing(node_id) => {
+                self.path_network.add_path(base_node_id, node_id);
             }
-            NextTransportNode::Intersect(node_next, encount_path) => {
+            NextNodeType::Intersect(node_next, encount_path) => {
                 let next_node_id = self.path_network.add_node(node_next);
                 self.path_network
                     .remove_path(encount_path.0, encount_path.1);
-                self.path_network.add_path(start_node_id, next_node_id);
+                self.path_network.add_path(base_node_id, next_node_id);
                 self.path_network.add_path(next_node_id, encount_path.0);
                 self.path_network.add_path(next_node_id, encount_path.1);
             }
-            NextTransportNode::New(node_next) => {
+            NextNodeType::New(node_next) => {
                 let node_id = self.path_network.add_node(node_next);
-                self.path_network.add_path(start_node_id, node_id);
+                self.path_network.add_path(base_node_id, node_id);
 
-                let straight_angle = site_start.get_angle(&node_next.site);
-                self.push_new_candidate(
+                let straight_angle = start_site.get_angle(&node_next.site);
+                self.push_new_stump(
                     node_next,
                     node_id,
                     straight_angle,
-                    base_params.stage,
-                    base_params.metrics.incremented(false, false),
+                    path_params.stage,
+                    path_params.metrics.incremented(false, false),
                 );
                 let clockwise_branch =
-                    rng.gen_f64() < base_params.rules_start.branch_rules.branch_density;
+                    rng.gen_f64() < path_params.rules_start.branch_rules.branch_density;
                 if clockwise_branch {
                     let clockwise_staging =
-                        rng.gen_f64() < base_params.rules_start.branch_rules.staging_probability;
+                        rng.gen_f64() < path_params.rules_start.branch_rules.staging_probability;
                     let next_stage = if clockwise_staging {
-                        base_params.stage.incremented()
+                        path_params.stage.incremented()
                     } else {
-                        base_params.stage
+                        path_params.stage
                     };
-                    self.push_new_candidate(
+                    self.push_new_stump(
                         node_next,
                         node_id,
                         straight_angle.right_clockwise(),
                         next_stage,
-                        base_params.metrics.incremented(clockwise_staging, true),
+                        path_params.metrics.incremented(clockwise_staging, true),
                     );
                 }
 
                 let counterclockwise_branch =
-                    rng.gen_f64() < base_params.rules_start.branch_rules.branch_density;
+                    rng.gen_f64() < path_params.rules_start.branch_rules.branch_density;
                 if counterclockwise_branch {
                     let counterclockwise_staging =
-                        rng.gen_f64() < base_params.rules_start.branch_rules.staging_probability;
+                        rng.gen_f64() < path_params.rules_start.branch_rules.staging_probability;
                     let next_stage = if counterclockwise_staging {
-                        base_params.stage.incremented()
+                        path_params.stage.incremented()
                     } else {
-                        base_params.stage
+                        path_params.stage
                     };
-                    self.push_new_candidate(
+                    self.push_new_stump(
                         node_next,
                         node_id,
                         straight_angle.right_counterclockwise(),
                         next_stage,
-                        base_params
+                        path_params
                             .metrics
                             .incremented(counterclockwise_staging, true),
                     );
@@ -390,7 +402,7 @@ where
         self
     }
 
-    pub fn build(self) -> PathNetwork<TransportNode> {
-        self.path_network.into_optimized()
+    pub fn snapshot(self) -> (PathNetwork<TransportNode>, Self) {
+        (self.path_network.clone().into_optimized(), self)
     }
 }

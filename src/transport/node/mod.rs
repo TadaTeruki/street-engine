@@ -1,4 +1,5 @@
-pub mod candidate;
+pub mod growable_node;
+pub mod growth_type;
 pub mod transport_node;
 
 #[cfg(test)]
@@ -17,7 +18,8 @@ mod tests {
     };
 
     use super::{
-        candidate::{BridgeNode, NextTransportNode, PathCandidate},
+        growable_node::NodeStump,
+        growth_type::{GrowthTypes, NextNodeType},
         transport_node::TransportNode,
     };
 
@@ -92,22 +94,20 @@ mod tests {
         };
 
         // New node
-        let new = PathCandidate::new(
-            node_start,
-            NodeId::new(10000),
-            angle_expected_end,
-            params.clone(),
-        )
-        .determine_next_node(
-            site_expected_end,
-            0.0,
-            params.stage,
-            false,
-            &nodes_parsed,
-            &paths_parsed,
-        );
+        let new = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+            .determine_growth(
+                &node_start,
+                &TransportNode {
+                    site: site_expected_end,
+                    elevation: 0.0,
+                    stage: params.stage,
+                    is_bridge: false,
+                },
+                &nodes_parsed,
+                &paths_parsed,
+            );
 
-        if let (NextTransportNode::New(node), _) = new {
+        if let NextNodeType::New(node) = new.next_node {
             assert_eq_f64!(
                 node.site.distance(&Site::new(
                     1.0 + 1.0 / 2.0_f64.sqrt(),
@@ -127,22 +127,20 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
-        let intersect = PathCandidate::new(
-            node_start,
-            NodeId::new(10000),
-            angle_expected_end,
-            params.clone(),
-        )
-        .determine_next_node(
-            site_expected_end,
-            0.0,
-            params.stage,
-            false,
-            &nodes_parsed,
-            &paths_parsed,
-        );
+        let intersect = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+            .determine_growth(
+                &node_start,
+                &TransportNode {
+                    site: site_expected_end,
+                    elevation: 0.0,
+                    stage: params.stage,
+                    is_bridge: false,
+                },
+                &nodes_parsed,
+                &paths_parsed,
+            );
 
-        if let (NextTransportNode::Intersect(node, _), _) = intersect {
+        if let NextNodeType::Intersect(node, _) = intersect.next_node {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
         } else {
             panic!("Unexpected node type");
@@ -156,22 +154,20 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
-        let existing = PathCandidate::new(
-            node_start,
-            NodeId::new(10000),
-            angle_expected_end,
-            params.clone(),
-        )
-        .determine_next_node(
-            site_expected_end,
-            0.0,
-            params.stage,
-            false,
-            &nodes_parsed,
-            &paths_parsed,
-        );
+        let existing = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+            .determine_growth(
+                &node_start,
+                &TransportNode {
+                    site: site_expected_end,
+                    elevation: 0.0,
+                    stage: params.stage,
+                    is_bridge: false,
+                },
+                &nodes_parsed,
+                &paths_parsed,
+            );
 
-        if let (NextTransportNode::Existing(node_id), _) = existing {
+        if let NextNodeType::Existing(node_id) = existing.next_node {
             assert_eq!(node_id, NodeId::new(1));
         } else {
             panic!("Unexpected node type");
@@ -185,22 +181,20 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
-        let existing = PathCandidate::new(
-            node_start,
-            NodeId::new(10000),
-            angle_expected_end,
-            params.clone(),
-        )
-        .determine_next_node(
-            site_expected_end,
-            0.0,
-            params.stage,
-            false,
-            &nodes_parsed,
-            &paths_parsed,
-        );
+        let existing = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+            .determine_growth(
+                &node_start,
+                &TransportNode {
+                    site: site_expected_end,
+                    elevation: 0.0,
+                    stage: params.stage,
+                    is_bridge: false,
+                },
+                &nodes_parsed,
+                &paths_parsed,
+            );
 
-        if let (NextTransportNode::Existing(node_id), _) = existing {
+        if let NextNodeType::Existing(node_id) = existing.next_node {
             assert_eq!(node_id, NodeId::new(1));
         } else {
             panic!("Unexpected node type");
@@ -257,25 +251,23 @@ mod tests {
             evaluation: 0.0,
         };
 
-        let next = PathCandidate::new(
-            node_start,
-            NodeId::new(10000),
-            angle_expected_end,
-            params.clone(),
-        )
-        .determine_next_node(
-            site_expected_end,
-            0.0,
-            params.stage,
-            false,
-            &nodes_parsed,
-            &paths_parsed,
-        );
+        let next = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+            .determine_growth(
+                &node_start,
+                &TransportNode {
+                    site: site_expected_end,
+                    elevation: 0.0,
+                    stage: params.stage,
+                    is_bridge: false,
+                },
+                &nodes_parsed,
+                &paths_parsed,
+            );
 
-        println!("{:?}", next.0);
+        println!("{:?}", next.next_node);
 
-        assert!(matches!(next.0, NextTransportNode::Intersect(_, _)));
-        if let (NextTransportNode::Intersect(node, _), _) = next {
+        assert!(matches!(next.next_node, NextNodeType::Intersect(_, _)));
+        if let NextNodeType::Intersect(node, _) = next.next_node {
             assert!(
                 (node.site.x >= 0.0 && node.site.x <= 0.3)
                     && (node.site.y >= 0.0 && node.site.y <= 5.0)
@@ -316,7 +308,7 @@ mod tests {
             bridge_rules: BridgeRules::default(),
         };
 
-        let check = |elevation_start: f64, elevation_end: f64| -> (NextTransportNode, BridgeNode) {
+        let check = |elevation_start: f64, elevation_end: f64| -> GrowthTypes {
             let (node_start, angle_expected_end) = (
                 create_node_detailed(0.0, 1.0, elevation_start, false),
                 Angle::new(std::f64::consts::PI * 0.25),
@@ -332,17 +324,14 @@ mod tests {
                 evaluation: 0.0,
             };
 
-            PathCandidate::new(
-                node_start,
-                NodeId::new(10000),
-                angle_expected_end,
-                params.clone(),
-            )
-            .determine_next_node(
-                site_expected_end,
-                elevation_end,
-                params.stage,
-                false,
+            NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone()).determine_growth(
+                &node_start,
+                &TransportNode {
+                    site: site_expected_end,
+                    elevation: elevation_end,
+                    stage: params.stage,
+                    is_bridge: false,
+                },
                 &nodes_parsed,
                 &paths_parsed,
             )
@@ -351,7 +340,7 @@ mod tests {
         // New node which passes between two existing paths
         let new = check(0.5, 0.5);
 
-        if let (NextTransportNode::New(node), is_bridge) = new {
+        if let (NextNodeType::New(node), is_bridge) = (new.next_node, new.bridge_node) {
             assert_eq_f64!(node.site.distance(&Site::new(1.0, 0.0)), 0.0);
             assert!(is_bridge.is_none());
         } else {
@@ -361,7 +350,7 @@ mod tests {
         // Connect to the existing path (land)
         let land = check(0.2, 0.2);
 
-        if let (NextTransportNode::Intersect(node, _), is_bridge) = land {
+        if let (NextNodeType::Intersect(node, _), is_bridge) = (land.next_node, land.bridge_node) {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
             assert!(is_bridge.is_none());
         } else {
@@ -372,7 +361,7 @@ mod tests {
         // This connection will be ignored because creating intersection on bridge is not allowed.
         let bridge = check(0.8, 0.8);
 
-        if let (NextTransportNode::None, is_bridge) = bridge {
+        if let (NextNodeType::None, is_bridge) = (bridge.next_node, bridge.bridge_node) {
             assert!(is_bridge.is_none());
         } else {
             panic!("Unexpected node type");

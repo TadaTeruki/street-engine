@@ -4,7 +4,10 @@ use map_provider::MapProvider;
 use naturalneighbor::Interpolator;
 use random::RandomF64;
 use rules_provider::{railway::RulesProviderForRailway, road::RulesProviderForRoad};
-use street_engine::{core::geometry::site::Site, transport::builder::TransportBuilder};
+use street_engine::{
+    core::geometry::site::Site,
+    transport::{builder::TransportBuilder, params::numeric::Stage},
+};
 
 mod factors;
 mod graphics;
@@ -54,12 +57,16 @@ fn main() {
 
     let mut rnd = RandomF64::new();
 
-    let network =
-        TransportBuilder::new(&rules_provider_railway, &map_provider, &rules_provider_road)
-            .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, None)
-            .unwrap()
-            .iterate_as_possible(&mut rnd)
-            .build();
+    let network = TransportBuilder::new(
+        &rules_provider_railway,
+        &map_provider,
+        &rules_provider_railway,
+    )
+    .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, Some(Stage::from_num(1)))
+    .unwrap()
+    .iterate_as_possible(&mut rnd)
+    .snapshot()
+    .0;
 
     println!("Writing to image...");
 

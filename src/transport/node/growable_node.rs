@@ -3,65 +3,30 @@ use crate::{
         container::path_network::NodeId,
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
     },
-    transport::params::{numeric::Stage, rules::check_elevation_diff, PathParams},
+    transport::params::{rules::check_elevation_diff, PathParams},
 };
 
-use super::transport_node::TransportNode;
-
-#[derive(Debug)]
-pub enum NextTransportNode {
-    New(TransportNode),
-    Existing(NodeId),
-    Intersect(TransportNode, (NodeId, NodeId)),
-    None,
-}
-
-#[derive(Debug)]
-pub enum BridgeNode {
-    Middle(TransportNode),
-    None,
-}
-
-impl BridgeNode {
-    pub fn get_middle(&self) -> Option<&TransportNode> {
-        match self {
-            BridgeNode::Middle(node) => Some(node),
-            BridgeNode::None => None,
-        }
-    }
-
-    pub fn has_middle(&self) -> bool {
-        match self {
-            BridgeNode::Middle(_) => true,
-            BridgeNode::None => false,
-        }
-    }
-
-    pub fn is_none(&self) -> bool {
-        match self {
-            BridgeNode::Middle(_) => false,
-            BridgeNode::None => true,
-        }
-    }
-}
+use super::{
+    growth_type::{BridgeNodeType, GrowthTypes, NextNodeType},
+    transport_node::TransportNode,
+};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct PathCandidate {
-    node_start: TransportNode,
-    node_start_id: NodeId,
-    angle_expected_end: Angle,
+pub struct NodeStump {
+    node_id: NodeId,
+    angle_expected: Angle,
     params: PathParams,
 }
 
-impl Eq for PathCandidate {}
+impl Eq for NodeStump {}
 
-impl PartialOrd for PathCandidate {
+impl PartialOrd for NodeStump {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for PathCandidate {
+impl Ord for NodeStump {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.params.evaluation.total_cmp(&other.params.evaluation)
     }
@@ -69,35 +34,24 @@ impl Ord for PathCandidate {
 
 type RelatedNode<'a> = (&'a TransportNode, NodeId);
 
-impl PathCandidate {
-    /// Create a new path candidate.
-    pub fn new(
-        node_start: TransportNode,
-        node_start_id: NodeId,
-        angle_expected_end: Angle,
-        params: PathParams,
-    ) -> Self {
+impl NodeStump {
+    /// Create a new node stump.
+    pub fn new(node_id: NodeId, angle_expected: Angle, params: PathParams) -> Self {
         Self {
-            node_start,
-            node_start_id,
-            angle_expected_end,
+            node_id,
+            angle_expected,
             params,
         }
     }
 
     /// Get node id
-    pub fn get_node_start_id(&self) -> NodeId {
-        self.node_start_id
-    }
-
-    /// Get the start site of the path.
-    pub fn get_site_start(&self) -> Site {
-        self.node_start.site
+    pub fn get_node_id(&self) -> NodeId {
+        self.node_id
     }
 
     /// Get the end site of the path.
-    pub fn angle_expected_end(&self) -> Angle {
-        self.angle_expected_end
+    pub fn angle_expected(&self) -> Angle {
+        self.angle_expected
     }
 
     pub fn get_path_params(&self) -> &PathParams {
@@ -106,27 +60,29 @@ impl PathCandidate {
 
     /// Get the end site of the path with extra length.
     /// This is temporary used for searching intersections.
-    fn get_expected_site_to_with_extra_length(&self, site_expected_end: Site) -> Site {
-        let path_length = site_expected_end.distance(&self.node_start.site);
+    fn get_expected_site_to_with_extra_length(
+        &self,
+        start_site: Site,
+        site_expected_end: Site,
+    ) -> Site {
+        let path_length = site_expected_end.distance(&start_site);
         let scale = (path_length + self.params.rules_start.path_extra_length_for_intersection)
             / path_length;
         Site::new(
-            self.node_start.site.x + (site_expected_end.x - self.node_start.site.x) * scale,
-            self.node_start.site.y + (site_expected_end.y - self.node_start.site.y) * scale,
+            start_site.x + (site_expected_end.x - start_site.x) * scale,
+            start_site.y + (site_expected_end.y - start_site.y) * scale,
         )
     }
 
     /// Determine the next node type from related(close) nodes and paths.
-    pub fn determine_next_node(
+    pub fn determine_growth(
         &self,
-        site_expected_end: Site,
-        elevation_expected_end: f64,
-        stage: Stage,
-        to_be_bridge: bool,
+        node_start: &TransportNode,
+        node_expected_end: &TransportNode,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
-    ) -> (NextTransportNode, BridgeNode) {
-        let search_start = self.node_start.site;
+    ) -> GrowthTypes {
+        let search_start = node_start.site;
 
         // Existing Node
         // For this situation, path crosses are needed to be checked again because the direction of the path can be changed from original.
@@ -135,7 +91,7 @@ impl PathCandidate {
                 .iter()
                 .filter(|(existing_node, _)| {
                     // distance check for decreasing the number of candidates
-                    LineSegment::new(search_start, site_expected_end)
+                    LineSegment::new(search_start, node_expected_end.site)
                         .get_distance(&existing_node.site)
                         < self.params.rules_start.path_extra_length_for_intersection
                 })
@@ -162,7 +118,7 @@ impl PathCandidate {
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = existing_node.site.distance(&search_start);
                     check_elevation_diff(
-                        self.node_start.elevation,
+                        node_start.elevation,
                         existing_node.elevation,
                         distance,
                         self.params.rules_start.path_elevation_diff_limit,
@@ -175,24 +131,28 @@ impl PathCandidate {
                 });
 
             if let Some((existing_node, existing_node_id)) = existing_node_id {
-                let middle = if to_be_bridge {
+                let middle = if node_expected_end.is_bridge {
                     let middle_site = search_start.midpoint(&existing_node.site);
-                    BridgeNode::Middle(TransportNode::new(
+                    BridgeNodeType::Middle(TransportNode::new(
                         middle_site,
-                        (existing_node.elevation + self.node_start.elevation) / 2.0,
-                        stage,
+                        (existing_node.elevation + node_start.elevation) / 2.0,
+                        node_expected_end.stage,
                         true,
                     ))
                 } else {
-                    BridgeNode::None
+                    BridgeNodeType::None
                 };
-                return (NextTransportNode::Existing(*existing_node_id), middle);
+                return GrowthTypes {
+                    next_node: NextNodeType::Existing(*existing_node_id),
+                    bridge_node: middle,
+                };
             }
         }
 
         // Crossing Paths
         {
-            let search_end = self.get_expected_site_to_with_extra_length(site_expected_end);
+            let search_end = self
+                .get_expected_site_to_with_extra_length(node_start.site, node_expected_end.site);
             let search_line = LineSegment::new(search_start, search_end);
 
             let crossing_path = related_paths
@@ -222,7 +182,7 @@ impl PathCandidate {
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = crossing_node.site.distance(&search_start);
                     check_elevation_diff(
-                        self.node_start.elevation,
+                        node_start.elevation,
                         crossing_node.elevation,
                         distance,
                         self.params.rules_start.path_elevation_diff_limit,
@@ -237,59 +197,67 @@ impl PathCandidate {
             if let Some((crossing_node, path_nodes)) = crossing_path {
                 // if it cross the bridge, the path cannot be connected.
                 if path_nodes.0 .0.path_is_bridge(path_nodes.1 .0) {
-                    return (NextTransportNode::None, BridgeNode::None);
+                    return GrowthTypes {
+                        next_node: NextNodeType::None,
+                        bridge_node: BridgeNodeType::None,
+                    };
                 }
-                let middle = if to_be_bridge {
+                let middle = if node_expected_end.is_bridge {
                     let middle_site = search_start.midpoint(&crossing_node.site);
-                    BridgeNode::Middle(TransportNode::new(
+                    BridgeNodeType::Middle(TransportNode::new(
                         middle_site,
-                        (crossing_node.elevation + self.node_start.elevation) / 2.0,
-                        stage,
+                        (crossing_node.elevation + node_start.elevation) / 2.0,
+                        node_expected_end.stage,
                         true,
                     ))
                 } else {
-                    BridgeNode::None
+                    BridgeNodeType::None
                 };
-
-                return (
-                    NextTransportNode::Intersect(crossing_node, (path_nodes.0 .1, path_nodes.1 .1)),
-                    middle,
-                );
+                return GrowthTypes {
+                    next_node: NextNodeType::Intersect(
+                        crossing_node,
+                        (path_nodes.0 .1, path_nodes.1 .1),
+                    ),
+                    bridge_node: middle,
+                };
             }
         }
 
         // check slope
-        let distance = search_start.distance(&site_expected_end);
+        let distance = search_start.distance(&node_expected_end.site);
         if !check_elevation_diff(
-            self.node_start.elevation,
-            elevation_expected_end,
+            node_start.elevation,
+            node_expected_end.elevation,
             distance,
             self.params.rules_start.path_elevation_diff_limit,
         ) {
-            return (NextTransportNode::None, BridgeNode::None);
+            return GrowthTypes {
+                next_node: NextNodeType::None,
+                bridge_node: BridgeNodeType::None,
+            };
         }
 
         // New Node
         // Path crosses are already checked in the previous steps.
-        let middle = if to_be_bridge {
-            let middle_site = search_start.midpoint(&site_expected_end);
-            BridgeNode::Middle(TransportNode::new(
+        let middle = if node_expected_end.is_bridge {
+            let middle_site = search_start.midpoint(&node_expected_end.site);
+            BridgeNodeType::Middle(TransportNode::new(
                 middle_site,
-                (elevation_expected_end + self.node_start.elevation) / 2.0,
-                stage,
+                (node_expected_end.elevation + node_start.elevation) / 2.0,
+                node_expected_end.stage,
                 true,
             ))
         } else {
-            BridgeNode::None
+            BridgeNodeType::None
         };
-        (
-            NextTransportNode::New(TransportNode::new(
-                site_expected_end,
-                elevation_expected_end,
-                stage,
+        GrowthTypes {
+            next_node: NextNodeType::New(TransportNode::new(
+                node_expected_end.site,
+                node_expected_end.elevation,
+                node_expected_end.stage,
                 false,
             )),
-            middle,
-        )
+            bridge_node: middle,
+        }
     }
 }
