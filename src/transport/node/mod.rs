@@ -9,11 +9,14 @@ mod tests {
             container::path_network::NodeId,
             geometry::{angle::Angle, site::Site},
         },
-        transport::params::{
-            metrics::PathMetrics,
-            numeric::Stage,
-            rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
-            PathParams,
+        transport::{
+            params::{
+                metrics::PathMetrics,
+                numeric::Stage,
+                rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
+                PathParams,
+            },
+            path_network_repository::{PathNetworkGroup, PathNetworkId, RelatedNode},
         },
     };
 
@@ -46,7 +49,7 @@ mod tests {
             is_bridge,
         }
     }
-    /*
+
     #[test]
     fn test_next_node() {
         let nodes = vec![
@@ -59,7 +62,12 @@ mod tests {
         let nodes_parsed = nodes
             .iter()
             .enumerate()
-            .map(|(i, node)| (node, NodeId::new(i)))
+            .map(|(i, node)| RelatedNode {
+                node,
+                node_id: NodeId::new(i),
+                network_id: PathNetworkId::new(0),
+                group: PathNetworkGroup::new(0),
+            })
             .collect::<Vec<_>>();
 
         let paths = vec![(0, 1), (1, 2), (2, 3)];
@@ -217,7 +225,12 @@ mod tests {
         let nodes_parsed = nodes
             .iter()
             .enumerate()
-            .map(|(i, node)| (node, NodeId::new(i)))
+            .map(|(i, node)| RelatedNode {
+                node,
+                node_id: NodeId::new(i),
+                network_id: PathNetworkId::new(0),
+                group: PathNetworkGroup::new(0),
+            })
             .collect::<Vec<_>>();
 
         let paths = vec![(0, 5), (5, 2), (2, 7), (7, 3), (3, 6), (6, 1), (1, 4)];
@@ -289,7 +302,12 @@ mod tests {
         let nodes_parsed = nodes
             .iter()
             .enumerate()
-            .map(|(i, node)| (node, NodeId::new(i)))
+            .map(|(i, node)| RelatedNode {
+                node,
+                node_id: NodeId::new(i),
+                network_id: PathNetworkId::new(0),
+                group: PathNetworkGroup::new(0),
+            })
             .collect::<Vec<_>>();
 
         let paths = vec![(0, 1), (2, 3)];
@@ -367,5 +385,4 @@ mod tests {
             panic!("Unexpected node type");
         }
     }
-    */
 }

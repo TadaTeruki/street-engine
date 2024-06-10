@@ -25,6 +25,7 @@ impl PathNetworkGroup {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct RelatedNode<'a> {
     pub node: &'a TransportNode,
     pub node_id: NodeId,
