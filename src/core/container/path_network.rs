@@ -78,7 +78,7 @@ where
     }
 
     /// Add a node to the network.
-    pub(crate) fn add_node(&mut self, node: N) -> NodeId {
+    pub fn add_node(&mut self, node: N) -> NodeId {
         let node_id = self.last_node_id;
         self.nodes.insert(node_id, node);
         self.node_tree

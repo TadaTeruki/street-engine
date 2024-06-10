@@ -6,7 +6,10 @@ use random::RandomF64;
 use rules_provider::{railway::RulesProviderForRailway, road::RulesProviderForRoad};
 use street_engine::{
     core::geometry::site::Site,
-    transport::{builder::TransportBuilder, params::numeric::Stage},
+    transport::{
+        builder::TransportBuilder,
+        path_network_repository::{PathNetworkGroup, PathNetworkRepository},
+    },
 };
 
 mod factors;
@@ -52,21 +55,58 @@ fn main() {
     );
 
     let map_provider = MapProvider::new(&terrain, &population_densities, interpolator);
-    let rules_provider_road = RulesProviderForRoad::new(&map_provider);
+    let rules_provider_road: RulesProviderForRoad = RulesProviderForRoad::new(&map_provider);
     let rules_provider_railway = RulesProviderForRailway::new(&map_provider);
 
     let mut rnd = RandomF64::new();
 
-    let network = TransportBuilder::new(
-        &rules_provider_railway,
-        &map_provider,
-        &rules_provider_railway,
-    )
-    .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, Some(Stage::from_num(1)))
-    .unwrap()
-    .iterate_as_possible(&mut rnd)
-    .snapshot()
-    .0;
+    let mut network_repository = PathNetworkRepository::new();
+    let network_id = network_repository.create_network(PathNetworkGroup::new(0));
+    /*
+    let mut builder =
+        TransportBuilder::new(&rules_provider_railway, &map_provider, &rules_provider_railway)
+            .add_origin(
+                network_repository.get_network(network_id).unwrap(),
+
+                0.0,
+            )
+            .unwrap();
+        */
+
+    let mut builder = network_repository
+        .modify_network(network_id, |network| {
+            TransportBuilder::new(
+                &rules_provider_railway,
+                &map_provider,
+                &rules_provider_railway,
+            )
+            .add_origin(network, Site { x: 0.0, y: 0.0 }, 0.0)
+            .unwrap()
+        })
+        .unwrap();
+
+    while let Some(stump) = builder.pop_stump() {
+        let growth = if let Some(growth) = builder.determine_growth_from_stump(
+            &network_repository,
+            network_repository.get_network(network_id).unwrap(),
+            &stump,
+        ) {
+            growth
+        } else {
+            return;
+        };
+
+        network_repository.modify_network(network_id, |network| {
+            builder.apply_next_growth(
+                &mut rnd,
+                network,
+                growth.next_node,
+                growth.bridge_node,
+                stump.get_node_id(),
+                stump.get_path_params(),
+            )
+        });
+    }
 
     println!("Writing to image...");
 
@@ -76,7 +116,7 @@ fn main() {
         img_width,
         img_height,
         &terrain,
-        &network,
+        &network_repository.get_network(network_id).unwrap(),
         &population_densities,
         filename,
     );
