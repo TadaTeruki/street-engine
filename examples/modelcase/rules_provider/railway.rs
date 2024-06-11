@@ -56,7 +56,7 @@ impl<'a> TransportRulesProvider for RulesProviderForRailway<'a> {
             },
             bridge_rules: BridgeRules {
                 max_bridge_length: 8.0,
-                check_step: 3,
+                check_step: 8,
             },
         })
     }

@@ -6,11 +6,12 @@ use crate::{
     transport::{
         params::{rules::check_elevation_diff, PathParams},
         path_network_repository::RelatedNode,
+        traits::TerrainProvider,
     },
 };
 
 use super::{
-    growth_type::{BridgeNodeType, GrowthTypes, NextNodeType},
+    growth_type::{GrowthTypes, NextNodeType},
     transport_node::TransportNode,
 };
 
@@ -76,13 +77,17 @@ impl NodeStump {
     }
 
     /// Determine the next node type from related(close) nodes and paths.
-    pub fn determine_growth(
+    pub fn determine_growth<TP>(
         &self,
         node_start: &TransportNode,
         node_expected_end: &TransportNode,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
-    ) -> GrowthTypes {
+        terrain_provider: &TP,
+    ) -> GrowthTypes
+    where
+        TP: TerrainProvider,
+    {
         let search_start = node_start.site;
 
         // Existing Node
@@ -95,11 +100,6 @@ impl NodeStump {
                     LineSegment::new(search_start, node_expected_end.site)
                         .get_distance(&existing.node.site)
                         < self.params.rules_start.path_extra_length_for_intersection
-                })
-                .filter(|existing| {
-                    // is_bridge check
-                    // if the existing node is is_bridge, the path cannot be connected.
-                    !existing.node.is_bridge
                 })
                 .filter(|existing| {
                     // no intersection check
@@ -116,16 +116,17 @@ impl NodeStump {
                     });
                     !has_intersection
                 })
-                .filter(|existing| {
+                .filter_map(|existing| {
                     // slope check
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = existing.node.site.distance(&search_start);
                     check_elevation_diff(
-                        node_start.elevation,
-                        existing.node.elevation,
+                        terrain_provider.get_elevation(&search_start)?,
+                        terrain_provider.get_elevation(&existing.node.site)?,
                         distance,
                         self.params.rules_start.path_elevation_diff_limit,
                     )
+                    .then_some(existing)
                 })
                 .min_by(|a, b| {
                     let distance_a = a.node.site.distance_2(&search_start);
@@ -134,20 +135,8 @@ impl NodeStump {
                 });
 
             if let Some(existing) = existing_node_id {
-                let middle = if node_expected_end.is_bridge {
-                    let middle_site = search_start.midpoint(&existing.node.site);
-                    BridgeNodeType::Middle(TransportNode::new(
-                        middle_site,
-                        (existing.node.elevation + node_start.elevation) / 2.0,
-                        node_expected_end.stage,
-                        true,
-                    ))
-                } else {
-                    BridgeNodeType::None
-                };
                 return GrowthTypes {
                     next_node: NextNodeType::Existing(existing.node_id),
-                    bridge_node: middle,
                 };
             }
         }
@@ -164,32 +153,28 @@ impl NodeStump {
                     let path_line = LineSegment::new(path_start.node.site, path_end.node.site);
 
                     if let Some(intersect) = path_line.get_intersection(&search_line) {
-                        let distance_0 = path_start.node.site.distance(&intersect);
-                        let distance_1 = path_end.node.site.distance(&intersect);
-                        let prop_start = distance_1 / (distance_0 + distance_1);
                         return Some((
                             TransportNode::new(
                                 intersect,
-                                path_start.node.elevation * prop_start
-                                    + path_end.node.elevation * (1.0 - prop_start),
                                 path_start.node.path_stage(path_end.node),
-                                path_start.node.path_is_bridge(path_end.node),
+                                path_start.node.path_creates_bridge(path_end.node),
                             ),
                             (path_start, path_end),
                         ));
                     }
                     None
                 })
-                .filter(|(crossing_node, _)| {
+                .filter_map(|(crossing_node, path)| {
                     // slope check
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = crossing_node.site.distance(&search_start);
                     check_elevation_diff(
-                        node_start.elevation,
-                        crossing_node.elevation,
+                        terrain_provider.get_elevation(&search_start)?,
+                        terrain_provider.get_elevation(&crossing_node.site)?,
                         distance,
                         self.params.rules_start.path_elevation_diff_limit,
                     )
+                    .then_some((crossing_node, path))
                 })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
@@ -199,68 +184,49 @@ impl NodeStump {
 
             if let Some((crossing_node, (path_start, path_end))) = crossing_path {
                 // if it cross the bridge, the path cannot be connected.
-                if path_start.node.path_is_bridge(path_end.node) {
+                if path_start.node.path_creates_bridge(path_end.node) {
                     return GrowthTypes {
                         next_node: NextNodeType::None,
-                        bridge_node: BridgeNodeType::None,
                     };
                 }
-                let middle = if node_expected_end.is_bridge {
-                    let middle_site = search_start.midpoint(&crossing_node.site);
-                    BridgeNodeType::Middle(TransportNode::new(
-                        middle_site,
-                        (crossing_node.elevation + node_start.elevation) / 2.0,
-                        node_expected_end.stage,
-                        true,
-                    ))
-                } else {
-                    BridgeNodeType::None
-                };
+
                 return GrowthTypes {
                     next_node: NextNodeType::Intersect(
                         crossing_node,
                         (path_start.node_id, path_end.node_id),
                     ),
-                    bridge_node: middle,
                 };
             }
         }
 
         // check slope
         let distance = search_start.distance(&node_expected_end.site);
-        if !check_elevation_diff(
-            node_start.elevation,
-            node_expected_end.elevation,
-            distance,
-            self.params.rules_start.path_elevation_diff_limit,
-        ) {
+        let slope_ok = {
+            if let (Some(elevation_start), Some(elevation_end)) = (
+                terrain_provider.get_elevation(&search_start),
+                terrain_provider.get_elevation(&node_expected_end.site),
+            ) {
+                check_elevation_diff(
+                    elevation_start,
+                    elevation_end,
+                    distance,
+                    self.params.rules_start.path_elevation_diff_limit,
+                )
+            } else {
+                false
+            }
+        };
+
+        if !slope_ok {
             return GrowthTypes {
                 next_node: NextNodeType::None,
-                bridge_node: BridgeNodeType::None,
             };
         }
 
         // New Node
         // Path crosses are already checked in the previous steps.
-        let middle = if node_expected_end.is_bridge {
-            let middle_site = search_start.midpoint(&node_expected_end.site);
-            BridgeNodeType::Middle(TransportNode::new(
-                middle_site,
-                (node_expected_end.elevation + node_start.elevation) / 2.0,
-                node_expected_end.stage,
-                true,
-            ))
-        } else {
-            BridgeNodeType::None
-        };
         GrowthTypes {
-            next_node: NextNodeType::New(TransportNode::new(
-                node_expected_end.site,
-                node_expected_end.elevation,
-                node_expected_end.stage,
-                false,
-            )),
-            bridge_node: middle,
+            next_node: NextNodeType::New(*node_expected_end),
         }
     }
 }

@@ -3,23 +3,21 @@ use crate::{core::geometry::site::Site, transport::params::numeric::Stage};
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct TransportNode {
     pub site: Site,
-    pub elevation: f64,
     pub(crate) stage: Stage,
-    pub(crate) is_bridge: bool,
+    pub(crate) creates_bridge: bool,
 }
 
 impl TransportNode {
-    pub fn new(site: Site, elevation: f64, stage: Stage, is_bridge: bool) -> Self {
+    pub fn new(site: Site, stage: Stage, creates_bridge: bool) -> Self {
         Self {
             site,
-            elevation,
             stage,
-            is_bridge,
+            creates_bridge,
         }
     }
 
-    pub fn path_is_bridge(&self, other: &Self) -> bool {
-        self.is_bridge || other.is_bridge
+    pub fn path_creates_bridge(&self, other: &Self) -> bool {
+        self.creates_bridge && other.creates_bridge
     }
 
     pub fn path_stage(&self, other: &Self) -> Stage {

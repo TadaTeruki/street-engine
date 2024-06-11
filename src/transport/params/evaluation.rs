@@ -14,6 +14,6 @@ pub struct PathEvaluationFactors {
     pub path_length: f64,
     /// The stage of the path.
     pub stage: Stage,
-    /// Whether the path is a bridge.
-    pub is_bridge: bool,
+    /// Whether the path creates a bridge.
+    pub creates_bridge: bool,
 }

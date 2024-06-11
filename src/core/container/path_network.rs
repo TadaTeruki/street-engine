@@ -87,6 +87,11 @@ where
         node_id
     }
 
+    /// Modify a node in the network.
+    pub fn modify_node<T>(&mut self, node_id: NodeId, f: impl FnOnce(&mut N) -> T) -> Option<T> {
+        self.nodes.get_mut(&node_id).map(f)
+    }
+
     /// Remove a node from the network.
     /// This function can be never used, but it is kept for future use.
     #[allow(dead_code)]

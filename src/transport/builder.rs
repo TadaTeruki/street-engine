@@ -7,7 +7,7 @@ use crate::core::{
 
 use super::{
     node::{
-        growth_type::{BridgeNodeType, GrowthTypes, NextNodeType},
+        growth_type::{GrowthTypes, NextNodeType},
         node_stump::NodeStump,
         transport_node::TransportNode,
     },
@@ -60,12 +60,7 @@ where
         origin_site: Site,
         angle_radian: f64,
     ) -> Option<Self> {
-        let origin_node = TransportNode::new(
-            origin_site,
-            self.terrain_provider.get_elevation(&origin_site)?,
-            Stage::from_num(0),
-            false,
-        );
+        let origin_node = TransportNode::new(origin_site, Stage::from_num(0), false);
         let origin_node_id = path_network.add_node(origin_node);
 
         let origin_metrics: PathMetrics = PathMetrics::default();
@@ -103,7 +98,7 @@ where
             self.rules_provider
                 .get_rules(&node_start.site, angle_expected_end, stage, &metrics)?;
 
-        let (estimated_end_site, estimated_end_is_bridge) =
+        let (estimated_end_site, estimated_end_creates_bridge) =
             self.expect_end_of_path(node_start.site, angle_expected_end, stage, &rules_start)?;
 
         let evaluation = self.path_evaluator.evaluate(PathEvaluationFactors {
@@ -112,7 +107,7 @@ where
             angle: angle_expected_end,
             path_length: rules_start.path_normal_length,
             stage,
-            is_bridge: estimated_end_is_bridge,
+            creates_bridge: estimated_end_creates_bridge,
         })?;
 
         let stump = NodeStump::new(
@@ -156,14 +151,14 @@ where
                     };
                     let path_length = rules_start.path_normal_length + bridge_path_length;
                     let site_end = site_start.extend(angle, path_length);
-                    let is_bridge = i > 0;
+                    let creates_bridge = i > 0;
                     if let Some(evaluation) = self.path_evaluator.evaluate(PathEvaluationFactors {
                         site_start,
                         site_end,
                         angle,
                         path_length,
                         stage,
-                        is_bridge,
+                        creates_bridge,
                     }) {
                         if let (Some(elevation_start), Some(elevation_end)) = (
                             self.terrain_provider.get_elevation(&site_start),
@@ -175,7 +170,7 @@ where
                                 path_length,
                                 rules_start.path_elevation_diff_limit,
                             ) {
-                                return Some((site_end, evaluation, is_bridge));
+                                return Some((site_end, evaluation, creates_bridge));
                             }
                         }
                     }
@@ -183,7 +178,7 @@ where
                 None
             })
             .max_by(|(_, ev0, _), (_, ev1, _)| ev0.total_cmp(ev1))
-            .map(|(site, _, is_bridge)| (site, is_bridge))
+            .map(|(site, _, creates_bridge)| (site, creates_bridge))
     }
 
     pub fn determine_growth_from_stump(
@@ -202,8 +197,6 @@ where
         );
 
         let (site_expected_end, to_be_bridge_end) = site_expected_end_opt?;
-
-        let elevation_expected_end = self.terrain_provider.get_elevation(&site_expected_end)?;
 
         let related_nodes = path_network_repository
             .related_nodes_iter(
@@ -228,12 +221,12 @@ where
             stump_node,
             &TransportNode::new(
                 site_expected_end,
-                elevation_expected_end,
                 stump.get_path_params().stage,
                 to_be_bridge_end,
             ),
             &related_nodes,
             &related_paths,
+            self.terrain_provider,
         );
 
         Some(growth)
@@ -244,26 +237,11 @@ where
         rng: &mut R,
         path_network: &mut PathNetwork<TransportNode>,
         next_node_type: NextNodeType,
-        bridge_node_type: BridgeNodeType,
         stump_node_id: NodeId,
         path_params: &PathParams,
     ) where
         R: RandomF64Provider,
     {
-        if let BridgeNodeType::Middle(bridge_node) = bridge_node_type {
-            let bridge_node_id = path_network.add_node(bridge_node);
-            path_network.add_path(stump_node_id, bridge_node_id);
-
-            return self.apply_next_growth(
-                rng,
-                path_network,
-                next_node_type,
-                BridgeNodeType::None,
-                bridge_node_id,
-                path_params,
-            );
-        }
-
         let start_site = if let Some(node) = path_network.get_node(stump_node_id) {
             node.site
         } else {
@@ -285,6 +263,13 @@ where
             NextNodeType::New(node_next) => {
                 let node_id = path_network.add_node(node_next);
                 path_network.add_path(stump_node_id, node_id);
+
+                // if the new node is a bridge, the start node will be a bridge too.
+                if node_next.creates_bridge {
+                    path_network.modify_node(stump_node_id, |node| {
+                        node.creates_bridge = true;
+                    });
+                }
 
                 let straight_angle = start_site.get_angle(&node_next.site);
                 self.push_new_stump(

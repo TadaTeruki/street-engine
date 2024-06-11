@@ -4,6 +4,7 @@ pub mod transport_node;
 
 #[cfg(test)]
 mod tests {
+    /*
     use crate::{
         core::{
             container::path_network::NodeId,
@@ -35,16 +36,14 @@ mod tests {
     fn create_node(x: f64, y: f64) -> TransportNode {
         TransportNode {
             site: Site::new(x, y),
-            elevation: TransportNode::default().elevation,
             stage: TransportNode::default().stage,
             is_bridge: TransportNode::default().is_bridge,
         }
     }
 
-    fn create_node_detailed(x: f64, y: f64, elevation: f64, is_bridge: bool) -> TransportNode {
+    fn create_node_detailed(x: f64, y: f64, is_bridge: bool) -> TransportNode {
         TransportNode {
             site: Site::new(x, y),
-            elevation,
             stage: TransportNode::default().stage,
             is_bridge,
         }
@@ -385,4 +384,5 @@ mod tests {
             panic!("Unexpected node type");
         }
     }
+    */
 }

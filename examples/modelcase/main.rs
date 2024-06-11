@@ -91,7 +91,6 @@ fn main() {
                 &mut rnd,
                 network,
                 growth.next_node,
-                growth.bridge_node,
                 stump.get_node_id(),
                 stump.get_path_params(),
             )
