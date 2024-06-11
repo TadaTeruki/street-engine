@@ -271,9 +271,7 @@ where
         };
 
         match next_node_type {
-            NextNodeType::None => {
-                return;
-            }
+            NextNodeType::None => {}
             NextNodeType::Existing(node_id) => {
                 path_network.add_path(stump_node_id, node_id);
             }
@@ -342,57 +340,4 @@ where
     pub fn pop_stump(&mut self) -> Option<NodeStump> {
         self.stump_heap.pop()
     }
-    /*
-    /// Iterate the path network to the next step.
-    pub fn iterate<R>(mut self, rng: &mut R, path_network: &mut PathNetwork<TransportNode>) -> Self
-    where
-        R: RandomF64Provider,
-    {
-        let prior_stump = if let Some(stump) = self.stump_heap.pop() {
-            stump
-        } else {
-            return self;
-        };
-
-        let growth = if let Some(growth) = self.determine_growth_from_stump(path_network, &prior_stump) {
-            growth
-        } else {
-            return self;
-        };
-
-        self.apply_next_growth(
-            rng,
-            path_network,
-            growth.next_node,
-            growth.bridge_node,
-            prior_stump.get_node_id(),
-            prior_stump.get_path_params(),
-        );
-
-        self
-    }
-    */
-    /*
-    /// Iterate the path network `n` times.
-    pub fn iterate_n_times<R>(mut self, n: usize, rng: &mut R) -> Self
-    where
-        R: RandomF64Provider,
-    {
-        for _ in 0..n {
-            self = self.iterate::<R>(rng);
-        }
-        self
-    }
-
-    /// Iterate network generation until there are no more stump_heap of new paths.
-    pub fn iterate_as_possible<R>(mut self, rng: &mut R, path_network: &mut PathNetwork<TransportNode>) -> Self
-    where
-        R: RandomF64Provider,
-    {
-        while !self.stump_heap.is_empty() {
-            self = self.iterate::<R>(rng, path_network);
-        }
-        self
-    }
-    */
 }

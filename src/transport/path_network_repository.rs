@@ -38,6 +38,12 @@ pub struct PathNetworkRepository {
     last_network_id: PathNetworkId,
 }
 
+impl Default for PathNetworkRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PathNetworkRepository {
     pub fn new() -> Self {
         PathNetworkRepository {

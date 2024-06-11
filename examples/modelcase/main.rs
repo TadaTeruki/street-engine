@@ -62,16 +62,6 @@ fn main() {
 
     let mut network_repository = PathNetworkRepository::new();
     let network_id = network_repository.create_network(PathNetworkGroup::new(0));
-    /*
-    let mut builder =
-        TransportBuilder::new(&rules_provider_railway, &map_provider, &rules_provider_railway)
-            .add_origin(
-                network_repository.get_network(network_id).unwrap(),
-
-                0.0,
-            )
-            .unwrap();
-        */
 
     let mut builder = network_repository
         .modify_network(network_id, |network| {
