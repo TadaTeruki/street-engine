@@ -55,27 +55,27 @@ mod tests {
         }
     }
 
-    fn parse_nodes<'a>(nodes: &'a [TransportNode]) -> Vec<RelatedNode<'a>> {
-        nodes
-            .iter()
-            .enumerate()
-            .map(|(i, node)| RelatedNode {
-                node,
-                node_id: NodeId::new(i),
-                network_id: PathNetworkId::new(0),
-                group: PathNetworkGroup::new(0),
-            })
-            .collect::<Vec<_>>()
+    macro_rules! bind_nodes {
+        ($nodes:expr) => {
+            $nodes
+                .iter()
+                .enumerate()
+                .map(|(i, node)| RelatedNode {
+                    node,
+                    node_id: NodeId::new(i),
+                    network_id: PathNetworkId::new(0),
+                    group: PathNetworkGroup::new(0),
+                })
+                .collect::<Vec<_>>()
+        };
     }
-
-    fn parse_paths<'a>(
-        paths: &'a [(usize, usize)],
-        nodes: &'a [RelatedNode],
-    ) -> Vec<(RelatedNode<'a>, RelatedNode<'a>)> {
-        paths
-            .iter()
-            .map(|(start, end)| (nodes[*start], nodes[*end]))
-            .collect::<Vec<_>>()
+    macro_rules! bind_paths {
+        ($paths:expr, $nodes:expr) => {
+            $paths
+                .iter()
+                .map(|(start, end)| ($nodes[*start], $nodes[*end]))
+                .collect::<Vec<_>>()
+        };
     }
 
     fn create_node_start_end(
@@ -101,14 +101,14 @@ mod tests {
 
     #[test]
     fn test_next_node() {
-        let nodes = vec![
+        let related_nodes = vec![
             create_node(3.0, 0.0),
             create_node(1.0, 0.0),
             create_node(0.0, 1.0),
             create_node(0.0, 3.0),
         ];
-        let nodes_parsed = parse_nodes(&nodes);
-        let paths_parsed = parse_paths(&[(0, 1), (1, 2), (2, 3)], &nodes_parsed);
+        let related_nodes = bind_nodes!(&related_nodes);
+        let related_paths = bind_paths!(&[(0, 1), (1, 2), (2, 3)], &related_nodes);
 
         let rules = TransportRules::default()
             .path_normal_length(1.0)
@@ -128,8 +128,8 @@ mod tests {
             .determine_growth(
                 &node_start,
                 &node_expected_end,
-                &nodes_parsed,
-                &paths_parsed,
+                &related_nodes,
+                &related_paths,
                 &SurfaceTerrain,
             );
 
@@ -157,8 +157,8 @@ mod tests {
             .determine_growth(
                 &node_start,
                 &node_expected_end,
-                &nodes_parsed,
-                &paths_parsed,
+                &related_nodes,
+                &related_paths,
                 &SurfaceTerrain,
             );
 
@@ -180,8 +180,8 @@ mod tests {
             .determine_growth(
                 &node_start,
                 &node_expected_end,
-                &nodes_parsed,
-                &paths_parsed,
+                &related_nodes,
+                &related_paths,
                 &SurfaceTerrain,
             );
 
@@ -203,8 +203,8 @@ mod tests {
             .determine_growth(
                 &node_start,
                 &node_expected_end,
-                &nodes_parsed,
-                &paths_parsed,
+                &related_nodes,
+                &related_paths,
                 &SurfaceTerrain,
             );
 
@@ -227,9 +227,11 @@ mod tests {
             create_node(0.7, 10.0),
             create_node(1.0, 10.0),
         ];
-        let nodes_parsed = parse_nodes(&nodes);
-        let paths = vec![(0, 5), (5, 2), (2, 7), (7, 3), (3, 6), (6, 1), (1, 4)];
-        let paths_parsed = parse_paths(&paths, &nodes_parsed);
+        let nodes = bind_nodes!(&nodes);
+        let paths = bind_paths!(
+            &vec![(0, 5), (5, 2), (2, 7), (7, 3), (3, 6), (6, 1), (1, 4)],
+            &nodes
+        );
 
         let rules = TransportRules::default().path_normal_length(10000.0);
         let params = PathParams::default().rules_start(rules);
@@ -245,8 +247,8 @@ mod tests {
             .determine_growth(
                 &node_start,
                 &node_expected_end,
-                &nodes_parsed,
-                &paths_parsed,
+                &nodes,
+                &paths,
                 &SurfaceTerrain,
             );
 
@@ -285,15 +287,14 @@ mod tests {
 
     #[test]
     fn test_bridge() {
-        let check =
+        let situation =
             |path_elevation: f64, start_elevation: f64, path_is_bridge: bool| -> GrowthTypes {
-                let nodes = vec![
+                let related_nodes = vec![
                     create_node_detailed(0.0, 0.0, path_is_bridge),
                     create_node_detailed(1.0, 1.0, path_is_bridge),
                 ];
-                let nodes_parsed = parse_nodes(&nodes);
-                let paths = vec![(0, 1)];
-                let paths_parsed = parse_paths(&paths, &nodes_parsed);
+                let related_nodes = bind_nodes!(&related_nodes);
+                let related_paths = bind_paths!(&vec![(0, 1)], &related_nodes);
 
                 let rules = TransportRules::default()
                     .path_normal_length(2.0_f64.sqrt())
@@ -320,8 +321,8 @@ mod tests {
                     .determine_growth(
                         &node_start,
                         &node_expected_end,
-                        &nodes_parsed,
-                        &paths_parsed,
+                        &related_nodes,
+                        &related_paths,
                         &terrain,
                     )
             };
@@ -329,7 +330,7 @@ mod tests {
         // --- on land ---
 
         // New node which passes between two existing paths
-        let new = check(0.0, 0.5, false);
+        let new = situation(0.0, 0.5, false);
         if let NextNodeType::New(node) = new.next_node {
             assert_eq_f64!(node.site.distance(&Site::new(1.0, 0.0)), 0.0);
         } else {
@@ -337,7 +338,7 @@ mod tests {
         }
 
         // Connect to the existing path (land)
-        let intersect_on_land = check(0.0, 0.2, false);
+        let intersect_on_land = situation(0.0, 0.2, false);
         if let NextNodeType::Intersect(node, _) = intersect_on_land.next_node {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
         } else {
@@ -347,7 +348,7 @@ mod tests {
         // --- across a bridge ---
 
         // New node which passes between two existing paths
-        let new = check(1.0, 0.5, true);
+        let new = situation(1.0, 0.5, true);
         if let NextNodeType::New(node) = new.next_node {
             assert_eq_f64!(node.site.distance(&Site::new(1.0, 0.0)), 0.0);
         } else {
@@ -356,20 +357,19 @@ mod tests {
 
         // Connect to the existing path (bridge)
         // This connection will be ignored because creating intersection on bridge is not allowed.
-        let intersect_on_bridge = check(1.0, 0.8, true);
+        let intersect_on_bridge = situation(1.0, 0.8, true);
         assert!(matches!(intersect_on_bridge.next_node, NextNodeType::None));
     }
 
     #[test]
     fn test_custom_pattern_0() {
-        let path_nodes = vec![
+        let related_path_nodes = vec![
             create_node_detailed(-87.21831510702368, 1.140441704558744, true),
             create_node_detailed(-94.23498098118608, 1.1437765922601952, true),
         ];
 
-        let nodes_parsed = parse_nodes(&path_nodes);
-        let paths = vec![(0, 1)];
-        let paths_parsed = parse_paths(&paths, &nodes_parsed);
+        let related_nodes = bind_nodes!(&related_path_nodes);
+        let related_paths = bind_paths!(&vec![(0, 1)], &related_nodes);
 
         let rules = TransportRules::default()
             .path_normal_length(0.45)
@@ -392,8 +392,8 @@ mod tests {
         let stump = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone());
 
         let terrain = SpotTerrain::new(vec![
-            (path_nodes[0].site, 0.11278313501817303),
-            (path_nodes[1].site, 0.4537962059055101),
+            (related_path_nodes[0].site, 0.11278313501817303),
+            (related_path_nodes[1].site, 0.4537962059055101),
             (incoming_nodes[0].site, 0.26211488472154043),
             (incoming_nodes[1].site, 1.0838784525661787),
         ]);
@@ -402,7 +402,7 @@ mod tests {
             &incoming_nodes[0],
             &incoming_nodes[1],
             &vec![],
-            &paths_parsed,
+            &related_paths,
             &terrain,
         );
 
