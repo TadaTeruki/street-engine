@@ -12,11 +12,8 @@ use super::{
         transport_node::TransportNode,
     },
     params::{
-        evaluation::PathEvaluationFactors,
-        metrics::PathMetrics,
-        numeric::Stage,
-        rules::{check_elevation_diff, TransportRules},
-        PathParams,
+        evaluation::PathEvaluationFactors, metrics::PathMetrics, numeric::Stage,
+        rules::TransportRules, PathParams,
     },
     path_network_repository::PathNetworkRepository,
     traits::{PathEvaluator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
@@ -28,7 +25,6 @@ where
     TP: TerrainProvider,
     PE: PathEvaluator,
 {
-    //path_network_repository: Option<&'a mut PathNetworkRepository>,
     rules_provider: &'a RP,
     terrain_provider: &'a TP,
     path_evaluator: &'a PE,
@@ -164,11 +160,10 @@ where
                             self.terrain_provider.get_elevation(&site_start),
                             self.terrain_provider.get_elevation(&site_end),
                         ) {
-                            if check_elevation_diff(
+                            if rules_start.check_elevation_diff_to_create_path_on_land(
                                 elevation_start,
                                 elevation_end,
                                 path_length,
-                                rules_start.path_elevation_diff_limit,
                             ) {
                                 return Some((site_end, evaluation, creates_bridge));
                             }
@@ -221,6 +216,7 @@ where
             stump.get_path_params().stage,
             to_be_bridge_end,
         );
+
         // Determine the growth of the path.
         let growth = stump.determine_growth(
             stump_node,

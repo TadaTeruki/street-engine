@@ -75,6 +75,25 @@ impl TransportRules {
         self.bridge_rules = bridge_rules;
         self
     }
+
+    /// Check the elevation difference which is allowed to create a path on land.
+    pub fn check_elevation_diff_to_create_path_on_land(
+        &self,
+        elevation_start: f64,
+        elevation_end: f64,
+        distance: f64,
+    ) -> bool {
+        let allowed_elevation_diff =
+            if let Some(max_elevation_diff) = self.path_elevation_diff_limit {
+                max_elevation_diff
+            } else {
+                // always allowed
+                return true;
+            };
+        let real_elevation_diff = (elevation_end - elevation_start).abs();
+
+        real_elevation_diff <= allowed_elevation_diff * distance
+    }
 }
 
 /// Rules to create branches.
@@ -184,21 +203,4 @@ impl PathDirectionRules {
         self.comparison_step = comparison_step;
         self
     }
-}
-
-pub(crate) fn check_elevation_diff(
-    elevation_start: f64,
-    elevation_end: f64,
-    path_length: f64,
-    allowed_elevation_diff: Option<f64>,
-) -> bool {
-    let allowed_elevation_diff = if let Some(max_elevation_diff) = allowed_elevation_diff {
-        max_elevation_diff
-    } else {
-        // always allowed
-        return true;
-    };
-    let real_elevation_diff = (elevation_end - elevation_start).abs();
-
-    real_elevation_diff <= allowed_elevation_diff * path_length
 }

@@ -4,9 +4,7 @@ use crate::{
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
     },
     transport::{
-        params::{rules::check_elevation_diff, PathParams},
-        path_network_repository::RelatedNode,
-        traits::TerrainProvider,
+        params::PathParams, path_network_repository::RelatedNode, traits::TerrainProvider,
     },
 };
 
@@ -119,13 +117,14 @@ impl NodeStump {
                 .filter_map(|existing| {
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = existing.node.site.distance(&search_start);
-                    check_elevation_diff(
-                        terrain_provider.get_elevation(&search_start)?,
-                        terrain_provider.get_elevation(&existing.node.site)?,
-                        distance,
-                        self.params.rules_start.path_elevation_diff_limit,
-                    )
-                    .then_some(existing)
+                    self.params
+                        .rules_start
+                        .check_elevation_diff_to_create_path_on_land(
+                            terrain_provider.get_elevation(&search_start)?,
+                            terrain_provider.get_elevation(&existing.node.site)?,
+                            distance,
+                        )
+                        .then_some(existing)
                 })
                 .min_by(|a, b| {
                     let distance_a = a.node.site.distance_2(&search_start);
@@ -177,13 +176,15 @@ impl NodeStump {
                     // slope check
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = crossing_node.site.distance(&search_start);
-                    check_elevation_diff(
-                        terrain_provider.get_elevation(&search_start)?,
-                        elevation_crossing,
-                        distance,
-                        self.params.rules_start.path_elevation_diff_limit,
-                    )
-                    .then_some((crossing_node, path))
+
+                    self.params
+                        .rules_start
+                        .check_elevation_diff_to_create_path_on_land(
+                            terrain_provider.get_elevation(&search_start)?,
+                            elevation_crossing,
+                            distance,
+                        )
+                        .then_some((crossing_node, path))
                 })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
@@ -215,12 +216,13 @@ impl NodeStump {
                 terrain_provider.get_elevation(&search_start),
                 terrain_provider.get_elevation(&node_expected_end.site),
             ) {
-                check_elevation_diff(
-                    elevation_start,
-                    elevation_end,
-                    distance,
-                    self.params.rules_start.path_elevation_diff_limit,
-                )
+                self.params
+                    .rules_start
+                    .check_elevation_diff_to_create_path_on_land(
+                        elevation_start,
+                        elevation_end,
+                        distance,
+                    )
             } else {
                 false
             }
