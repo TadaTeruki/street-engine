@@ -4,7 +4,7 @@ use crate::{
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
     },
     transport::{
-        params::PathParams, path_network_repository::RelatedNode, traits::TerrainProvider,
+        params::StumpParams, path_network_repository::RelatedNode, traits::TerrainProvider,
     },
 };
 
@@ -14,7 +14,7 @@ use super::{growth_type::GrowthType, transport_node::TransportNode};
 pub struct NodeStump {
     node_id: NodeId,
     angle_expected: Angle,
-    params: PathParams,
+    params: StumpParams,
 }
 
 impl Eq for NodeStump {}
@@ -27,13 +27,13 @@ impl PartialOrd for NodeStump {
 
 impl Ord for NodeStump {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.params.evaluation.total_cmp(&other.params.evaluation)
+        self.params.priority.total_cmp(&other.params.priority)
     }
 }
 
 impl NodeStump {
     /// Create a new node stump.
-    pub fn new(node_id: NodeId, angle_expected: Angle, params: PathParams) -> Self {
+    pub fn new(node_id: NodeId, angle_expected: Angle, params: StumpParams) -> Self {
         Self {
             node_id,
             angle_expected,
@@ -51,7 +51,7 @@ impl NodeStump {
         self.angle_expected
     }
 
-    pub fn get_path_params(&self) -> &PathParams {
+    pub fn get_stump_params(&self) -> &StumpParams {
         &self.params
     }
 
@@ -63,8 +63,8 @@ impl NodeStump {
         site_expected_end: Site,
     ) -> Site {
         let path_length = site_expected_end.distance(&start_site);
-        let scale = (path_length + self.params.rules_start.path_extra_length_for_intersection)
-            / path_length;
+        let scale =
+            (path_length + self.params.rules.path_extra_length_for_intersection) / path_length;
         Site::new(
             start_site.x + (site_expected_end.x - start_site.x) * scale,
             start_site.y + (site_expected_end.y - start_site.y) * scale,
@@ -94,7 +94,7 @@ impl NodeStump {
                     // distance check for decreasing the number of candidates
                     LineSegment::new(search_start, node_expected_end.site)
                         .get_distance(&existing.node.site)
-                        < self.params.rules_start.path_extra_length_for_intersection
+                        < self.params.rules.path_extra_length_for_intersection
                 })
                 .filter(|existing| {
                     // no intersection check
@@ -115,7 +115,7 @@ impl NodeStump {
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = existing.node.site.distance(&search_start);
                     self.params
-                        .rules_start
+                        .rules
                         .check_elevation_diff_to_create_path_on_land(
                             terrain_provider.get_elevation(&search_start)?,
                             terrain_provider.get_elevation(&existing.node.site)?,
@@ -173,7 +173,7 @@ impl NodeStump {
                     let distance = crossing_node.site.distance(&search_start);
 
                     self.params
-                        .rules_start
+                        .rules
                         .check_elevation_diff_to_create_path_on_land(
                             terrain_provider.get_elevation(&search_start)?,
                             elevation_crossing,
@@ -208,7 +208,7 @@ impl NodeStump {
                 terrain_provider.get_elevation(&node_expected_end.site),
             ) {
                 self.params
-                    .rules_start
+                    .rules
                     .check_elevation_diff_to_create_path_on_land(
                         elevation_start,
                         elevation_end,

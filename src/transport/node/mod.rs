@@ -12,7 +12,7 @@ mod tests {
         transport::{
             params::{
                 rules::{BridgeRules, TransportRules},
-                PathParams,
+                StumpParams,
             },
             path_network_repository::{PathNetworkGroup, PathNetworkId, RelatedNode},
             traits::TerrainProvider,
@@ -77,7 +77,7 @@ mod tests {
     fn create_node_start_end(
         site_start: Site,
         angle: Angle,
-        params: PathParams,
+        params: StumpParams,
         creates_bridge: bool,
     ) -> (TransportNode, TransportNode) {
         let node_start = TransportNode {
@@ -85,7 +85,7 @@ mod tests {
             stage: params.stage,
             creates_bridge,
         };
-        let site_end = site_start.extend(angle, params.rules_start.path_normal_length);
+        let site_end = site_start.extend(angle, params.rules.path_normal_length);
         let node_end = TransportNode {
             site: site_end,
             stage: params.stage,
@@ -110,17 +110,13 @@ mod tests {
             .path_normal_length(1.0)
             .path_extra_length_for_intersection(0.25);
 
-        let params = PathParams::default().rules_start(rules);
-        let angle_expected_end = Angle::new(std::f64::consts::PI * 0.75);
+        let params = StumpParams::default().rules(rules);
+        let angle_expected = Angle::new(std::f64::consts::PI * 0.75);
 
         // New node
-        let (node_start, node_expected_end) = create_node_start_end(
-            Site::new(1.0, 1.0),
-            angle_expected_end,
-            params.clone(),
-            false,
-        );
-        let new = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let (node_start, node_expected_end) =
+            create_node_start_end(Site::new(1.0, 1.0), angle_expected, params.clone(), false);
+        let new = NodeStump::new(NodeId::new(10000), angle_expected, params.clone())
             .determine_growth(
                 &node_start,
                 &node_expected_end,
@@ -142,14 +138,10 @@ mod tests {
         }
 
         // Intersect (Crossing Path)
-        let angle_expected_end = Angle::new(-std::f64::consts::PI * 0.25);
-        let (node_start, node_expected_end) = create_node_start_end(
-            Site::new(1.0, 1.0),
-            angle_expected_end,
-            params.clone(),
-            false,
-        );
-        let intersect = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let angle_expected = Angle::new(-std::f64::consts::PI * 0.25);
+        let (node_start, node_expected_end) =
+            create_node_start_end(Site::new(1.0, 1.0), angle_expected, params.clone(), false);
+        let intersect = NodeStump::new(NodeId::new(10000), angle_expected, params.clone())
             .determine_growth(
                 &node_start,
                 &node_expected_end,
@@ -165,14 +157,10 @@ mod tests {
         }
 
         // Existing node (close between two nodes)
-        let angle_expected_end = Angle::new(std::f64::consts::PI * 0.05);
-        let (node_start, node_expected_end) = create_node_start_end(
-            Site::new(1.0, 1.0),
-            angle_expected_end,
-            params.clone(),
-            false,
-        );
-        let existing = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let angle_expected = Angle::new(std::f64::consts::PI * 0.05);
+        let (node_start, node_expected_end) =
+            create_node_start_end(Site::new(1.0, 1.0), angle_expected, params.clone(), false);
+        let existing = NodeStump::new(NodeId::new(10000), angle_expected, params.clone())
             .determine_growth(
                 &node_start,
                 &node_expected_end,
@@ -188,14 +176,10 @@ mod tests {
         }
 
         // Existing node (close between an existing node and expected path)
-        let angle_expected_end = Angle::new(std::f64::consts::PI * 0.05);
-        let (node_start, node_expected_end) = create_node_start_end(
-            Site::new(1.0, 0.5),
-            angle_expected_end,
-            params.clone(),
-            false,
-        );
-        let existing = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let angle_expected = Angle::new(std::f64::consts::PI * 0.05);
+        let (node_start, node_expected_end) =
+            create_node_start_end(Site::new(1.0, 0.5), angle_expected, params.clone(), false);
+        let existing = NodeStump::new(NodeId::new(10000), angle_expected, params.clone())
             .determine_growth(
                 &node_start,
                 &node_expected_end,
@@ -230,16 +214,12 @@ mod tests {
         );
 
         let rules = TransportRules::default().path_normal_length(10000.0);
-        let params = PathParams::default().rules_start(rules);
-        let angle_expected_end = Angle::new(std::f64::consts::PI * 0.5);
-        let (node_start, node_expected_end) = create_node_start_end(
-            Site::new(-1.0, 1.0),
-            angle_expected_end,
-            params.clone(),
-            false,
-        );
+        let params = StumpParams::default().rules(rules);
+        let angle_expected = Angle::new(std::f64::consts::PI * 0.5);
+        let (node_start, node_expected_end) =
+            create_node_start_end(Site::new(-1.0, 1.0), angle_expected, params.clone(), false);
 
-        let next = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let next = NodeStump::new(NodeId::new(10000), angle_expected, params.clone())
             .determine_growth(
                 &node_start,
                 &node_expected_end,
@@ -283,45 +263,42 @@ mod tests {
 
     #[test]
     fn test_bridge() {
-        let situation =
-            |path_elevation: f64, start_elevation: f64, path_is_bridge: bool| -> GrowthType {
-                let related_nodes = vec![
-                    create_node_detailed(0.0, 0.0, path_is_bridge),
-                    create_node_detailed(1.0, 1.0, path_is_bridge),
-                ];
-                let related_nodes = bind_nodes!(&related_nodes);
-                let related_paths = bind_paths!(&vec![(0, 1)], &related_nodes);
+        let situation = |path_elevation: f64,
+                         start_elevation: f64,
+                         path_is_bridge: bool|
+         -> GrowthType {
+            let related_nodes = vec![
+                create_node_detailed(0.0, 0.0, path_is_bridge),
+                create_node_detailed(1.0, 1.0, path_is_bridge),
+            ];
+            let related_nodes = bind_nodes!(&related_nodes);
+            let related_paths = bind_paths!(&vec![(0, 1)], &related_nodes);
 
-                let rules = TransportRules::default()
-                    .path_normal_length(2.0_f64.sqrt())
-                    .path_extra_length_for_intersection(0.25)
-                    .path_elevation_diff_limit(Some(0.7));
+            let rules = TransportRules::default()
+                .path_normal_length(2.0_f64.sqrt())
+                .path_extra_length_for_intersection(0.25)
+                .path_elevation_diff_limit(Some(0.7));
 
-                let params = PathParams::default().rules_start(rules);
-                let angle_expected_end = Angle::new(std::f64::consts::PI * 0.25);
-                let (node_start, node_expected_end) = create_node_start_end(
-                    Site::new(0.0, 1.0),
-                    angle_expected_end,
-                    params.clone(),
-                    false,
-                );
+            let params = StumpParams::default().rules(rules);
+            let angle_expected = Angle::new(std::f64::consts::PI * 0.25);
+            let (node_start, node_expected_end) =
+                create_node_start_end(Site::new(0.0, 1.0), angle_expected, params.clone(), false);
 
-                let terrain = SpotTerrain::new(vec![
-                    (Site::new(0.0, 0.0), path_elevation),
-                    (Site::new(1.0, 1.0), path_elevation),
-                    (Site::new(0.0, 1.0), start_elevation),
-                    (Site::new(1.0, 0.0), start_elevation),
-                ]);
+            let terrain = SpotTerrain::new(vec![
+                (Site::new(0.0, 0.0), path_elevation),
+                (Site::new(1.0, 1.0), path_elevation),
+                (Site::new(0.0, 1.0), start_elevation),
+                (Site::new(1.0, 0.0), start_elevation),
+            ]);
 
-                NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
-                    .determine_growth(
-                        &node_start,
-                        &node_expected_end,
-                        &related_nodes,
-                        &related_paths,
-                        &terrain,
-                    )
-            };
+            NodeStump::new(NodeId::new(10000), angle_expected, params.clone()).determine_growth(
+                &node_start,
+                &node_expected_end,
+                &related_nodes,
+                &related_paths,
+                &terrain,
+            )
+        };
 
         // --- on land ---
 
@@ -376,16 +353,16 @@ mod tests {
                 check_step: 15,
             });
 
-        let params = PathParams::default().rules_start(rules);
+        let params = StumpParams::default().rules(rules);
 
         let incoming_nodes = vec![
             create_node_detailed(-89.26258026851414, 4.955678286720349, false),
             create_node_detailed(-87.9230415089059, -5.408111363379038, true),
         ];
 
-        let angle_expected_end = incoming_nodes[0].site.get_angle(&incoming_nodes[1].site);
+        let angle_expected = incoming_nodes[0].site.get_angle(&incoming_nodes[1].site);
 
-        let stump = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone());
+        let stump = NodeStump::new(NodeId::new(10000), angle_expected, params.clone());
 
         let terrain = SpotTerrain::new(vec![
             (related_path_nodes[0].site, 0.11278313501817303),

@@ -2,53 +2,53 @@ use metrics::PathMetrics;
 use numeric::Stage;
 use rules::TransportRules;
 
-pub mod evaluation;
 pub mod metrics;
 pub mod numeric;
+pub mod prioritization;
 pub mod rules;
 
-/// Parameters of path to be extended.
+/// Parameters of stump.
 #[derive(Debug, Clone, PartialEq)]
-pub struct PathParams {
+pub struct StumpParams {
     pub stage: Stage,
-    pub rules_start: TransportRules,
+    pub rules: TransportRules,
     pub metrics: PathMetrics,
-    pub evaluation: f64,
+    pub priority: f64,
 }
 
-impl Default for PathParams {
+impl Default for StumpParams {
     fn default() -> Self {
         Self {
             stage: Default::default(),
-            rules_start: Default::default(),
+            rules: Default::default(),
             metrics: Default::default(),
-            evaluation: 0.0,
+            priority: 0.0,
         }
     }
 }
 
-impl PathParams {
-    /// Set the stage of the path.
+impl StumpParams {
+    /// Set the stage of the stump.
     pub fn stage(mut self, stage: Stage) -> Self {
         self.stage = stage;
         self
     }
 
-    /// Set the rules to start the path.
-    pub fn rules_start(mut self, rules_start: TransportRules) -> Self {
-        self.rules_start = rules_start;
+    /// Set the rules of the stump.
+    pub fn rules(mut self, rules_start: TransportRules) -> Self {
+        self.rules = rules_start;
         self
     }
 
-    /// Set the metrics of the path.
+    /// Set the metrics of the stump.
     pub fn metrics(mut self, metrics: PathMetrics) -> Self {
         self.metrics = metrics;
         self
     }
 
-    /// Set the evaluation of the path.
-    pub fn evaluation(mut self, evaluation: f64) -> Self {
-        self.evaluation = evaluation;
+    /// Set the priority of the stump.
+    pub fn priority(mut self, priority: f64) -> Self {
+        self.priority = priority;
         self
     }
 }

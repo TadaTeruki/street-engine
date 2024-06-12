@@ -72,7 +72,7 @@ fn main() {
         .unwrap();
 
     while let Some(stump) = builder.pop_stump() {
-        let growth = if let Some(growth) = builder.determine_growth_from_stump(
+        let growth = if let Some(growth) = builder.determine_growth_of_stump(
             &network_repository,
             network_repository.get_network(network_id).unwrap(),
             &stump,
@@ -83,13 +83,7 @@ fn main() {
         };
 
         network_repository.modify_network(network_id, |network| {
-            builder.apply_next_growth(
-                &mut rnd,
-                network,
-                growth,
-                stump.get_node_id(),
-                stump.get_path_params(),
-            )
+            builder.apply_next_growth(&mut rnd, network, growth, stump)
         });
     }
 

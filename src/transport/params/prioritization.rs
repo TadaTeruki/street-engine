@@ -2,8 +2,8 @@ use crate::core::geometry::{angle::Angle, site::Site};
 
 use super::numeric::Stage;
 
-/// Factors for evaluating path.
-pub struct PathEvaluationFactors {
+/// Factors for calculating the priority of the stump to grow a path.
+pub struct PathPrioritizationFactors {
     /// The start site of the path.
     pub site_start: Site,
     /// The end site of the path.
@@ -18,7 +18,7 @@ pub struct PathEvaluationFactors {
     pub creates_bridge: bool,
 }
 
-impl Default for PathEvaluationFactors {
+impl Default for PathPrioritizationFactors {
     fn default() -> Self {
         Self {
             site_start: Site::new(0.0, 0.0),
@@ -31,8 +31,8 @@ impl Default for PathEvaluationFactors {
     }
 }
 
-impl PathEvaluationFactors {
-    /// Create a new path evaluation factors.
+impl PathPrioritizationFactors {
+    /// Create a new path prioritization factors.
     pub fn new(
         site_start: Site,
         site_end: Site,

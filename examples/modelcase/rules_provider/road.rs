@@ -2,12 +2,12 @@ use street_engine::{
     core::geometry::{angle::Angle, site::Site},
     transport::{
         params::{
-            evaluation::PathEvaluationFactors,
             metrics::PathMetrics,
             numeric::Stage,
+            prioritization::PathPrioritizationFactors,
             rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
         },
-        traits::{PathEvaluator, TransportRulesProvider},
+        traits::{PathPrioritizator, TransportRulesProvider},
     },
 };
 
@@ -79,8 +79,8 @@ impl<'a> TransportRulesProvider for RulesProviderForRoad<'a> {
     }
 }
 
-impl<'a> PathEvaluator for RulesProviderForRoad<'a> {
-    fn evaluate(&self, factor: PathEvaluationFactors) -> Option<f64> {
+impl<'a> PathPrioritizator for RulesProviderForRoad<'a> {
+    fn evaluate(&self, factor: PathPrioritizationFactors) -> Option<f64> {
         let site = factor.site_end;
         let elevation = self
             .map_provider
