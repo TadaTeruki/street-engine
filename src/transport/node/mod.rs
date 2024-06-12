@@ -19,11 +19,7 @@ mod tests {
         },
     };
 
-    use super::{
-        growth_type::{GrowthTypes, NextNodeType},
-        node_stump::NodeStump,
-        transport_node::TransportNode,
-    };
+    use super::{growth_type::GrowthType, node_stump::NodeStump, transport_node::TransportNode};
 
     macro_rules! assert_eq_f64 {
         ($a:expr, $b:expr) => {
@@ -133,7 +129,7 @@ mod tests {
                 &SurfaceTerrain,
             );
 
-        if let NextNodeType::New(node) = new.next_node {
+        if let GrowthType::New(node) = new {
             assert_eq_f64!(
                 node.site.distance(&Site::new(
                     1.0 + 1.0 / 2.0_f64.sqrt(),
@@ -162,7 +158,7 @@ mod tests {
                 &SurfaceTerrain,
             );
 
-        if let NextNodeType::Intersect(node, _) = intersect.next_node {
+        if let GrowthType::Intersect(node, _) = intersect {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
         } else {
             panic!("Unexpected node type");
@@ -185,7 +181,7 @@ mod tests {
                 &SurfaceTerrain,
             );
 
-        if let NextNodeType::Existing(node_id) = existing.next_node {
+        if let GrowthType::Existing(node_id) = existing {
             assert_eq!(node_id, NodeId::new(1));
         } else {
             panic!("Unexpected node type");
@@ -208,7 +204,7 @@ mod tests {
                 &SurfaceTerrain,
             );
 
-        if let NextNodeType::Existing(node_id) = existing.next_node {
+        if let GrowthType::Existing(node_id) = existing {
             assert_eq!(node_id, NodeId::new(1));
         } else {
             panic!("Unexpected node type");
@@ -252,10 +248,10 @@ mod tests {
                 &SurfaceTerrain,
             );
 
-        println!("{:?}", next.next_node);
+        println!("{:?}", next);
 
-        assert!(matches!(next.next_node, NextNodeType::Intersect(_, _)));
-        if let NextNodeType::Intersect(node, _) = next.next_node {
+        assert!(matches!(next, GrowthType::Intersect(_, _)));
+        if let GrowthType::Intersect(node, _) = next {
             assert!(
                 (node.site.x >= 0.0 && node.site.x <= 0.3)
                     && (node.site.y >= 0.0 && node.site.y <= 5.0)
@@ -288,7 +284,7 @@ mod tests {
     #[test]
     fn test_bridge() {
         let situation =
-            |path_elevation: f64, start_elevation: f64, path_is_bridge: bool| -> GrowthTypes {
+            |path_elevation: f64, start_elevation: f64, path_is_bridge: bool| -> GrowthType {
                 let related_nodes = vec![
                     create_node_detailed(0.0, 0.0, path_is_bridge),
                     create_node_detailed(1.0, 1.0, path_is_bridge),
@@ -331,7 +327,7 @@ mod tests {
 
         // New node which passes between two existing paths
         let new = situation(0.0, 0.5, false);
-        if let NextNodeType::New(node) = new.next_node {
+        if let GrowthType::New(node) = new {
             assert_eq_f64!(node.site.distance(&Site::new(1.0, 0.0)), 0.0);
         } else {
             panic!("Unexpected node type");
@@ -339,7 +335,7 @@ mod tests {
 
         // Connect to the existing path (land)
         let intersect_on_land = situation(0.0, 0.2, false);
-        if let NextNodeType::Intersect(node, _) = intersect_on_land.next_node {
+        if let GrowthType::Intersect(node, _) = intersect_on_land {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
         } else {
             panic!("Unexpected node type");
@@ -349,7 +345,7 @@ mod tests {
 
         // New node which passes between two existing paths
         let new = situation(1.0, 0.5, true);
-        if let NextNodeType::New(node) = new.next_node {
+        if let GrowthType::New(node) = new {
             assert_eq_f64!(node.site.distance(&Site::new(1.0, 0.0)), 0.0);
         } else {
             panic!("Unexpected node type");
@@ -358,7 +354,7 @@ mod tests {
         // Connect to the existing path (bridge)
         // This connection will be ignored because creating intersection on bridge is not allowed.
         let intersect_on_bridge = situation(1.0, 0.8, true);
-        assert!(matches!(intersect_on_bridge.next_node, NextNodeType::None));
+        assert!(matches!(intersect_on_bridge, GrowthType::None));
     }
 
     #[test]
@@ -406,6 +402,6 @@ mod tests {
             &terrain,
         );
 
-        assert!(matches!(next.next_node, NextNodeType::None));
+        assert!(matches!(next, GrowthType::New(_)));
     }
 }

@@ -86,7 +86,7 @@ fn main() {
             builder.apply_next_growth(
                 &mut rnd,
                 network,
-                growth.next_node,
+                growth,
                 stump.get_node_id(),
                 stump.get_path_params(),
             )

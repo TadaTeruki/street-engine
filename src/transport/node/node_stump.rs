@@ -8,10 +8,7 @@ use crate::{
     },
 };
 
-use super::{
-    growth_type::{GrowthTypes, NextNodeType},
-    transport_node::TransportNode,
-};
+use super::{growth_type::GrowthType, transport_node::TransportNode};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NodeStump {
@@ -82,7 +79,7 @@ impl NodeStump {
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
         terrain_provider: &TP,
-    ) -> GrowthTypes
+    ) -> GrowthType
     where
         TP: TerrainProvider,
     {
@@ -133,9 +130,7 @@ impl NodeStump {
                 });
 
             if let Some(existing) = existing_node_id {
-                return GrowthTypes {
-                    next_node: NextNodeType::Existing(existing.node_id),
-                };
+                return GrowthType::Existing(existing.node_id);
             }
         }
 
@@ -195,17 +190,13 @@ impl NodeStump {
             if let Some((crossing_node, (path_start, path_end))) = crossing_path {
                 // if it cross the bridge, the path cannot be connected.
                 if path_start.node.path_creates_bridge(path_end.node) {
-                    return GrowthTypes {
-                        next_node: NextNodeType::None,
-                    };
+                    return GrowthType::None;
                 }
 
-                return GrowthTypes {
-                    next_node: NextNodeType::Intersect(
-                        crossing_node,
-                        (path_start.node_id, path_end.node_id),
-                    ),
-                };
+                return GrowthType::Intersect(
+                    crossing_node,
+                    (path_start.node_id, path_end.node_id),
+                );
             }
         }
 
@@ -229,15 +220,11 @@ impl NodeStump {
         };
 
         if !slope_ok {
-            return GrowthTypes {
-                next_node: NextNodeType::None,
-            };
+            return GrowthType::None;
         }
 
         // New Node
         // Path crosses are already checked in the previous steps.
-        GrowthTypes {
-            next_node: NextNodeType::New(*node_expected_end),
-        }
+        GrowthType::New(*node_expected_end)
     }
 }

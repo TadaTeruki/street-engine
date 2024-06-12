@@ -6,11 +6,7 @@ use crate::core::{
 };
 
 use super::{
-    node::{
-        growth_type::{GrowthTypes, NextNodeType},
-        node_stump::NodeStump,
-        transport_node::TransportNode,
-    },
+    node::{growth_type::GrowthType, node_stump::NodeStump, transport_node::TransportNode},
     params::{
         evaluation::PathEvaluationFactors, metrics::PathMetrics, numeric::Stage,
         rules::TransportRules, PathParams,
@@ -181,7 +177,7 @@ where
         path_network_repository: &PathNetworkRepository,
         path_network: &PathNetwork<TransportNode>,
         stump: &NodeStump,
-    ) -> Option<GrowthTypes> {
+    ) -> Option<GrowthType> {
         let stump_node = path_network.get_node(stump.get_node_id())?;
         // Set the end site of the path again.
         let site_expected_end_opt = self.expect_end_of_path(
@@ -233,7 +229,7 @@ where
         &mut self,
         rng: &mut R,
         path_network: &mut PathNetwork<TransportNode>,
-        next_node_type: NextNodeType,
+        growth: GrowthType,
         stump_node_id: NodeId,
         path_params: &PathParams,
     ) where
@@ -245,19 +241,19 @@ where
             return;
         };
 
-        match next_node_type {
-            NextNodeType::None => {}
-            NextNodeType::Existing(node_id) => {
+        match growth {
+            GrowthType::None => {}
+            GrowthType::Existing(node_id) => {
                 path_network.add_path(stump_node_id, node_id);
             }
-            NextNodeType::Intersect(node_next, encount_path) => {
+            GrowthType::Intersect(node_next, encount_path) => {
                 let next_node_id = path_network.add_node(node_next);
                 path_network.remove_path(encount_path.0, encount_path.1);
                 path_network.add_path(stump_node_id, next_node_id);
                 path_network.add_path(next_node_id, encount_path.0);
                 path_network.add_path(next_node_id, encount_path.1);
             }
-            NextNodeType::New(node_next) => {
+            GrowthType::New(node_next) => {
                 let node_id = path_network.add_node(node_next);
                 path_network.add_path(stump_node_id, node_id);
 
