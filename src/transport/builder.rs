@@ -216,14 +216,15 @@ where
             })
             .collect::<Vec<_>>();
 
+        let node_expected_end = TransportNode::new(
+            site_expected_end,
+            stump.get_path_params().stage,
+            to_be_bridge_end,
+        );
         // Determine the growth of the path.
         let growth = stump.determine_growth(
             stump_node,
-            &TransportNode::new(
-                site_expected_end,
-                stump.get_path_params().stage,
-                to_be_bridge_end,
-            ),
+            &node_expected_end,
             &related_nodes,
             &related_paths,
             self.terrain_provider,

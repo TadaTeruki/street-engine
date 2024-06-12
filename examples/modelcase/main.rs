@@ -65,13 +65,9 @@ fn main() {
 
     let mut builder = network_repository
         .modify_network(network_id, |network| {
-            TransportBuilder::new(
-                &rules_provider_railway,
-                &map_provider,
-                &rules_provider_railway,
-            )
-            .add_origin(network, Site { x: 0.0, y: 0.0 }, 0.0)
-            .unwrap()
+            TransportBuilder::new(&rules_provider_road, &map_provider, &rules_provider_road)
+                .add_origin(network, Site { x: 0.0, y: 0.0 }, 0.0)
+                .unwrap()
         })
         .unwrap();
 

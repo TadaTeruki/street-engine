@@ -4,7 +4,6 @@ pub mod transport_node;
 
 #[cfg(test)]
 mod tests {
-    /*
     use crate::{
         core::{
             container::path_network::NodeId,
@@ -12,12 +11,11 @@ mod tests {
         },
         transport::{
             params::{
-                metrics::PathMetrics,
-                numeric::Stage,
-                rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
+                rules::{BridgeRules, TransportRules},
                 PathParams,
             },
             path_network_repository::{PathNetworkGroup, PathNetworkId, RelatedNode},
+            traits::TerrainProvider,
         },
     };
 
@@ -37,16 +35,68 @@ mod tests {
         TransportNode {
             site: Site::new(x, y),
             stage: TransportNode::default().stage,
-            is_bridge: TransportNode::default().is_bridge,
+            creates_bridge: TransportNode::default().creates_bridge,
         }
     }
 
-    fn create_node_detailed(x: f64, y: f64, is_bridge: bool) -> TransportNode {
+    fn create_node_detailed(x: f64, y: f64, creates_bridge: bool) -> TransportNode {
         TransportNode {
             site: Site::new(x, y),
             stage: TransportNode::default().stage,
-            is_bridge,
+            creates_bridge,
         }
+    }
+
+    struct SurfaceTerrain;
+
+    impl TerrainProvider for SurfaceTerrain {
+        fn get_elevation(&self, _site: &Site) -> Option<f64> {
+            Some(0.0)
+        }
+    }
+
+    fn parse_nodes<'a>(nodes: &'a [TransportNode]) -> Vec<RelatedNode<'a>> {
+        nodes
+            .iter()
+            .enumerate()
+            .map(|(i, node)| RelatedNode {
+                node,
+                node_id: NodeId::new(i),
+                network_id: PathNetworkId::new(0),
+                group: PathNetworkGroup::new(0),
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn parse_paths<'a>(
+        paths: &'a [(usize, usize)],
+        nodes: &'a [RelatedNode],
+    ) -> Vec<(RelatedNode<'a>, RelatedNode<'a>)> {
+        paths
+            .iter()
+            .map(|(start, end)| (nodes[*start], nodes[*end]))
+            .collect::<Vec<_>>()
+    }
+
+    fn create_node_start_end(
+        site_start: Site,
+        angle: Angle,
+        params: PathParams,
+        creates_bridge: bool,
+    ) -> (TransportNode, TransportNode) {
+        let node_start = TransportNode {
+            site: site_start,
+            stage: params.stage,
+            creates_bridge,
+        };
+        let site_end = site_start.extend(angle, params.rules_start.path_normal_length);
+        let node_end = TransportNode {
+            site: site_end,
+            stage: params.stage,
+            creates_bridge,
+        };
+
+        (node_start, node_end)
     }
 
     #[test]
@@ -57,61 +107,30 @@ mod tests {
             create_node(0.0, 1.0),
             create_node(0.0, 3.0),
         ];
+        let nodes_parsed = parse_nodes(&nodes);
+        let paths_parsed = parse_paths(&[(0, 1), (1, 2), (2, 3)], &nodes_parsed);
 
-        let nodes_parsed = nodes
-            .iter()
-            .enumerate()
-            .map(|(i, node)| RelatedNode {
-                node,
-                node_id: NodeId::new(i),
-                network_id: PathNetworkId::new(0),
-                group: PathNetworkGroup::new(0),
-            })
-            .collect::<Vec<_>>();
+        let rules = TransportRules::default()
+            .path_normal_length(1.0)
+            .path_extra_length_for_intersection(0.25);
 
-        let paths = vec![(0, 1), (1, 2), (2, 3)];
-
-        let paths_parsed = paths
-            .iter()
-            .map(|(start, end)| (nodes_parsed[*start], nodes_parsed[*end]))
-            .collect::<Vec<_>>();
-
-        let rules = TransportRules {
-            path_normal_length: 1.0,
-            path_extra_length_for_intersection: 0.25,
-            path_elevation_diff_limit: None,
-            branch_rules: BranchRules::default(),
-            path_direction_rules: PathDirectionRules::default(),
-            bridge_rules: BridgeRules::default(),
-        };
-
-        let (node_start, angle_expected_end) = (
-            create_node(1.0, 1.0),
-            Angle::new(std::f64::consts::PI * 0.75),
-        );
-        let site_expected_end = node_start
-            .site
-            .extend(angle_expected_end, rules.path_normal_length);
-
-        let params = PathParams {
-            stage: Stage::default(),
-            rules_start: rules.clone(),
-            metrics: PathMetrics::default(),
-            evaluation: 0.0,
-        };
+        let params = PathParams::default().rules_start(rules);
+        let angle_expected_end = Angle::new(std::f64::consts::PI * 0.75);
 
         // New node
+        let (node_start, node_expected_end) = create_node_start_end(
+            Site::new(1.0, 1.0),
+            angle_expected_end,
+            params.clone(),
+            false,
+        );
         let new = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
+                &node_expected_end,
                 &nodes_parsed,
                 &paths_parsed,
+                &SurfaceTerrain,
             );
 
         if let NextNodeType::New(node) = new.next_node {
@@ -127,24 +146,20 @@ mod tests {
         }
 
         // Intersect (Crossing Path)
-        let (node_start, angle_expected_end) = (
-            create_node(1.0, 1.0),
-            Angle::new(-std::f64::consts::PI * 0.25),
+        let angle_expected_end = Angle::new(-std::f64::consts::PI * 0.25);
+        let (node_start, node_expected_end) = create_node_start_end(
+            Site::new(1.0, 1.0),
+            angle_expected_end,
+            params.clone(),
+            false,
         );
-        let site_expected_end = node_start
-            .site
-            .extend(angle_expected_end, rules.path_normal_length);
         let intersect = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
+                &node_expected_end,
                 &nodes_parsed,
                 &paths_parsed,
+                &SurfaceTerrain,
             );
 
         if let NextNodeType::Intersect(node, _) = intersect.next_node {
@@ -154,24 +169,20 @@ mod tests {
         }
 
         // Existing node (close between two nodes)
-        let (node_start, angle_expected_end) = (
-            create_node(1.0, 1.0),
-            Angle::new(std::f64::consts::PI * 0.05),
+        let angle_expected_end = Angle::new(std::f64::consts::PI * 0.05);
+        let (node_start, node_expected_end) = create_node_start_end(
+            Site::new(1.0, 1.0),
+            angle_expected_end,
+            params.clone(),
+            false,
         );
-        let site_expected_end = node_start
-            .site
-            .extend(angle_expected_end, rules.path_normal_length);
         let existing = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
+                &node_expected_end,
                 &nodes_parsed,
                 &paths_parsed,
+                &SurfaceTerrain,
             );
 
         if let NextNodeType::Existing(node_id) = existing.next_node {
@@ -181,24 +192,20 @@ mod tests {
         }
 
         // Existing node (close between an existing node and expected path)
-        let (node_start, angle_expected_end) = (
-            create_node(1.0, 0.5),
-            Angle::new(std::f64::consts::PI * 0.05),
+        let angle_expected_end = Angle::new(std::f64::consts::PI * 0.05);
+        let (node_start, node_expected_end) = create_node_start_end(
+            Site::new(1.0, 0.5),
+            angle_expected_end,
+            params.clone(),
+            false,
         );
-        let site_expected_end = node_start
-            .site
-            .extend(angle_expected_end, rules.path_normal_length);
         let existing = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
+                &node_expected_end,
                 &nodes_parsed,
                 &paths_parsed,
+                &SurfaceTerrain,
             );
 
         if let NextNodeType::Existing(node_id) = existing.next_node {
@@ -220,60 +227,27 @@ mod tests {
             create_node(0.7, 10.0),
             create_node(1.0, 10.0),
         ];
-
-        let nodes_parsed = nodes
-            .iter()
-            .enumerate()
-            .map(|(i, node)| RelatedNode {
-                node,
-                node_id: NodeId::new(i),
-                network_id: PathNetworkId::new(0),
-                group: PathNetworkGroup::new(0),
-            })
-            .collect::<Vec<_>>();
-
+        let nodes_parsed = parse_nodes(&nodes);
         let paths = vec![(0, 5), (5, 2), (2, 7), (7, 3), (3, 6), (6, 1), (1, 4)];
+        let paths_parsed = parse_paths(&paths, &nodes_parsed);
 
-        let paths_parsed = paths
-            .iter()
-            .map(|(start, end)| (nodes_parsed[*start], nodes_parsed[*end]))
-            .collect::<Vec<_>>();
-
-        let rules = TransportRules {
-            path_normal_length: 10000.0,
-            path_extra_length_for_intersection: 0.0,
-            path_elevation_diff_limit: None,
-            branch_rules: BranchRules::default(),
-            path_direction_rules: PathDirectionRules::default(),
-            bridge_rules: BridgeRules::default(),
-        };
-
-        let (node_start, angle_expected_end) = (
-            create_node(-1.0, 1.0),
-            Angle::new(std::f64::consts::PI * 0.5),
+        let rules = TransportRules::default().path_normal_length(10000.0);
+        let params = PathParams::default().rules_start(rules);
+        let angle_expected_end = Angle::new(std::f64::consts::PI * 0.5);
+        let (node_start, node_expected_end) = create_node_start_end(
+            Site::new(-1.0, 1.0),
+            angle_expected_end,
+            params.clone(),
+            false,
         );
-        let site_expected_end = node_start
-            .site
-            .extend(angle_expected_end, rules.path_normal_length);
-
-        let params = PathParams {
-            stage: Stage::default(),
-            rules_start: rules.clone(),
-            metrics: PathMetrics::default(),
-            evaluation: 0.0,
-        };
 
         let next = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
+                &node_expected_end,
                 &nodes_parsed,
                 &paths_parsed,
+                &SurfaceTerrain,
             );
 
         println!("{:?}", next.next_node);
@@ -289,100 +263,149 @@ mod tests {
         }
     }
 
+    struct SpotTerrain {
+        spots: Vec<(Site, f64)>,
+    }
+
+    impl SpotTerrain {
+        fn new(spots: Vec<(Site, f64)>) -> Self {
+            Self { spots }
+        }
+    }
+
+    impl TerrainProvider for SpotTerrain {
+        fn get_elevation(&self, site: &Site) -> Option<f64> {
+            self.spots
+                .iter()
+                .map(|(spot, elevation)| (spot.distance(site), elevation))
+                .min_by(|(distance1, _), (distance2, _)| distance1.total_cmp(distance2))
+                .map(|(_, elevation)| *elevation)
+        }
+    }
+
     #[test]
     fn test_bridge() {
-        let nodes = vec![
-            create_node_detailed(0.0, 0.0, 0.0, false),
-            create_node_detailed(1.0, 1.0, 0.0, false),
-            create_node_detailed(0.0, 0.0, 1.0, true),
-            create_node_detailed(1.0, 1.0, 1.0, true),
-        ];
+        let check =
+            |path_elevation: f64, start_elevation: f64, path_is_bridge: bool| -> GrowthTypes {
+                let nodes = vec![
+                    create_node_detailed(0.0, 0.0, path_is_bridge),
+                    create_node_detailed(1.0, 1.0, path_is_bridge),
+                ];
+                let nodes_parsed = parse_nodes(&nodes);
+                let paths = vec![(0, 1)];
+                let paths_parsed = parse_paths(&paths, &nodes_parsed);
 
-        let nodes_parsed = nodes
-            .iter()
-            .enumerate()
-            .map(|(i, node)| RelatedNode {
-                node,
-                node_id: NodeId::new(i),
-                network_id: PathNetworkId::new(0),
-                group: PathNetworkGroup::new(0),
-            })
-            .collect::<Vec<_>>();
+                let rules = TransportRules::default()
+                    .path_normal_length(2.0_f64.sqrt())
+                    .path_extra_length_for_intersection(0.25)
+                    .path_elevation_diff_limit(Some(0.7));
 
-        let paths = vec![(0, 1), (2, 3)];
+                let params = PathParams::default().rules_start(rules);
+                let angle_expected_end = Angle::new(std::f64::consts::PI * 0.25);
+                let (node_start, node_expected_end) = create_node_start_end(
+                    Site::new(0.0, 1.0),
+                    angle_expected_end,
+                    params.clone(),
+                    false,
+                );
 
-        let paths_parsed = paths
-            .iter()
-            .map(|(start, end)| (nodes_parsed[*start], nodes_parsed[*end]))
-            .collect::<Vec<_>>();
+                let terrain = SpotTerrain::new(vec![
+                    (Site::new(0.0, 0.0), path_elevation),
+                    (Site::new(1.0, 1.0), path_elevation),
+                    (Site::new(0.0, 1.0), start_elevation),
+                    (Site::new(1.0, 0.0), start_elevation),
+                ]);
 
-        let rules = TransportRules {
-            path_normal_length: 2.0_f64.sqrt(),
-            path_extra_length_for_intersection: 0.25,
-            path_elevation_diff_limit: Some(0.7),
-            branch_rules: BranchRules::default(),
-            path_direction_rules: PathDirectionRules::default(),
-            bridge_rules: BridgeRules::default(),
-        };
-
-        let check = |elevation_start: f64, elevation_end: f64| -> GrowthTypes {
-            let (node_start, angle_expected_end) = (
-                create_node_detailed(0.0, 1.0, elevation_start, false),
-                Angle::new(std::f64::consts::PI * 0.25),
-            );
-            let site_expected_end = node_start
-                .site
-                .extend(angle_expected_end, rules.path_normal_length);
-
-            let params = PathParams {
-                stage: Stage::default(),
-                rules_start: rules.clone(),
-                metrics: PathMetrics::default(),
-                evaluation: 0.0,
+                NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+                    .determine_growth(
+                        &node_start,
+                        &node_expected_end,
+                        &nodes_parsed,
+                        &paths_parsed,
+                        &terrain,
+                    )
             };
 
-            NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone()).determine_growth(
-                &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: elevation_end,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
-                &nodes_parsed,
-                &paths_parsed,
-            )
-        };
+        // --- on land ---
 
         // New node which passes between two existing paths
-        let new = check(0.5, 0.5);
-
-        if let (NextNodeType::New(node), is_bridge) = (new.next_node, new.bridge_node) {
+        let new = check(0.0, 0.5, false);
+        if let NextNodeType::New(node) = new.next_node {
             assert_eq_f64!(node.site.distance(&Site::new(1.0, 0.0)), 0.0);
-            assert!(is_bridge.is_none());
         } else {
             panic!("Unexpected node type");
         }
 
         // Connect to the existing path (land)
-        let land = check(0.2, 0.2);
-
-        if let (NextNodeType::Intersect(node, _), is_bridge) = (land.next_node, land.bridge_node) {
+        let intersect_on_land = check(0.0, 0.2, false);
+        if let NextNodeType::Intersect(node, _) = intersect_on_land.next_node {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
-            assert!(is_bridge.is_none());
+        } else {
+            panic!("Unexpected node type");
+        }
+
+        // --- across a bridge ---
+
+        // New node which passes between two existing paths
+        let new = check(1.0, 0.5, true);
+        if let NextNodeType::New(node) = new.next_node {
+            assert_eq_f64!(node.site.distance(&Site::new(1.0, 0.0)), 0.0);
         } else {
             panic!("Unexpected node type");
         }
 
         // Connect to the existing path (bridge)
         // This connection will be ignored because creating intersection on bridge is not allowed.
-        let bridge = check(0.8, 0.8);
-
-        if let (NextNodeType::None, is_bridge) = (bridge.next_node, bridge.bridge_node) {
-            assert!(is_bridge.is_none());
-        } else {
-            panic!("Unexpected node type");
-        }
+        let intersect_on_bridge = check(1.0, 0.8, true);
+        assert!(matches!(intersect_on_bridge.next_node, NextNodeType::None));
     }
-    */
+
+    #[test]
+    fn test_custom_pattern_0() {
+        let path_nodes = vec![
+            create_node_detailed(-87.21831510702368, 1.140441704558744, true),
+            create_node_detailed(-94.23498098118608, 1.1437765922601952, true),
+        ];
+
+        let nodes_parsed = parse_nodes(&path_nodes);
+        let paths = vec![(0, 1)];
+        let paths_parsed = parse_paths(&paths, &nodes_parsed);
+
+        let rules = TransportRules::default()
+            .path_normal_length(0.45)
+            .path_extra_length_for_intersection(0.315)
+            .path_elevation_diff_limit(Some(5.0))
+            .bridge_rules(BridgeRules {
+                max_bridge_length: 25.0,
+                check_step: 15,
+            });
+
+        let params = PathParams::default().rules_start(rules);
+
+        let incoming_nodes = vec![
+            create_node_detailed(-89.26258026851414, 4.955678286720349, false),
+            create_node_detailed(-87.9230415089059, -5.408111363379038, true),
+        ];
+
+        let angle_expected_end = incoming_nodes[0].site.get_angle(&incoming_nodes[1].site);
+
+        let stump = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone());
+
+        let terrain = SpotTerrain::new(vec![
+            (path_nodes[0].site, 0.11278313501817303),
+            (path_nodes[1].site, 0.4537962059055101),
+            (incoming_nodes[0].site, 0.26211488472154043),
+            (incoming_nodes[1].site, 1.0838784525661787),
+        ]);
+
+        let next = stump.determine_growth(
+            &incoming_nodes[0],
+            &incoming_nodes[1],
+            &vec![],
+            &paths_parsed,
+            &terrain,
+        );
+
+        assert!(matches!(next.next_node, NextNodeType::None));
+    }
 }

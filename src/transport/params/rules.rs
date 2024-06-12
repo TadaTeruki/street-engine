@@ -23,6 +23,60 @@ pub struct TransportRules {
     pub bridge_rules: BridgeRules,
 }
 
+impl Default for TransportRules {
+    fn default() -> Self {
+        Self {
+            path_normal_length: 0.0,
+            path_extra_length_for_intersection: 0.0,
+            path_elevation_diff_limit: None,
+            branch_rules: Default::default(),
+            path_direction_rules: Default::default(),
+            bridge_rules: Default::default(),
+        }
+    }
+}
+
+impl TransportRules {
+    /// Set the normal length of the path.
+    pub fn path_normal_length(mut self, path_normal_length: f64) -> Self {
+        self.path_normal_length = path_normal_length;
+        self
+    }
+
+    /// Set the extra length of the path to search intersections.
+    pub fn path_extra_length_for_intersection(
+        mut self,
+        path_extra_length_for_intersection: f64,
+    ) -> Self {
+        self.path_extra_length_for_intersection = path_extra_length_for_intersection;
+        self
+    }
+
+    /// Set the maximum elevation difference of the path.
+    pub fn path_elevation_diff_limit(mut self, path_elevation_diff_limit: Option<f64>) -> Self {
+        self.path_elevation_diff_limit = path_elevation_diff_limit;
+        self
+    }
+
+    /// Set the rules to create branches.
+    pub fn branch_rules(mut self, branch_rules: BranchRules) -> Self {
+        self.branch_rules = branch_rules;
+        self
+    }
+
+    /// Set the rules to determine the direction of the path.
+    pub fn path_direction_rules(mut self, path_direction_rules: PathDirectionRules) -> Self {
+        self.path_direction_rules = path_direction_rules;
+        self
+    }
+
+    /// Set the rules to create bridges.
+    pub fn bridge_rules(mut self, bridge_rules: BridgeRules) -> Self {
+        self.bridge_rules = bridge_rules;
+        self
+    }
+}
+
 /// Rules to create branches.
 ///
 /// With `Default` values, the path will never create a branch.
@@ -41,6 +95,20 @@ impl Default for BranchRules {
             branch_density: 0.0,
             staging_probability: 0.0,
         }
+    }
+}
+
+impl BranchRules {
+    /// Set the density of intersections (probability of branching).
+    pub fn branch_density(mut self, branch_density: f64) -> Self {
+        self.branch_density = branch_density;
+        self
+    }
+
+    /// Set the probability of staging.
+    pub fn staging_probability(mut self, staging_probability: f64) -> Self {
+        self.staging_probability = staging_probability;
+        self
     }
 }
 
@@ -69,6 +137,20 @@ impl Default for BridgeRules {
     }
 }
 
+impl BridgeRules {
+    /// Set the maximum length of bridges.
+    pub fn max_bridge_length(mut self, max_bridge_length: f64) -> Self {
+        self.max_bridge_length = max_bridge_length;
+        self
+    }
+
+    /// Set the number of check steps to create a bridge.
+    pub fn check_step(mut self, check_step: usize) -> Self {
+        self.check_step = check_step;
+        self
+    }
+}
+
 /// Rules to determine the direction of a path.
 ///
 /// With `Default` values, the path is always constructed as a straight line.
@@ -87,6 +169,20 @@ impl Default for PathDirectionRules {
             max_radian: 0.0,
             comparison_step: 1,
         }
+    }
+}
+
+impl PathDirectionRules {
+    /// Set the maximum angle of curves.
+    pub fn max_radian(mut self, max_radian: f64) -> Self {
+        self.max_radian = max_radian;
+        self
+    }
+
+    /// Set the number of candidates of the next site to create a path.
+    pub fn comparison_step(mut self, comparison_step: usize) -> Self {
+        self.comparison_step = comparison_step;
+        self
     }
 }
 

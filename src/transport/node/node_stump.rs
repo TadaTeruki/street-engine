@@ -117,7 +117,6 @@ impl NodeStump {
                     !has_intersection
                 })
                 .filter_map(|existing| {
-                    // slope check
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = existing.node.site.distance(&search_start);
                     check_elevation_diff(
@@ -165,12 +164,22 @@ impl NodeStump {
                     None
                 })
                 .filter_map(|(crossing_node, path)| {
+                    // calculate elevation of crossing_node
+                    let elevation_crossing = {
+                        let distance_0 = crossing_node.site.distance(&path.0.node.site);
+                        let distance_1 = crossing_node.site.distance(&path.1.node.site);
+                        let proportion_of_0 = distance_1 / (distance_0 + distance_1);
+                        terrain_provider.get_elevation(&path.0.node.site)? * proportion_of_0
+                            + terrain_provider.get_elevation(&path.1.node.site)?
+                                * (1.0 - proportion_of_0)
+                    };
+
                     // slope check
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = crossing_node.site.distance(&search_start);
                     check_elevation_diff(
                         terrain_provider.get_elevation(&search_start)?,
-                        terrain_provider.get_elevation(&crossing_node.site)?,
+                        elevation_crossing,
                         distance,
                         self.params.rules_start.path_elevation_diff_limit,
                     )
