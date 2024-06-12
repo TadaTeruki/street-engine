@@ -52,7 +52,7 @@ where
         origin_site: Site,
         angle_radian: f64,
     ) -> Option<Self> {
-        let origin_node = TransportNode::new(origin_site, Stage::from_num(0), false);
+        let origin_node = TransportNode::new(origin_site, Stage::from_num(0));
         let origin_node_id = path_network.add_node(origin_node);
 
         let origin_metrics: PathMetrics = PathMetrics::default();
@@ -212,7 +212,6 @@ where
         let node_expected_end = TransportNode::new(
             site_expected_end,
             stump.get_stump_params().stage,
-            to_be_bridge_end,
         );
 
         // Determine the growth of the path.
@@ -258,13 +257,6 @@ where
             GrowthType::New(node_next) => {
                 let node_id = path_network.add_node(node_next);
                 path_network.add_path(stump.get_node_id(), node_id);
-
-                // if the new node is a bridge, the start node will be a bridge too.
-                if node_next.creates_bridge {
-                    path_network.modify_node(stump.get_node_id(), |node| {
-                        node.creates_bridge = true;
-                    });
-                }
 
                 let straight_angle = start_site.get_angle(&node_next.site);
                 self.push_new_stump(

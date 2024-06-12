@@ -4,22 +4,16 @@ use crate::{core::geometry::site::Site, transport::params::numeric::Stage};
 pub struct TransportNode {
     pub site: Site,
     pub(crate) stage: Stage,
-    pub(crate) creates_bridge: bool,
 }
 
 impl TransportNode {
-    pub fn new(site: Site, stage: Stage, creates_bridge: bool) -> Self {
+    pub fn new(site: Site, stage: Stage) -> Self {
         Self {
             site,
             stage,
-            creates_bridge,
         }
     }
-
-    pub fn path_creates_bridge(&self, other: &Self) -> bool {
-        self.creates_bridge && other.creates_bridge
-    }
-
+    
     pub fn path_stage(&self, other: &Self) -> Stage {
         self.stage.max(other.stage)
     }

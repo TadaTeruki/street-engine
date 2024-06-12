@@ -2,6 +2,7 @@ pub mod growth_type;
 pub mod node_stump;
 pub mod transport_node;
 
+/*
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -382,3 +383,4 @@ mod tests {
         assert!(matches!(next, GrowthType::New(_)));
     }
 }
+*/

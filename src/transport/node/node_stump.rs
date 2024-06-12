@@ -150,7 +150,6 @@ impl NodeStump {
                             TransportNode::new(
                                 intersect,
                                 path_start.node.path_stage(path_end.node),
-                                path_start.node.path_creates_bridge(path_end.node),
                             ),
                             (path_start, path_end),
                         ));
