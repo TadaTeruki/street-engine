@@ -188,9 +188,12 @@ impl NodeStump {
 
             if let Some((crossing_node, (path_start, path_end))) = crossing_path {
                 // if it cross the bridge, the path cannot be connected.
+                /*
                 if path_start.node.path_creates_bridge(path_end.node) {
                     return GrowthType::None;
                 }
+                */
+                todo!();
 
                 return GrowthType::Intersect(
                     crossing_node,

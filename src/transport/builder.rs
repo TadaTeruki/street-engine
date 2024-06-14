@@ -209,10 +209,8 @@ where
             })
             .collect::<Vec<_>>();
 
-        let node_expected_end = TransportNode::new(
-            site_expected_end,
-            stump.get_stump_params().stage,
-        );
+        let node_expected_end =
+            TransportNode::new(site_expected_end, stump.get_stump_params().stage);
 
         // Determine the growth of the path.
         let growth = stump.determine_growth(

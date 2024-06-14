@@ -44,13 +44,6 @@ mod tests {
         }
     }
 
-    struct SurfaceTerrain;
-
-    impl TerrainProvider for SurfaceTerrain {
-        fn get_elevation(&self, _site: &Site) -> Option<f64> {
-            Some(0.0)
-        }
-    }
 
     macro_rules! bind_nodes {
         ($nodes:expr) => {
@@ -239,26 +232,6 @@ mod tests {
             );
         } else {
             panic!("Unexpected node type");
-        }
-    }
-
-    struct SpotTerrain {
-        spots: Vec<(Site, f64)>,
-    }
-
-    impl SpotTerrain {
-        fn new(spots: Vec<(Site, f64)>) -> Self {
-            Self { spots }
-        }
-    }
-
-    impl TerrainProvider for SpotTerrain {
-        fn get_elevation(&self, site: &Site) -> Option<f64> {
-            self.spots
-                .iter()
-                .map(|(spot, elevation)| (spot.distance(site), elevation))
-                .min_by(|(distance1, _), (distance2, _)| distance1.total_cmp(distance2))
-                .map(|(_, elevation)| *elevation)
         }
     }
 

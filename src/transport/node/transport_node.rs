@@ -8,12 +8,9 @@ pub struct TransportNode {
 
 impl TransportNode {
     pub fn new(site: Site, stage: Stage) -> Self {
-        Self {
-            site,
-            stage,
-        }
+        Self { site, stage }
     }
-    
+
     pub fn path_stage(&self, other: &Self) -> Stage {
         self.stage.max(other.stage)
     }
