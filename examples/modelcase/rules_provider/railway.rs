@@ -2,7 +2,6 @@ use street_engine::{
     core::geometry::{angle::Angle, site::Site},
     transport::{
         params::{
-            metrics::PathMetrics,
             numeric::Stage,
             prioritization::PathPrioritizationFactors,
             rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
@@ -27,21 +26,12 @@ impl<'a> TransportRulesProvider for RulesProviderForRailway<'a> {
     fn get_rules(
         &self,
         site: &Site,
-        _: Angle,
         _: Stage,
-        metrics: &PathMetrics,
     ) -> Option<TransportRules> {
         let population_density = self.map_provider.get_population_density(site)?;
         let path_normal_length = 0.7;
 
-        let branch_motivation = if metrics.extend_count_since_last_branched % 7 == 0
-            && metrics.extend_count_since_last_branched > 7
-        {
-            1.0
-        } else {
-            0.0
-        };
-
+        let branch_motivation = 1.0;
         Some(TransportRules {
             path_normal_length,
             path_extra_length_for_intersection: path_normal_length * 0.7,

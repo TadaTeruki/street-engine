@@ -1,8 +1,7 @@
 use street_engine::{
-    core::geometry::{angle::Angle, site::Site},
+    core::geometry::site::Site,
     transport::{
         params::{
-            metrics::PathMetrics,
             numeric::Stage,
             prioritization::PathPrioritizationFactors,
             rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
@@ -27,18 +26,11 @@ impl<'a> TransportRulesProvider for RulesProviderForRoad<'a> {
     fn get_rules(
         &self,
         site: &Site,
-        _: Angle,
         stage: Stage,
-        metrics: &PathMetrics,
     ) -> Option<TransportRules> {
         let population_density = self.map_provider.get_population_density(site)?;
         let is_street = stage.as_num() > 0;
-
-        let path_normal_length = if metrics.branch_count % 2 == 0 {
-            0.35
-        } else {
-            0.45
-        };
+        let path_normal_length = 0.4;
 
         if is_street {
             // street

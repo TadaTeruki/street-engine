@@ -1,7 +1,7 @@
-use crate::core::geometry::{angle::Angle, site::Site};
+use crate::core::geometry::site::Site;
 
 use super::params::{
-    metrics::PathMetrics, numeric::Stage, prioritization::PathPrioritizationFactors,
+    numeric::Stage, prioritization::PathPrioritizationFactors,
     rules::TransportRules,
 };
 
@@ -10,9 +10,7 @@ pub trait TransportRulesProvider {
     fn get_rules(
         &self,
         site: &Site,
-        angle: Angle,
         stage: Stage,
-        metrics: &PathMetrics,
     ) -> Option<TransportRules>;
 }
 
@@ -33,9 +31,7 @@ impl TransportRulesProvider for SameRulesProvider {
     fn get_rules(
         &self,
         _site: &Site,
-        _angle: Angle,
         _stage: Stage,
-        _metrics: &PathMetrics,
     ) -> Option<TransportRules> {
         Some(self.rules.clone())
     }

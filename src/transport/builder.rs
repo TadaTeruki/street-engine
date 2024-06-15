@@ -8,7 +8,7 @@ use crate::core::{
 use super::{
     node::{growth_type::GrowthType, node_stump::NodeStump, transport_node::TransportNode},
     params::{
-        metrics::PathMetrics, numeric::Stage, prioritization::PathPrioritizationFactors,
+        numeric::Stage, prioritization::PathPrioritizationFactors,
         rules::TransportRules, StumpParams,
     },
     path_network_repository::PathNetworkRepository,
@@ -55,21 +55,17 @@ where
         let origin_node = TransportNode::new(origin_site, Stage::from_num(0));
         let origin_node_id = path_network.add_node(origin_node);
 
-        let origin_metrics: PathMetrics = PathMetrics::default();
-
         self.push_new_stump(
             path_network,
             origin_node_id,
             Angle::new(angle_radian),
             origin_node.stage,
-            origin_metrics.incremented(false, false),
         );
         self.push_new_stump(
             path_network,
             origin_node_id,
             Angle::new(angle_radian).opposite(),
             origin_node.stage,
-            origin_metrics.incremented(false, false),
         );
 
         Some(self)
@@ -82,13 +78,12 @@ where
         node_id: NodeId,
         angle_expected: Angle,
         stage: Stage,
-        metrics: PathMetrics,
     ) -> Option<NodeStump> {
         let node_start = path_network.get_node(node_id)?;
 
         let rules =
             self.rules_provider
-                .get_rules(&node_start.site, angle_expected, stage, &metrics)?;
+                .get_rules(&node_start.site, stage)?;
 
         let (estimated_end_site, estimated_end_creates_bridge) =
             self.expect_end_of_path(node_start.site, angle_expected, stage, &rules)?;
@@ -108,7 +103,6 @@ where
             StumpParams {
                 stage,
                 rules,
-                metrics,
                 priority,
             },
         );
@@ -262,7 +256,6 @@ where
                     node_id,
                     straight_angle,
                     stump.get_stump_params().stage,
-                    stump.get_stump_params().metrics.incremented(false, false),
                 );
                 let clockwise_branch =
                     rng.gen_f64() < stump.get_stump_params().rules.branch_rules.branch_density;
@@ -283,10 +276,6 @@ where
                         node_id,
                         straight_angle.right_clockwise(),
                         next_stage,
-                        stump
-                            .get_stump_params()
-                            .metrics
-                            .incremented(clockwise_staging, true),
                     );
                 }
 
@@ -309,10 +298,6 @@ where
                         node_id,
                         straight_angle.right_counterclockwise(),
                         next_stage,
-                        stump
-                            .get_stump_params()
-                            .metrics
-                            .incremented(counterclockwise_staging, true),
                     );
                 }
             }

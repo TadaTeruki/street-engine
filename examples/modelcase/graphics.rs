@@ -81,12 +81,16 @@ pub fn write_to_image(
                 } else {
                     0.8
                 };
-                
+
+                todo!();
+                let color = [0, 0, 0];
+                /*
                 let color = if inode.path_creates_bridge(jnode) {
                     [0, 230, 240]
                 } else {
                     [0, 0, 0]
                 };
+                */
 
                 let stroke = Stroke {
                     width,

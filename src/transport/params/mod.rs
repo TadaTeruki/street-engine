@@ -1,4 +1,3 @@
-use metrics::PathMetrics;
 use numeric::Stage;
 use rules::TransportRules;
 
@@ -12,7 +11,6 @@ pub mod rules;
 pub struct StumpParams {
     pub stage: Stage,
     pub rules: TransportRules,
-    pub metrics: PathMetrics,
     pub priority: f64,
 }
 
@@ -21,7 +19,6 @@ impl Default for StumpParams {
         Self {
             stage: Default::default(),
             rules: Default::default(),
-            metrics: Default::default(),
             priority: 0.0,
         }
     }
@@ -37,12 +34,6 @@ impl StumpParams {
     /// Set the rules of the stump.
     pub fn rules(mut self, rules_start: TransportRules) -> Self {
         self.rules = rules_start;
-        self
-    }
-
-    /// Set the metrics of the stump.
-    pub fn metrics(mut self, metrics: PathMetrics) -> Self {
-        self.metrics = metrics;
         self
     }
 
