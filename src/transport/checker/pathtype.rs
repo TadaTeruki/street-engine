@@ -1,3 +1,4 @@
+/// Represents a type of path.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathType {
     Bridge,

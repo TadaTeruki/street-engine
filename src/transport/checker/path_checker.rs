@@ -1,7 +1,5 @@
-use std::marker::PhantomData;
-
 use crate::{
-    core::geometry::{angle::Angle, site::Site},
+    core::geometry::site::Site,
     transport::{
         node::transport_node::TransportNode,
         params::rules::GrowthRules,
@@ -11,6 +9,7 @@ use crate::{
 
 use super::pathtype::PathType;
 
+/// A struct to check if a path can be constructed between two nodes and what type of path it is.
 pub struct PathChecker<'a, RP, TP>
 where
     RP: GrowthRulesProvider,
@@ -39,6 +38,7 @@ where
         }
     }
 
+    /// Checks if the elevation difference from a node to a site is not too steep.
     fn elevation_diff_is_proper(
         &self,
         node_from: &CheckNode,
@@ -58,27 +58,36 @@ where
         real_elevation_diff <= allowed_elevation_diff
     }
 
+    /// Checks if the elevation difference between the two nodes is not too steep to construct a path.
     fn check_elevation_diff(&self, node0: &CheckNode, node1: &CheckNode) -> bool {
         self.elevation_diff_is_proper(&node0, node1.site, node1.elevation)
             && self.elevation_diff_is_proper(&node1, node0.site, node0.elevation)
     }
 
-    fn node_constructs_bridge(&self, node: &CheckNode, angle_to: Angle) -> bool {
+    /// Checks if a node constructs a bridge.
+    fn node_constructs_bridge(&self, node: &CheckNode, site_to: Site) -> bool {
+        if node.site.distance_2(&site_to) < node.rules.path_normal_length.powi(2) {
+            return false;
+        }
+
+        let angle_to = node.site.get_angle(&site_to);
         let normal_node_to = node.site.extend(angle_to, node.rules.path_normal_length);
         if let Some(elevation_node_to) = self.terrain_provider.get_elevation(&normal_node_to) {
-            self.elevation_diff_is_proper(&node, normal_node_to, elevation_node_to)
+            // constructs bridge is the elevation is not proper (=too steep)
+            !self.elevation_diff_is_proper(&node, normal_node_to, elevation_node_to)
         } else {
             // constructs bridge if the elevation is not available
             true
         }
     }
 
+    /// Checks if the path between two nodes is a bridge.
     fn check_path_is_bridge(&self, node0: &CheckNode, node1: &CheckNode) -> bool {
-        let angle_from_node0_to_node1 = node0.site.get_angle(&node1.site);
-        self.node_constructs_bridge(node0, angle_from_node0_to_node1)
-            || self.node_constructs_bridge(node1, angle_from_node0_to_node1.opposite())
+        self.node_constructs_bridge(node0, node0.site)
+            || self.node_constructs_bridge(node1, node1.site)
     }
 
+    /// Creates a temporary node to check the path construction.
     fn create_checknode(&self, node: TransportNode, other: TransportNode) -> Option<CheckNode> {
         let rules = self
             .rules_provider
@@ -91,6 +100,8 @@ where
         })
     }
 
+    /// Checks if a path can be constructed between two nodes.
+    /// If it is possible, returns the type of the path.
     pub fn check_path_construction(&self, node0: TransportNode, node1: TransportNode) -> PathType {
         let (node0, node1) = if let (Some(node0), Some(node1)) = (
             self.create_checknode(node0, node1),

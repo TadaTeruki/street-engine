@@ -28,7 +28,7 @@ mod tests {
         {
             let terrain_provider = MockVoronoiTerrain::new(vec![
                 (Site::new(0.0, 0.0), 0.0),
-                (Site::new(1.0, 1.0), 0.0),
+                (Site::new(1.0, 1.0), 0.5),
             ]);
             let checker = PathChecker::new(&rules_provider, &terrain_provider);
 
@@ -55,8 +55,8 @@ mod tests {
         // normal path with impossible slope
         {
             let terrain_provider = MockVoronoiTerrain::new(vec![
-                (Site::new(0.0, 0.0), 0.0),
-                (Site::new(1.0, 1.0), 1.0),
+                (Site::new(0.0, 0.0), 0.8),
+                (Site::new(1.0, 1.0), 0.0),
             ]);
             let checker = PathChecker::new(&rules_provider, &terrain_provider);
 
@@ -70,8 +70,8 @@ mod tests {
         {
             let terrain_provider = MockVoronoiTerrain::new(vec![
                 (Site::new(0.0, 0.0), 1.0),
-                (Site::new(0.2, 0.2), 0.0),
-                (Site::new(0.8, 0.8), 0.0),
+                (Site::new(0.2, 0.2), 1.1),
+                (Site::new(0.8, 0.8), 1.3),
                 (Site::new(1.0, 1.0), 1.0),
             ]);
             let checker = PathChecker::new(&rules_provider, &terrain_provider);
