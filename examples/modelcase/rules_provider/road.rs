@@ -4,9 +4,9 @@ use street_engine::{
         params::{
             numeric::Stage,
             prioritization::PathPrioritizationFactors,
-            rules::{BranchRules, BridgeRules, PathDirectionRules, GrowthRules},
+            rules::{BranchRules, BridgeRules, GrowthRules, PathDirectionRules},
         },
-        traits::{PathPrioritizator, GrowthRulesProvider},
+        traits::{GrowthRulesProvider, PathPrioritizator},
     },
 };
 
@@ -23,11 +23,7 @@ impl RulesProviderForRoad<'_> {
 }
 
 impl<'a> GrowthRulesProvider for RulesProviderForRoad<'a> {
-    fn get_rules(
-        &self,
-        site: &Site,
-        stage: Stage,
-    ) -> Option<GrowthRules> {
+    fn get_rules(&self, site: &Site, stage: Stage) -> Option<GrowthRules> {
         let population_density = self.map_provider.get_population_density(site)?;
         let is_street = stage.as_num() > 0;
         let path_normal_length = 0.4;

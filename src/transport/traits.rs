@@ -1,17 +1,12 @@
 use crate::core::geometry::site::Site;
 
 use super::params::{
-    numeric::Stage, prioritization::PathPrioritizationFactors,
-    rules::GrowthRules,
+    numeric::Stage, prioritization::PathPrioritizationFactors, rules::GrowthRules,
 };
 
 /// Provider of transport rules.
 pub trait GrowthRulesProvider {
-    fn get_rules(
-        &self,
-        site: &Site,
-        stage: Stage,
-    ) -> Option<GrowthRules>;
+    fn get_rules(&self, site: &Site, stage: Stage) -> Option<GrowthRules>;
 }
 
 /// Provider of transport rules that always returns the same rules.
@@ -28,11 +23,7 @@ impl SameRulesProvider {
 }
 
 impl GrowthRulesProvider for SameRulesProvider {
-    fn get_rules(
-        &self,
-        _site: &Site,
-        _stage: Stage,
-    ) -> Option<GrowthRules> {
+    fn get_rules(&self, _site: &Site, _stage: Stage) -> Option<GrowthRules> {
         Some(self.rules.clone())
     }
 }
@@ -45,11 +36,11 @@ pub trait TerrainProvider {
 /// Terrain provider that provides a flat surface.
 ///
 /// This is used only for testing purposes.
-pub(crate) struct SurfaceTerrain {
+pub(crate) struct MockSurfaceTerrain {
     elevation: f64,
 }
 
-impl SurfaceTerrain {
+impl MockSurfaceTerrain {
     pub fn new(elevation: f64) -> Self {
         Self {
             elevation: elevation,
@@ -57,7 +48,7 @@ impl SurfaceTerrain {
     }
 }
 
-impl TerrainProvider for SurfaceTerrain {
+impl TerrainProvider for MockSurfaceTerrain {
     fn get_elevation(&self, _site: &Site) -> Option<f64> {
         Some(self.elevation)
     }
@@ -66,17 +57,17 @@ impl TerrainProvider for SurfaceTerrain {
 /// Terrain provider that provides an elevation based on the nearest spot which has a predefined elevation.
 ///
 /// This is used only for testing purposes.
-pub(crate) struct VoronoiTerrain {
+pub(crate) struct MockVoronoiTerrain {
     spots: Vec<(Site, f64)>,
 }
 
-impl VoronoiTerrain {
+impl MockVoronoiTerrain {
     pub fn new(spots: Vec<(Site, f64)>) -> Self {
         Self { spots }
     }
 }
 
-impl TerrainProvider for VoronoiTerrain {
+impl TerrainProvider for MockVoronoiTerrain {
     fn get_elevation(&self, site: &Site) -> Option<f64> {
         self.spots
             .iter()

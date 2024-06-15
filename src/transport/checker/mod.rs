@@ -7,26 +7,29 @@ mod tests {
         core::geometry::site::Site,
         transport::{
             checker::{path_checker::PathChecker, pathtype::PathType},
-            params::rules::TransportRules,
-            traits::{SameRulesProvider, SurfaceTerrain, VoronoiTerrain},
+            node::transport_node::TransportNode,
+            params::{numeric::Stage, rules::GrowthRules},
+            traits::{MockVoronoiTerrain, SameRulesProvider},
         },
     };
 
     #[test]
     fn test_path_construction() {
         let rules_provider = SameRulesProvider::new(
-            TransportRules::default()
+            GrowthRules::default()
                 .path_normal_length(0.4)
                 .path_elevation_diff_limit(Some(0.5)),
         );
 
-        let node0 = Site::new(0.0, 0.0);
-        let node1 = Site::new(1.0, 1.0);
+        let node0 = TransportNode::new(Site::new(0.0, 0.0), Stage::from_num(0));
+        let node1 = TransportNode::new(Site::new(1.0, 1.0), Stage::from_num(0));
 
         // normal path
         {
-            let terrain_provider =
-                VoronoiTerrain::new(vec![(Site::new(0.0, 0.0), 0.0), (Site::new(1.0, 1.0), 0.0)]);
+            let terrain_provider = MockVoronoiTerrain::new(vec![
+                (Site::new(0.0, 0.0), 0.0),
+                (Site::new(1.0, 1.0), 0.0),
+            ]);
             let checker = PathChecker::new(&rules_provider, &terrain_provider);
 
             assert_eq!(
@@ -37,8 +40,10 @@ mod tests {
 
         // normal path with acceptable slope
         {
-            let terrain_provider =
-                VoronoiTerrain::new(vec![(Site::new(0.0, 0.0), 0.0), (Site::new(1.0, 1.0), 0.5)]);
+            let terrain_provider = MockVoronoiTerrain::new(vec![
+                (Site::new(0.0, 0.0), 0.0),
+                (Site::new(1.0, 1.0), 0.5),
+            ]);
             let checker = PathChecker::new(&rules_provider, &terrain_provider);
 
             assert_eq!(
@@ -49,8 +54,10 @@ mod tests {
 
         // normal path with impossible slope
         {
-            let terrain_provider =
-                VoronoiTerrain::new(vec![(Site::new(0.0, 0.0), 0.0), (Site::new(1.0, 1.0), 1.0)]);
+            let terrain_provider = MockVoronoiTerrain::new(vec![
+                (Site::new(0.0, 0.0), 0.0),
+                (Site::new(1.0, 1.0), 1.0),
+            ]);
             let checker = PathChecker::new(&rules_provider, &terrain_provider);
 
             assert_eq!(
@@ -61,7 +68,7 @@ mod tests {
 
         // bridge path
         {
-            let terrain_provider = VoronoiTerrain::new(vec![
+            let terrain_provider = MockVoronoiTerrain::new(vec![
                 (Site::new(0.0, 0.0), 1.0),
                 (Site::new(0.2, 0.2), 0.0),
                 (Site::new(0.8, 0.8), 0.0),

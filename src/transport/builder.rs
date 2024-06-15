@@ -8,11 +8,10 @@ use crate::core::{
 use super::{
     node::{growth_type::GrowthType, node_stump::NodeStump, transport_node::TransportNode},
     params::{
-        numeric::Stage, prioritization::PathPrioritizationFactors,
-        rules::GrowthRules, StumpParams,
+        numeric::Stage, prioritization::PathPrioritizationFactors, rules::GrowthRules, StumpParams,
     },
     path_network_repository::PathNetworkRepository,
-    traits::{PathPrioritizator, RandomF64Provider, TerrainProvider, GrowthRulesProvider},
+    traits::{GrowthRulesProvider, PathPrioritizator, RandomF64Provider, TerrainProvider},
 };
 
 pub struct TransportBuilder<'a, RP, TP, PE>
@@ -81,9 +80,7 @@ where
     ) -> Option<NodeStump> {
         let node_start = path_network.get_node(node_id)?;
 
-        let rules =
-            self.rules_provider
-                .get_rules(&node_start.site, stage)?;
+        let rules = self.rules_provider.get_rules(&node_start.site, stage)?;
 
         let (estimated_end_site, estimated_end_creates_bridge) =
             self.expect_end_of_path(node_start.site, angle_expected, stage, &rules)?;
