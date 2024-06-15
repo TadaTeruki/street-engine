@@ -1,5 +1,5 @@
 use numeric::Stage;
-use rules::TransportRules;
+use rules::GrowthRules;
 
 pub mod metrics;
 pub mod numeric;
@@ -10,7 +10,7 @@ pub mod rules;
 #[derive(Debug, Clone, PartialEq)]
 pub struct StumpParams {
     pub stage: Stage,
-    pub rules: TransportRules,
+    pub rules: GrowthRules,
     pub priority: f64,
 }
 
@@ -32,7 +32,7 @@ impl StumpParams {
     }
 
     /// Set the rules of the stump.
-    pub fn rules(mut self, rules_start: TransportRules) -> Self {
+    pub fn rules(mut self, rules_start: GrowthRules) -> Self {
         self.rules = rules_start;
         self
     }

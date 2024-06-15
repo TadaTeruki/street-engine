@@ -1,6 +1,6 @@
 /// Rules to construct a path.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TransportRules {
+pub struct GrowthRules {
     /// Normal length of the path.
     pub path_normal_length: f64,
     /// Extra length of the path to search intersections.
@@ -23,7 +23,7 @@ pub struct TransportRules {
     pub bridge_rules: BridgeRules,
 }
 
-impl Default for TransportRules {
+impl Default for GrowthRules {
     fn default() -> Self {
         Self {
             path_normal_length: 0.0,
@@ -36,7 +36,7 @@ impl Default for TransportRules {
     }
 }
 
-impl TransportRules {
+impl GrowthRules {
     /// Set the normal length of the path.
     pub fn path_normal_length(mut self, path_normal_length: f64) -> Self {
         self.path_normal_length = path_normal_length;

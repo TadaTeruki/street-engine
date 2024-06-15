@@ -2,37 +2,37 @@ use crate::core::geometry::site::Site;
 
 use super::params::{
     numeric::Stage, prioritization::PathPrioritizationFactors,
-    rules::TransportRules,
+    rules::GrowthRules,
 };
 
 /// Provider of transport rules.
-pub trait TransportRulesProvider {
+pub trait GrowthRulesProvider {
     fn get_rules(
         &self,
         site: &Site,
         stage: Stage,
-    ) -> Option<TransportRules>;
+    ) -> Option<GrowthRules>;
 }
 
 /// Provider of transport rules that always returns the same rules.
 ///
 /// This is used only for testing purposes.
 pub(crate) struct SameRulesProvider {
-    rules: TransportRules,
+    rules: GrowthRules,
 }
 
 impl SameRulesProvider {
-    pub fn new(rules: TransportRules) -> Self {
+    pub fn new(rules: GrowthRules) -> Self {
         Self { rules }
     }
 }
 
-impl TransportRulesProvider for SameRulesProvider {
+impl GrowthRulesProvider for SameRulesProvider {
     fn get_rules(
         &self,
         _site: &Site,
         _stage: Stage,
-    ) -> Option<TransportRules> {
+    ) -> Option<GrowthRules> {
         Some(self.rules.clone())
     }
 }

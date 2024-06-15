@@ -9,15 +9,15 @@ use super::{
     node::{growth_type::GrowthType, node_stump::NodeStump, transport_node::TransportNode},
     params::{
         numeric::Stage, prioritization::PathPrioritizationFactors,
-        rules::TransportRules, StumpParams,
+        rules::GrowthRules, StumpParams,
     },
     path_network_repository::PathNetworkRepository,
-    traits::{PathPrioritizator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
+    traits::{PathPrioritizator, RandomF64Provider, TerrainProvider, GrowthRulesProvider},
 };
 
 pub struct TransportBuilder<'a, RP, TP, PE>
 where
-    RP: TransportRulesProvider,
+    RP: GrowthRulesProvider,
     TP: TerrainProvider,
     PE: PathPrioritizator,
 {
@@ -29,7 +29,7 @@ where
 
 impl<'a, RP, TP, PE> TransportBuilder<'a, RP, TP, PE>
 where
-    RP: TransportRulesProvider,
+    RP: GrowthRulesProvider,
     TP: TerrainProvider,
     PE: PathPrioritizator,
 {
@@ -119,7 +119,7 @@ where
         site_start: Site,
         angle_expecteded: Angle,
         stage: Stage,
-        rules_start: &TransportRules,
+        rules_start: &GrowthRules,
     ) -> Option<(Site, bool)> {
         let path_direction_rules = &rules_start.path_direction_rules;
         angle_expecteded
