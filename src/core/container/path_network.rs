@@ -13,7 +13,7 @@ use super::{
 };
 
 /// Trait for a node in the path network.
-pub trait PathNetworkNodeTrait: Eq {
+pub trait PathNetworkNodeTrait: Eq + Clone {
     fn get_site(&self) -> Site;
 }
 
@@ -145,7 +145,7 @@ where
     }
 
     /// Get the pairs of connected nodes in the network.
-    pub fn paths_iter(&self) -> impl Iterator<Item = (NodeId, NodeId)> + '_ {
+    fn paths_iter(&self) -> impl Iterator<Item = (NodeId, NodeId)> + '_ {
         self.path_connection.edges_iter()
     }
 
@@ -321,10 +321,38 @@ where
             .map(|object| object.node_ids())
     }
 
-    /// Get the optimized path network.
-    pub fn reconstruct_into_optimized(self) -> Self {
-        // TODO: optimize the path network
-        self
+    /// Parse the network into a list of nodes and paths.
+    ///
+    /// This function is not exposed now, but it may be useful in the future.
+    fn parse(&self) -> (Vec<N>, Vec<(usize, usize)>) {
+        let nodes = self.nodes.iter().map(|(_, node)| node).collect::<Vec<_>>();
+
+        // temporary data structure to convert NodeId to usize
+        let node_id_to_index = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(index, (node_id, _))| (*node_id, index))
+            .collect::<BTreeMap<_, _>>();
+
+        let paths = self
+            .paths_iter()
+            .filter_map(|(start, end)| {
+                Some((*node_id_to_index.get(&start)?, *node_id_to_index.get(&end)?))
+            })
+            .collect::<Vec<_>>();
+
+        let nodes = nodes.into_iter().cloned().collect::<Vec<_>>();
+
+        (nodes, paths)
+    }
+
+    /// Reconstruct the network.
+    ///
+    /// The structure of the network is optimized by bulk adding all nodes and paths.
+    pub fn reconstruct(self) -> Option<Self> {
+        let (nodes, paths) = self.parse();
+        Self::from(nodes, &paths)
     }
 
     /// This function is only for testing
@@ -558,12 +586,29 @@ mod tests {
             .map(|node| network1.search_nearest_node(node.get_site()).unwrap())
             .collect::<Vec<_>>();
 
+        let network2 = network0.clone().reconstruct().unwrap();
+        let nodeids2 = nodes
+            .iter()
+            .map(|node| network2.search_nearest_node(node.get_site()).unwrap())
+            .collect::<Vec<_>>();
+
+        let network3 = network1.clone().reconstruct().unwrap();
+        let nodeids3 = nodes
+            .iter()
+            .map(|node| network3.search_nearest_node(node.get_site()).unwrap())
+            .collect::<Vec<_>>();
+
         for i in 0..nodes.len() {
             for j in 0..nodes.len() {
-                assert_eq!(
-                    network0.has_path(nodeids0[i], nodeids0[j]),
-                    network1.has_path(nodeids1[i], nodeids1[j])
-                );
+                let r0 = network0.has_path(nodeids0[i], nodeids0[j]);
+                let r1 = network1.has_path(nodeids1[i], nodeids1[j]);
+                assert_eq!(r0, r1);
+
+                let r2 = network2.has_path(nodeids2[i], nodeids2[j]);
+                assert_eq!(r1, r2);
+
+                let r3 = network3.has_path(nodeids3[i], nodeids3[j]);
+                assert_eq!(r2, r3);
             }
         }
     }
