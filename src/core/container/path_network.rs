@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 
 use rstar::RTree;
 
-use crate::core::geometry::{line_segment::LineSegment, site::Site};
+use crate::core::{
+    generator::id_generator::IdGenerator,
+    geometry::{line_segment::LineSegment, site::Site},
+};
 
 use super::{
     index_object::{NodeTreeObject, PathTreeObject},
@@ -22,7 +25,7 @@ impl NodeId {
     }
 }
 
-/// Path network.
+/// Path network represents a network of nodes and paths.
 /// This struct is used to manage nodes and paths between nodes in 2D space.
 ///
 /// This struct provides:
@@ -37,7 +40,7 @@ where
     path_tree: RTree<PathTreeObject<NodeId>>,
     node_tree: RTree<NodeTreeObject<NodeId>>,
     path_connection: UndirectedGraph<NodeId>,
-    last_node_id: NodeId,
+    id_generator: IdGenerator,
 }
 
 impl<N> Default for PathNetwork<N>
@@ -60,7 +63,7 @@ where
             path_tree: RTree::new(),
             node_tree: RTree::new(),
             path_connection: UndirectedGraph::new(),
-            last_node_id: NodeId::new(0),
+            id_generator: IdGenerator::new(),
         }
     }
     /// Get nodes in the network.
@@ -79,11 +82,15 @@ where
 
     /// Add a node to the network.
     pub fn add_node(&mut self, node: N) -> NodeId {
-        let node_id = self.last_node_id;
+        let node_id = loop {
+            let id = self.id_generator.generate_id();
+            if !self.nodes.contains_key(&NodeId(id)) {
+                break NodeId(id);
+            }
+        };
         self.nodes.insert(node_id, node);
         self.node_tree
             .insert(NodeTreeObject::new(node.into(), node_id));
-        self.last_node_id = NodeId::new(node_id.0 + 1);
         node_id
     }
 
