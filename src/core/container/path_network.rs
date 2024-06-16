@@ -66,6 +66,7 @@ where
             id_generator: IdGenerator::new(),
         }
     }
+
     /// Get nodes in the network.
     pub fn nodes_iter(&self) -> impl Iterator<Item = (NodeId, &N)> {
         self.nodes.iter().map(|(node_id, node)| (*node_id, node))
@@ -80,14 +81,20 @@ where
             })
     }
 
-    /// Add a node to the network.
-    pub fn add_node(&mut self, node: N) -> NodeId {
-        let node_id = loop {
+    /// Generate a new NodeId.
+    /// This checks if the generated NodeId is unique in the network.
+    fn new_node_id(&mut self) -> NodeId {
+        loop {
             let id = self.id_generator.generate_id();
             if !self.nodes.contains_key(&NodeId(id)) {
                 break NodeId(id);
             }
-        };
+        }
+    }
+
+    /// Add a node to the network.
+    pub fn add_node(&mut self, node: N) -> NodeId {
+        let node_id = self.new_node_id();
         self.nodes.insert(node_id, node);
         self.node_tree
             .insert(NodeTreeObject::new(node.into(), node_id));
@@ -214,7 +221,9 @@ where
         );
         self.node_tree
             .locate_in_envelope(&envelope)
-            .filter(move |object| line.get_distance(object.site()) <= radius)
+            .filter(move |object: &&NodeTreeObject<NodeId>| {
+                line.get_distance(object.site()) <= radius
+            })
             .map(|object| object.node_id())
     }
 
