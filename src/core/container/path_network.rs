@@ -130,7 +130,6 @@ where
         if path_tree.size() != paths_len {
             return None;
         }
-
         Some(Self {
             nodes,
             path_tree,
@@ -143,6 +142,11 @@ where
     /// Get nodes in the network.
     pub fn nodes_iter(&self) -> impl Iterator<Item = (NodeId, &N)> {
         self.nodes.iter().map(|(node_id, node)| (*node_id, node))
+    }
+
+    /// Get the pairs of connected nodes in the network.
+    pub fn paths_iter(&self) -> impl Iterator<Item = (NodeId, NodeId)> + '_ {
+        self.path_connection.edges_iter()
     }
 
     /// Get neighbors of a node.
@@ -270,6 +274,13 @@ where
             .locate_in_envelope(&envelope)
             .filter(move |object| site.distance(object.site()) <= radius)
             .map(|object| object.node_id())
+    }
+
+    /// Search the nearest node from a site.
+    pub fn search_nearest_node(&self, site: Site) -> Option<NodeId> {
+        self.node_tree
+            .nearest_neighbor(&[site.x, site.y])
+            .map(|object| *object.node_id())
     }
 
     /// Search nodes around a line segment within a radius.
@@ -505,17 +516,61 @@ mod tests {
         assert!(network.check_path_state_is_consistent());
     }
 
+    fn xorshift(x: usize) -> usize {
+        let mut x = x;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        x
+    }
+
     #[test]
-    fn test_complex_network() {
-        let xorshift = |x: usize| -> usize {
-            let mut x = x;
-            x ^= x << 13;
-            x ^= x >> 17;
-            x ^= x << 5;
-            x
+    fn test_construction() {
+        let nodes = (0..300)
+            .map(|i| MockNode::new(xorshift(i * 2) as f64, xorshift(i * 2 + 1) as f64))
+            .collect::<Vec<_>>();
+
+        let paths = {
+            let mut paths = Vec::new();
+            for i in 0..nodes.len() {
+                for j in i + 1..nodes.len() {
+                    if xorshift(i * nodes.len() + j) % 2 == 0 {
+                        paths.push((i, j));
+                    }
+                }
+            }
+            paths
         };
 
-        let nodes = (0..100)
+        let mut network0 = PathNetwork::new();
+        let nodeids0 = nodes
+            .iter()
+            .map(|site| network0.add_node(*site))
+            .collect::<Vec<_>>();
+
+        for (start, end) in paths.iter() {
+            network0.add_path(nodeids0[*start], nodeids0[*end]);
+        }
+
+        let network1 = PathNetwork::from(nodes.clone(), &paths).unwrap();
+        let nodeids1 = nodes
+            .iter()
+            .map(|node| network1.search_nearest_node(node.get_site()).unwrap())
+            .collect::<Vec<_>>();
+
+        for i in 0..nodes.len() {
+            for j in 0..nodes.len() {
+                assert_eq!(
+                    network0.has_path(nodeids0[i], nodeids0[j]),
+                    network1.has_path(nodeids1[i], nodeids1[j])
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_complex_network() {
+        let nodes = (0..50)
             .map(|i| MockNode::new(xorshift(i * 2) as f64, xorshift(i * 2 + 1) as f64))
             .collect::<Vec<_>>();
 

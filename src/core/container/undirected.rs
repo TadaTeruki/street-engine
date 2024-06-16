@@ -72,6 +72,13 @@ where
     pub fn neighbors_iter(&self, node: N) -> Option<impl Iterator<Item = &N> + '_> {
         self.edges.get(&node).map(|set| set.iter())
     }
+
+    /// Get the pairs of connected nodes as an iterator.
+    pub fn edges_iter(&self) -> impl Iterator<Item = (N, N)> + '_ {
+        self.edges
+            .iter()
+            .flat_map(|(a, set)| set.iter().map(move |&b| (*a, b)))
+    }
 }
 
 #[cfg(test)]
