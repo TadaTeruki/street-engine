@@ -69,6 +69,77 @@ where
         }
     }
 
+    /// Create a new path network from lists of nodes and paths.
+    ///
+    /// This function always returns an optimized path network as a result
+    /// because all nodes and paths are bulk added to the network.
+    pub fn from(nodes: Vec<N>, paths: &[(usize, usize)]) -> Option<Self> {
+        let mut id_generator: IdGenerator = IdGenerator::new();
+
+        // distribute NodeIds to nodes
+        let nodes = nodes
+            .into_iter()
+            .map(|node| (NodeId(id_generator.generate_id()), node))
+            .collect::<Vec<_>>();
+
+        // original paths length
+        let paths_len = paths.len();
+
+        // convert paths from usize to NodeId
+        let paths = paths
+            .iter()
+            .filter_map(|(start, end)| Some((nodes.get(*start)?.0, nodes.get(*end)?.0)))
+            .collect::<Vec<_>>();
+        // if there are invalid paths, return None
+        if paths.len() != paths_len {
+            return None;
+        }
+
+        // rtree for nodes
+        let node_tree = RTree::bulk_load(
+            nodes
+                .iter()
+                .map(|(node_id, node)| NodeTreeObject::new(node.get_site(), *node_id))
+                .collect::<Vec<_>>(),
+        );
+
+        let path_connection = paths.iter().fold(
+            UndirectedGraph::new(),
+            |mut path_connection, (start, end)| {
+                path_connection.add_edge(*start, *end);
+                path_connection
+            },
+        );
+
+        let nodes = nodes.into_iter().collect::<BTreeMap<_, _>>();
+
+        let path_tree = RTree::bulk_load(
+            paths
+                .iter()
+                .filter_map(|(start, end)| {
+                    let (start_site, end_site) =
+                        (nodes.get(start)?.get_site(), nodes.get(end)?.get_site());
+                    Some(PathTreeObject::new(
+                        LineSegment::new(start_site, end_site),
+                        (*start, *end),
+                    ))
+                })
+                .collect::<Vec<_>>(),
+        );
+        // if there are invalid paths, return None
+        if path_tree.size() != paths_len {
+            return None;
+        }
+
+        Some(Self {
+            nodes,
+            path_tree,
+            node_tree,
+            path_connection,
+            id_generator,
+        })
+    }
+
     /// Get nodes in the network.
     pub fn nodes_iter(&self) -> impl Iterator<Item = (NodeId, &N)> {
         self.nodes.iter().map(|(node_id, node)| (*node_id, node))
@@ -240,7 +311,7 @@ where
     }
 
     /// Get the optimized path network.
-    pub fn into_optimized(self) -> Self {
+    pub fn reconstruct_into_optimized(self) -> Self {
         // TODO: optimize the path network
         self
     }
@@ -260,11 +331,11 @@ mod tests {
     /// Node for testing the path network.
     /// This struct is used only for testing.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    struct MockPathNetworkNode {
+    struct MockNode {
         site: Site,
     }
 
-    impl MockPathNetworkNode {
+    impl MockNode {
         fn new(x: f64, y: f64) -> Self {
             Self {
                 site: Site::new(x, y),
@@ -272,7 +343,7 @@ mod tests {
         }
     }
 
-    impl PathNetworkNodeTrait for MockPathNetworkNode {
+    impl PathNetworkNodeTrait for MockNode {
         fn get_site(&self) -> Site {
             self.site
         }
@@ -281,11 +352,11 @@ mod tests {
     #[test]
     fn test_path_network() {
         let mut network = PathNetwork::new();
-        let node0 = network.add_node(MockPathNetworkNode::new(0.0, 0.0));
-        let node1 = network.add_node(MockPathNetworkNode::new(1.0, 1.0));
-        let node2 = network.add_node(MockPathNetworkNode::new(2.0, 2.0));
-        let node3 = network.add_node(MockPathNetworkNode::new(3.0, 3.0));
-        let node4 = network.add_node(MockPathNetworkNode::new(1.0, 4.0));
+        let node0 = network.add_node(MockNode::new(0.0, 0.0));
+        let node1 = network.add_node(MockNode::new(1.0, 1.0));
+        let node2 = network.add_node(MockNode::new(2.0, 2.0));
+        let node3 = network.add_node(MockNode::new(3.0, 3.0));
+        let node4 = network.add_node(MockNode::new(1.0, 4.0));
 
         network.add_path(node0, node1);
         network.add_path(node1, node2);
@@ -316,9 +387,9 @@ mod tests {
     #[test]
     fn test_path_crossing_no_crosses() {
         let mut network = PathNetwork::new();
-        let node0 = network.add_node(MockPathNetworkNode::new(0.0, 1.0));
-        let node1 = network.add_node(MockPathNetworkNode::new(2.0, 3.0));
-        let node2 = network.add_node(MockPathNetworkNode::new(4.0, 5.0));
+        let node0 = network.add_node(MockNode::new(0.0, 1.0));
+        let node1 = network.add_node(MockNode::new(2.0, 3.0));
+        let node2 = network.add_node(MockNode::new(4.0, 5.0));
 
         network.add_path(node0, node1);
         network.add_path(node1, node2);
@@ -336,10 +407,10 @@ mod tests {
         let mut network = PathNetwork::new();
 
         let nodes = vec![
-            MockPathNetworkNode::new(0.0, 2.0),
-            MockPathNetworkNode::new(2.0, 2.0),
-            MockPathNetworkNode::new(2.0, 0.0),
-            MockPathNetworkNode::new(0.0, 0.0),
+            MockNode::new(0.0, 2.0),
+            MockNode::new(2.0, 2.0),
+            MockNode::new(2.0, 0.0),
+            MockNode::new(0.0, 0.0),
         ];
 
         let nodes = nodes
@@ -374,11 +445,11 @@ mod tests {
     #[test]
     fn test_nodes_around_site() {
         let mut network = PathNetwork::new();
-        let node0 = network.add_node(MockPathNetworkNode::new(0.0, 0.0));
-        let node1 = network.add_node(MockPathNetworkNode::new(1.0, 1.0));
-        let node2 = network.add_node(MockPathNetworkNode::new(2.0, 2.0));
-        let node3 = network.add_node(MockPathNetworkNode::new(3.0, 3.0));
-        let node4 = network.add_node(MockPathNetworkNode::new(1.0, 4.0));
+        let node0 = network.add_node(MockNode::new(0.0, 0.0));
+        let node1 = network.add_node(MockNode::new(1.0, 1.0));
+        let node2 = network.add_node(MockNode::new(2.0, 2.0));
+        let node3 = network.add_node(MockNode::new(3.0, 3.0));
+        let node4 = network.add_node(MockNode::new(1.0, 4.0));
 
         network.add_path(node0, node1);
         network.add_path(node1, node2);
@@ -445,7 +516,7 @@ mod tests {
         };
 
         let nodes = (0..100)
-            .map(|i| MockPathNetworkNode::new(xorshift(i * 2) as f64, xorshift(i * 2 + 1) as f64))
+            .map(|i| MockNode::new(xorshift(i * 2) as f64, xorshift(i * 2 + 1) as f64))
             .collect::<Vec<_>>();
 
         let loop_count = 10;
