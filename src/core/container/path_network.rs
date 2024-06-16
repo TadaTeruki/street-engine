@@ -369,7 +369,7 @@ mod tests {
 
     /// Node for testing the path network.
     /// This struct is used only for testing.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     struct MockNode {
         site: Site,
     }
@@ -453,8 +453,8 @@ mod tests {
         ];
 
         let nodes = nodes
-            .iter()
-            .map(|site| network.add_node(*site))
+            .into_iter()
+            .map(|node| network.add_node(node))
             .collect::<Vec<_>>();
 
         for i in 0..nodes.len() {
@@ -572,8 +572,9 @@ mod tests {
 
         let mut network0 = PathNetwork::new();
         let nodeids0 = nodes
-            .iter()
-            .map(|site| network0.add_node(*site))
+            .clone()
+            .into_iter()
+            .map(|node| network0.add_node(node))
             .collect::<Vec<_>>();
 
         for (start, end) in paths.iter() {
@@ -624,8 +625,9 @@ mod tests {
         let mut network = PathNetwork::new();
 
         let nodeids = nodes
-            .iter()
-            .map(|site| network.add_node(*site))
+            .clone()
+            .into_iter()
+            .map(|node| network.add_node(node))
             .collect::<Vec<_>>();
 
         for l in 0..loop_count {
