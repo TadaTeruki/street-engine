@@ -325,7 +325,7 @@ where
     ///
     /// This function is not exposed now, but it may be useful in the future.
     fn parse(&self) -> (Vec<N>, Vec<(usize, usize)>) {
-        let nodes = self.nodes.iter().map(|(_, node)| node).collect::<Vec<_>>();
+        let nodes = self.nodes.values().collect::<Vec<_>>();
 
         // temporary data structure to convert NodeId to usize
         let node_id_to_index = self
