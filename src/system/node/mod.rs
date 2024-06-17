@@ -1,16 +1,39 @@
+use metrics::TransportMetrics;
+use nodetype::TransportNodeType;
+use numeric::Stage;
+
 use crate::core::geometry::site::Site;
 
-use super::numeric::Stage;
+pub mod metrics;
+pub mod nodetype;
+pub mod numeric;
 
-#[derive(Debug, Default, Clone, PartialEq)]
+/// A node in the transport network.
+#[derive(Debug, Clone, PartialEq)]
 pub struct TransportNode {
-    pub site: Site,
-    pub(crate) stage: Stage,
+    site: Site,
+    stage: Stage,
+    metrics: TransportMetrics,
+    nodetype: TransportNodeType,
 }
 
 impl TransportNode {
-    pub fn new(site: Site, stage: Stage) -> Self {
-        Self { site, stage }
+    pub fn new(
+        site: Site,
+        stage: Stage,
+        metrics: TransportMetrics,
+        nodetype: TransportNodeType,
+    ) -> Self {
+        Self {
+            site,
+            stage,
+            metrics,
+            nodetype,
+        }
+    }
+
+    pub fn get_site(&self) -> Site {
+        self.site
     }
 }
 
