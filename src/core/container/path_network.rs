@@ -1,10 +1,11 @@
+/*
 use std::collections::BTreeMap;
 
 use rstar::RTree;
 
 use crate::core::{
     generator::id_generator::IdGenerator,
-    geometry::{line_segment::LineSegment, site::Site},
+    geometry::{path::PathTrait, site::Site},
 };
 
 use super::{
@@ -34,29 +35,32 @@ impl NodeId {
 ///  - functions to add, remove, and search nodes and paths.
 ///  - functions to search nodes around a site or a line segment.
 #[derive(Debug, Clone)]
-pub struct PathNetwork<N>
+pub struct PathNetwork<N, P>
 where
     N: PathNetworkNodeTrait,
+    P: PathTrait,
 {
     nodes: BTreeMap<NodeId, N>,
-    path_tree: RTree<PathTreeObject<NodeId>>,
+    path_tree: RTree<PathTreeObject<NodeId, P>>,
     node_tree: RTree<NodeTreeObject<NodeId>>,
-    path_connection: UndirectedGraph<NodeId>,
+    path_connection: UndirectedGraph<NodeId, P::Handle>,
     id_generator: IdGenerator,
 }
 
-impl<N> Default for PathNetwork<N>
+impl<N,P> Default for PathNetwork<N, P>
 where
     N: PathNetworkNodeTrait,
+    P: PathTrait,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<N> PathNetwork<N>
+impl<N, P> PathNetwork<N, P>
 where
     N: PathNetworkNodeTrait,
+    P: PathTrait,
 {
     /// Create a new path network.
     pub fn new() -> Self {
@@ -73,7 +77,7 @@ where
     ///
     /// This function always returns an optimized path network as a result
     /// because all nodes and paths are bulk added to the network.
-    pub fn from(nodes: Vec<N>, paths: &[(usize, usize)]) -> Option<Self> {
+    pub fn from(nodes: Vec<N>, paths: &[(usize, usize, P::Handle)]) -> Option<Self> {
         let mut id_generator: IdGenerator = IdGenerator::new();
 
         // distribute NodeIds to nodes
@@ -88,7 +92,7 @@ where
         // convert paths from usize to NodeId
         let paths = paths
             .iter()
-            .filter_map(|(start, end)| Some((nodes.get(*start)?.0, nodes.get(*end)?.0)))
+            .filter_map(|(start, end, handle)| Some((nodes.get(*start)?.0, nodes.get(*end)?.0, handle.clone())))
             .collect::<Vec<_>>();
         // if there are invalid paths, return None
         if paths.len() != paths_len {
@@ -105,8 +109,8 @@ where
 
         let path_connection = paths.iter().fold(
             UndirectedGraph::new(),
-            |mut path_connection, (start, end)| {
-                path_connection.add_edge(*start, *end);
+            |mut path_connection, (start, end, handle)| {
+                path_connection.add_edge(*start, *end, handle.clone());
                 path_connection
             },
         );
@@ -116,11 +120,11 @@ where
         let path_tree = RTree::bulk_load(
             paths
                 .iter()
-                .filter_map(|(start, end)| {
+                .filter_map(|(start, end, handle)| {
                     let (start_site, end_site) =
                         (nodes.get(start)?.get_site(), nodes.get(end)?.get_site());
                     Some(PathTreeObject::new(
-                        LineSegment::new(start_site, end_site),
+                        P::new(start_site, end_site, handle.clone()),
                         (*start, *end),
                     ))
                 })
@@ -210,7 +214,7 @@ where
     }
 
     /// Add a path to the network.
-    pub(crate) fn add_path(&mut self, start: NodeId, end: NodeId) -> Option<(NodeId, NodeId)> {
+    pub(crate) fn add_path(&mut self, start: NodeId, end: NodeId, handle: P::Handle) -> Option<(NodeId, NodeId)> {
         if start == end {
             return None;
         }
@@ -224,7 +228,7 @@ where
             let (start_site, end_site) = ((*start_node).get_site(), (*end_node).get_site());
 
             self.path_tree.insert(PathTreeObject::new(
-                LineSegment::new(start_site, end_site),
+                P::new(start_site, end_site, handle),
                 (start, end),
             ));
 
@@ -656,3 +660,4 @@ mod tests {
         }
     }
 }
+*/

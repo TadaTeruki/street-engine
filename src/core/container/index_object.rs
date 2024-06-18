@@ -1,28 +1,27 @@
 use rstar::{PointDistance, RTreeObject};
 
-use crate::core::geometry::{line_segment::LineSegment, site::Site};
+use crate::core::geometry::{path::PathTrait, site::Site};
 
 pub trait PathTreeIDTrait: Copy + PartialEq {}
 impl<T> PathTreeIDTrait for T where T: Copy + PartialEq {}
 
 #[derive(Debug, Clone)]
-pub struct PathTreeObject<ID>
+pub struct PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
+    P: PathTrait,
 {
-    line_segment: LineSegment,
+    path: P,
     node_ids: (ID, ID),
 }
 
-impl<ID> PathTreeObject<ID>
+impl<ID, P> PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
+    P: PathTrait,
 {
-    pub fn new(line_segment: LineSegment, node_ids: (ID, ID)) -> Self {
-        Self {
-            line_segment,
-            node_ids,
-        }
+    pub fn new(path: P, node_ids: (ID, ID)) -> Self {
+        Self { path, node_ids }
     }
 
     pub fn node_ids(&self) -> &(ID, ID) {
@@ -30,45 +29,35 @@ where
     }
 }
 
-impl<ID> RTreeObject for PathTreeObject<ID>
+impl<ID, P> RTreeObject for PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
+    P: PathTrait,
 {
     type Envelope = rstar::AABB<[f64; 2]>;
 
     fn envelope(&self) -> Self::Envelope {
-        rstar::AABB::from_corners(
-            [self.line_segment.0.x, self.line_segment.0.y],
-            [self.line_segment.1.x, self.line_segment.1.y],
-        )
+        let (start, end) = self.path.get_bounds();
+        rstar::AABB::from_corners([start.x, start.y], [end.x, end.y])
     }
 }
 
-impl<ID> PointDistance for PathTreeObject<ID>
+impl<ID, P> PointDistance for PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
+    P: PathTrait,
 {
     fn distance_2(&self, point: &[f64; 2]) -> f64 {
-        let site = Site::new(point[0], point[1]);
-        let proj = self.line_segment.get_projection(&site);
-        if let Some(proj) = proj {
-            let dx = proj.x - site.x;
-            let dy = proj.y - site.y;
-            dx * dx + dy * dy
-        } else {
-            let start = &self.line_segment.0;
-            let end = &self.line_segment.1;
-
-            let d0 = start.distance(&Site::new(point[0], point[1]));
-            let d1 = end.distance(&Site::new(point[0], point[1]));
-            d0.min(d1)
-        }
+        self.path
+            .get_distance(&Site::new(point[0], point[1]))
+            .powi(2)
     }
 }
 
-impl<ID> PartialEq for PathTreeObject<ID>
+impl<ID, P> PartialEq for PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
+    P: PathTrait,
 {
     fn eq(&self, other: &Self) -> bool {
         self.node_ids == other.node_ids || self.node_ids == (other.node_ids.1, other.node_ids.0)

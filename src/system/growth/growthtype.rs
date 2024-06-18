@@ -1,3 +1,4 @@
+/*
 use crate::{core::container::path_network::NodeId, system::node::TransportNode};
 
 /// The type of growth of a path in the transport network.
@@ -15,3 +16,4 @@ pub enum GrowthType {
     /// Do not grow the path.
     None,
 }
+*/
