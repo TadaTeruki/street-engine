@@ -97,10 +97,10 @@ where
         Some((a, b))
     }
 
-    pub fn has_edge(&self, a: N, b: N, attr: A) -> Option<&A> {
+    pub fn has_edge(&self, a: N, b: N, attr: &A) -> Option<&A> {
         self.attributions
             .get(&AttributionKey::new(a, b))
-            .and_then(|vec| vec.iter().find(|x| *x == &attr))
+            .and_then(|vec| vec.iter().find(|x| *x == attr))
     }
 
     /// Remove an edge from the graph.
@@ -196,18 +196,18 @@ mod tests {
 
         assert_eq!(graph.order(), 5);
         assert_eq!(graph.size(), 5);
-        assert_eq!(graph.has_edge(103, 25, 0), Some(&0));
-        assert!(graph.has_edge(25, 103, 0).is_some());
-        assert!(graph.has_edge(103, 25, 1).is_none());
+        assert_eq!(graph.has_edge(103, 25, &0), Some(&0));
+        assert!(graph.has_edge(25, 103, &0).is_some());
+        assert!(graph.has_edge(103, 25, &1).is_none());
 
-        assert_eq!(graph.has_edge(85, 103, 1), Some(&1));
-        assert!(graph.has_edge(103, 85, 1).is_some());
-        assert!(graph.has_edge(85, 103, 2).is_some());
+        assert_eq!(graph.has_edge(85, 103, &1), Some(&1));
+        assert!(graph.has_edge(103, 85, &1).is_some());
+        assert!(graph.has_edge(85, 103, &2).is_some());
 
         assert_eq_vec!(graph.has_connection(85, 103).unwrap(), vec![1, 2]);
 
-        assert!(graph.has_edge(85, 32, 3).is_some());
-        assert!(graph.has_edge(32, 85, 3).is_some());
+        assert!(graph.has_edge(85, 32, &3).is_some());
+        assert!(graph.has_edge(32, 85, &3).is_some());
 
         // remove connection
         graph.remove_connection(103, 85);
@@ -216,22 +216,22 @@ mod tests {
         assert_eq!(graph.size(), 3);
         assert!(graph.has_connection(103, 85).is_none());
         assert!(graph.has_connection(85, 103).is_none());
-        assert!(graph.has_edge(103, 85, 1).is_none());
-        assert!(graph.has_edge(85, 103, 1).is_none());
-        assert!(graph.has_edge(85, 32, 3).is_some());
+        assert!(graph.has_edge(103, 85, &1).is_none());
+        assert!(graph.has_edge(85, 103, &1).is_none());
+        assert!(graph.has_edge(85, 32, &3).is_some());
 
         // remove edge (not existing)
         graph.remove_edge(85, 32, 2);
-        assert!(graph.has_edge(85, 32, 3).is_some());
+        assert!(graph.has_edge(85, 32, &3).is_some());
 
         // remove edge
         graph.remove_edge(85, 32, 3);
 
         assert_eq!(graph.order(), 3);
         assert_eq!(graph.size(), 2);
-        assert!(graph.has_edge(85, 32, 3).is_none());
-        assert!(graph.has_edge(32, 85, 3).is_none());
-        assert!(graph.has_edge(103, 25, 0).is_some());
+        assert!(graph.has_edge(85, 32, &3).is_none());
+        assert!(graph.has_edge(32, 85, &3).is_none());
+        assert!(graph.has_edge(103, 25, &0).is_some());
 
         assert!(graph.check_size());
     }
