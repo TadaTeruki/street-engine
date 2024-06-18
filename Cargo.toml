@@ -8,7 +8,9 @@ authors = ["Teruki TADA <me@peruki.dev>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bezier-rs = "0.4.0"
 rstar = "0.12.0"
+glam = "0.24.2"
 
 [dev-dependencies]
 rayon = "1.10.0"
