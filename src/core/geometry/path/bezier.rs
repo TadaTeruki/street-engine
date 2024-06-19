@@ -1,4 +1,5 @@
 use bezier_rs::{Bezier, TValue};
+use rstar::PointDistance;
 
 use crate::core::geometry::site::Site;
 
@@ -80,17 +81,16 @@ impl PathTrait for PathBezier {
     }
 
     fn get_projection(&self, site: &Site) -> Option<Site> {
-        let projection_t = self.curve.project(
-            glam::DVec2 {
-                x: site.x,
-                y: site.y,
-            },
-            None,
-        );
-        let projection = self
-            .curve
-            .evaluate(bezier_rs::TValue::Parametric(projection_t));
-        Some(Site::new(projection.x, projection.y))
+        let projection_ts = self.curve.normals_to_point(glam::DVec2 {
+            x: site.x,
+            y: site.y,
+        });
+
+        projection_ts
+            .iter()
+            .map(|t| self.curve.evaluate(TValue::Parametric(*t)))
+            .map(|point| Site::new(point.x, point.y))
+            .min_by(|a, b| site.distance_2(&a).total_cmp(&site.distance_2(&b)))
     }
 
     fn get_distance(&self, site: &Site) -> f64 {

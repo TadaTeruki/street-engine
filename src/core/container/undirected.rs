@@ -110,7 +110,11 @@ where
             vec.retain(|x| x != &attr);
         });
         // if there is no attribution, remove the connection
-        if self.attributions[&key].is_empty() {
+        if self
+            .attributions
+            .get(&key)
+            .map_or(true, |vec| vec.is_empty())
+        {
             self.remove_connection(a, b);
         }
 

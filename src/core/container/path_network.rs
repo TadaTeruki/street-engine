@@ -400,8 +400,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use crate::core::geometry::path::{bezier::PathBezier, handle::PathHandle};
 
     use super::*;
@@ -438,26 +436,37 @@ mod tests {
 
         network.add_path(node0, node1, PathHandle::Linear);
         network.add_path(node1, node2, PathHandle::Linear);
+        network.add_path(node1, node2, PathHandle::Quadratic(Site::new(1.5, 1.5)));
         network.add_path(node2, node3, PathHandle::Linear);
-        network.add_path(node3, node4, PathHandle::Linear);
+        network.add_path(
+            node3,
+            node4,
+            PathHandle::Cubic(Site::new(2.0, 3.0), Site::new(1.0, 3.5)),
+        );
         network.add_path(node4, node2, PathHandle::Linear);
 
         assert!(network.has_path(node0, node1, PathHandle::Linear));
         assert!(network.has_path(node1, node2, PathHandle::Linear));
+        assert!(network.has_path(node1, node2, PathHandle::Quadratic(Site::new(1.5, 1.5))));
         assert!(network.has_path(node2, node3, PathHandle::Linear));
-        assert!(network.has_path(node3, node4, PathHandle::Linear));
+        assert!(network.has_path(
+            node3,
+            node4,
+            PathHandle::Cubic(Site::new(2.0, 3.0), Site::new(1.0, 3.5))
+        ));
         assert!(!network.has_path(node0, node2, PathHandle::Linear));
 
         assert!(network.check_path_state_is_consistent());
 
         network.remove_path(node1, node2, PathHandle::Linear);
         assert!(!network.has_path(node1, node2, PathHandle::Linear));
+        assert!(network.has_path(node1, node2, PathHandle::Quadratic(Site::new(1.5, 1.5))));
         assert!(network.has_path(node2, node3, PathHandle::Linear));
 
         assert!(network.check_path_state_is_consistent());
 
         network.remove_node(node1);
-        assert!(network.has_path(node0, node1, PathHandle::Linear));
+        assert!(!network.has_path(node0, node1, PathHandle::Linear));
 
         assert!(network.check_path_state_is_consistent());
     }
