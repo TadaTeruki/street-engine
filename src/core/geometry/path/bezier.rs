@@ -1,5 +1,4 @@
 use bezier_rs::{Bezier, TValue};
-use rstar::PointDistance;
 
 use crate::core::geometry::site::Site;
 
