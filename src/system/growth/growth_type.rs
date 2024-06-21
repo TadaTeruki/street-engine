@@ -4,13 +4,16 @@ use crate::{core::container::path_network::NodeId, system::node::TransportNode};
 #[derive(Debug)]
 pub enum GrowthType {
     /// Create a new path to the new node.
-    New(TransportNode),
+    New { new_node: TransportNode },
 
     /// Extend a new path to the existing node.
-    Existing(NodeId),
+    Existing { existing_node_id: NodeId },
 
-    /// Create a new junction to the existing path.
-    Junction(TransportNode, (NodeId, NodeId)),
+    /// Create a new intersection to the existing path.
+    Intersection {
+        new_node: TransportNode,
+        path: (NodeId, NodeId),
+    },
 
     /// Do not grow the path.
     None,

@@ -4,6 +4,7 @@ use direction::PathDirectionRule;
 
 use crate::unit::{Elevation, Length};
 
+pub mod avoidance;
 pub mod branch;
 pub mod bridge;
 pub mod direction;
@@ -16,6 +17,12 @@ pub struct GrowthRule {
 
     /// Extra length of the path to search intersections.
     pub path_extra_length_for_intersection: Length,
+
+    /// Radius of the path.
+    ///
+    /// This parameter is useful for treating obstacles (e.g. rivers, other networks)
+    /// and drawing the path.
+    pub path_radius: Length,
 
     /// Maximum elevation difference of the path.
     ///
@@ -42,6 +49,7 @@ impl Default for GrowthRule {
         Self {
             path_normal_length: Length::new(0.0),
             path_extra_length_for_intersection: Length::new(0.0),
+            path_radius: Length::new(0.0),
             path_slope_elevation_diff_limit: GrowthRuleElevationDiff::AlwaysAllow,
             path_grade_separation_elevation_diff_required: GrowthRuleElevationDiff::AlwaysDeny,
             branch_rules: Default::default(),
@@ -64,6 +72,12 @@ impl GrowthRule {
         path_extra_length_for_intersection: Length,
     ) -> Self {
         self.path_extra_length_for_intersection = path_extra_length_for_intersection;
+        self
+    }
+
+    /// Set the radius of the path.
+    pub fn path_radius(mut self, path_radius: Length) -> Self {
+        self.path_radius = path_radius;
         self
     }
 
