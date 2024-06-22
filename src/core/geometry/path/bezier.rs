@@ -1,6 +1,6 @@
 use bezier_rs::{Bezier, TValue};
 
-use crate::core::geometry::{angle::Angle, line_segment::LineSegment, site::Site};
+use crate::core::geometry::{angle::Angle, site::Site};
 
 use super::{handle::PathHandle, PathTrait};
 
