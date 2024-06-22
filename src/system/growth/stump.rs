@@ -1,4 +1,24 @@
-use crate::core::{container::path_network::NodeId, geometry::angle::Angle};
+use crate::{
+    core::{
+        container::path_network::NodeId,
+        geometry::{angle::Angle, path::bezier::PathBezier},
+    },
+    system::node::TransportNode,
+};
+
+use super::{growth_type::GrowthType, relation_type::NetworkRelationType};
+
+struct EncountNode {
+    node: TransportNode,
+    //relation_type: NetworkRelationType,
+}
+
+struct EncountPath {
+    start: TransportNode,
+    end: TransportNode,
+    path: PathBezier,
+    //relation_type: NetworkRelationType,
+}
 
 /// Stump is a vector associated with a node which is used to determine the direction of the path to grow.
 #[derive(Debug, Clone, PartialEq)]
@@ -20,26 +40,33 @@ impl Stump {
             priority,
         }
     }
+
     /*
     /// Determine the next node type from related(close) nodes and paths.
     fn determine_growth(
         &self,
         node_start: &TransportNode,
-        encount_nodes: &[TransportNode],
+        encount_nodes: &[EncountNode],
+        encount_paths: &[EncountPath],
     ) -> GrowthType {
         // Existing Node
         // For this situation, path crosses are needed to be checked again because the direction of the path can be changed from original.
         {
-            let existing_node_id = related_nodes
+            let existing_node_id = encount_nodes
                 .iter()
                 .filter(|existing| {
                     // distance check for decreasing the number of candidates
+                    /*
                     LineSegment::new(search_start, node_expected_end.site)
                         .get_distance(&existing.node.site)
                         < self.params.rules.path_extra_length_for_intersection
+                        */
+
+                    true
                 })
                 .filter(|existing| {
                     // no intersection check
+                    /*
                     let has_intersection = related_paths.iter().any(|(path_start, path_end)| {
                         if existing.node_id == path_start.node_id
                             || existing.node_id == path_end.node_id
@@ -52,9 +79,13 @@ impl Stump {
                         path_line.get_intersection(&search_line).is_some()
                     });
                     !has_intersection
+                    */
+                    true
+
                 })
                 .filter_map(|existing| {
                     // if the elevation difference is too large, the path cannot be connected.
+                    /*
                     let distance = existing.node.site.distance(&search_start);
                     self.params
                         .rules
@@ -64,6 +95,8 @@ impl Stump {
                             distance,
                         )
                         .then_some(existing)
+                        */
+                    None
                 })
                 .min_by(|a, b| {
                     let distance_a = a.node.site.distance_2(&search_start);

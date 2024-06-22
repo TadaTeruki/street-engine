@@ -1,6 +1,6 @@
 use bezier_rs::{Bezier, TValue};
 
-use crate::core::geometry::site::Site;
+use crate::core::geometry::{angle::Angle, line_segment::LineSegment, site::Site};
 
 use super::{handle::PathHandle, PathTrait};
 
@@ -53,6 +53,33 @@ impl PathTrait for PathBezier {
                     start.x, start.y, handle0.x, handle0.y, handle1.x, handle1.y, end.x, end.y,
                 ),
             },
+        }
+    }
+
+    fn from_2d_vectors(
+        site_start: Site,
+        allow_with_distance_start: Option<(Angle, f64)>,
+        site_end: Site,
+        allow_with_distance_end: Option<(Angle, f64)>,
+    ) -> Self {
+        let site_start_term =
+            allow_with_distance_start.map(|(angle, distance)| site_start.extend(angle, distance));
+
+        let site_end_term =
+            allow_with_distance_end.map(|(angle, distance)| site_end.extend(angle, distance));
+
+        if let (Some(site_start_term), Some(site_end_term)) = (site_start_term, site_end_term) {
+            // if both are Some
+            Self::new_cubic(site_start, site_end, site_start_term, site_end_term)
+        } else if let Some(site_start_term) = site_start_term {
+            // if one is Some
+            Self::new_quadratic(site_start, site_end, site_start_term)
+        } else if let Some(site_end_term) = site_end_term {
+            // if one is Some
+            Self::new_quadratic(site_start, site_end, site_end_term)
+        } else {
+            // if both are None
+            Self::new_linear(site_start, site_end)
         }
     }
 

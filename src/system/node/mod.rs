@@ -1,8 +1,13 @@
-use metrics::TransportMetrics;
 use nodetype::TransportNodeType;
 use numeric::Stage;
 
-use crate::core::{container::path_network::PathNetworkNodeTrait, geometry::site::Site};
+use crate::{
+    core::{
+        container::path_network::PathNetworkNodeTrait,
+        geometry::{angle::Angle, path::bezier::PathBezier, site::Site},
+    },
+    unit::Length,
+};
 
 pub mod metrics;
 pub mod nodetype;
@@ -11,23 +16,25 @@ pub mod numeric;
 /// A node in the transport network.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransportNode {
+    /// The site of the node.
     site: Site,
+
+    /// The direction of the node.
+    direction: Angle,
+
+    /// The stage of the node.
     stage: Stage,
-    metrics: TransportMetrics,
+
+    /// The type of the node (e.g. land, bridge, tunnel, etc.)
     nodetype: TransportNodeType,
 }
 
 impl TransportNode {
-    pub fn new(
-        site: Site,
-        stage: Stage,
-        metrics: TransportMetrics,
-        nodetype: TransportNodeType,
-    ) -> Self {
+    pub fn new(site: Site, direction: Angle, stage: Stage, nodetype: TransportNodeType) -> Self {
         Self {
             site,
+            direction,
             stage,
-            metrics,
             nodetype,
         }
     }

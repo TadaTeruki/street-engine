@@ -1,4 +1,4 @@
-use super::site::Site;
+use super::{angle::Angle, site::Site};
 
 pub mod bezier;
 pub mod handle;
@@ -11,6 +11,14 @@ pub trait PathTrait {
 
     /// Create a new path with start, end sites and handles.
     fn new(start: Site, end: Site, handle: Self::Handle) -> Self;
+
+    /// Create a new path from two 2D vectors.
+    fn from_2d_vectors(
+        site_start: Site,
+        allow_with_distance_start: Option<(Angle, f64)>,
+        site_end: Site,
+        allow_with_distance_end: Option<(Angle, f64)>,
+    ) -> Self;
 
     /// Get the handle of the path.
     fn get_handle(&self) -> Self::Handle;
