@@ -2,21 +2,23 @@ use bezier_rs::{Bezier, TValue};
 
 use crate::core::geometry::{angle::Angle, site::Site};
 
-use super::{handle::PathHandle, PathTrait};
+use super::handle::PathHandle;
 
 /// Representation of a bezier curve.
 ///
 /// This is a wrapper around the bezier-rs crate.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PathBezier {
     curve: Bezier,
 }
+
+impl Eq for PathBezier {}
 
 impl PathBezier {
     /// Create a new linear bezier curve.
     ///
     /// This function is a shortcut for `Path::new` with `PathHandle::Linear`.
-    pub fn new_linear(start: Site, end: Site) -> Self {
+    fn new_linear(start: Site, end: Site) -> Self {
         Self::new(start, end, PathHandle::Linear)
     }
 
@@ -30,15 +32,12 @@ impl PathBezier {
     /// Create a new cubic bezier curve.
     ///
     /// This function is a shortcut for `Path::new` with `PathHandle::Cubic`.
-    pub fn new_cubic(start: Site, end: Site, handle0: Site, handle1: Site) -> Self {
+    fn new_cubic(start: Site, end: Site, handle0: Site, handle1: Site) -> Self {
         Self::new(start, end, PathHandle::Cubic(handle0, handle1))
     }
-}
 
-impl PathTrait for PathBezier {
-    type Handle = PathHandle;
-
-    fn new(start: Site, end: Site, handles: PathHandle) -> Self {
+    /// Create a new bezier curve.
+    pub fn new(start: Site, end: Site, handles: PathHandle) -> Self {
         match handles {
             PathHandle::Linear => Self {
                 curve: Bezier::from_linear_coordinates(start.x, start.y, end.x, end.y),
@@ -56,7 +55,8 @@ impl PathTrait for PathBezier {
         }
     }
 
-    fn from_2d_vectors(
+    /// Create a new bezier curve from two 2D vectors.
+    pub fn from_2d_vectors(
         site_start: Site,
         allow_with_distance_start: Option<(Angle, f64)>,
         site_end: Site,
@@ -83,7 +83,7 @@ impl PathTrait for PathBezier {
         }
     }
 
-    fn get_handle(&self) -> PathHandle {
+    pub fn get_handle(&self) -> PathHandle {
         let points = self
             .curve
             .get_points()
@@ -97,7 +97,7 @@ impl PathTrait for PathBezier {
         }
     }
 
-    fn get_intersections(&self, other: &Self) -> Vec<Site> {
+    pub fn get_intersections(&self, other: &Self) -> Vec<Site> {
         let intersections = self.curve.intersections(&other.curve, None, None);
         intersections
             .iter()
@@ -106,7 +106,7 @@ impl PathTrait for PathBezier {
             .collect::<Vec<Site>>()
     }
 
-    fn get_projection(&self, site: &Site) -> Option<Site> {
+    pub fn get_projection(&self, site: &Site) -> Option<Site> {
         let projection_ts = self.curve.normals_to_point(glam::DVec2 {
             x: site.x,
             y: site.y,
@@ -119,7 +119,7 @@ impl PathTrait for PathBezier {
             .min_by(|a, b| site.distance_2(&a).total_cmp(&site.distance_2(&b)))
     }
 
-    fn get_distance(&self, site: &Site) -> f64 {
+    pub fn get_distance(&self, site: &Site) -> f64 {
         if let Some(projection) = self.get_projection(site) {
             site.distance(&projection)
         } else {
@@ -128,7 +128,7 @@ impl PathTrait for PathBezier {
         }
     }
 
-    fn get_bounds(&self) -> (Site, Site) {
+    pub fn get_bounds(&self) -> (Site, Site) {
         let bounds = self.curve.bounding_box();
         (
             Site::new(bounds[0].x, bounds[0].y),

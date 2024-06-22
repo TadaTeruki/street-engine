@@ -2,10 +2,7 @@ use std::collections::BTreeMap;
 
 use rstar::RTree;
 
-use crate::core::{
-    generator::id_generator::IdGenerator,
-    geometry::{path::PathTrait, site::Site},
-};
+use crate::core::{generator::id_generator::IdGenerator, geometry::site::Site};
 
 use super::{
     index_object::{NodeTreeObject, PathTreeObject},
@@ -13,8 +10,31 @@ use super::{
 };
 
 /// Trait for a node in the path network.
-pub trait PathNetworkNodeTrait: Eq + Clone {
+pub trait NodeTrait: Eq + Clone {
     fn get_site(&self) -> Site;
+}
+
+/// Trait for paths.
+pub trait PathTrait {
+    type Attribution: Clone + Eq;
+
+    /// Create a new path with start, end sites and attribution.
+    fn new(start: Site, end: Site, attribution: Self::Attribution) -> Self;
+
+    /// Get the attribution of the path.
+    fn get_attribution(&self) -> Self::Attribution;
+
+    /// Calculate the intersection of two paths or return None.
+    fn get_intersections(&self, other: &Self) -> Vec<Site>;
+
+    /// Calculate the perpendicular projection of the site on the path.
+    fn get_projection(&self, site: &Site) -> Option<Site>;
+
+    /// Calculate the distance from the site to the path.
+    fn get_distance(&self, site: &Site) -> f64;
+
+    /// Calculate the bounds of the path and return the corner (min, max) sites.
+    fn get_bounds(&self) -> (Site, Site);
 }
 
 /// ID for identifying a node in the network.
@@ -36,19 +56,19 @@ impl NodeId {
 #[derive(Debug, Clone)]
 pub struct PathNetwork<N, P>
 where
-    N: PathNetworkNodeTrait,
+    N: NodeTrait,
     P: PathTrait,
 {
     nodes: BTreeMap<NodeId, N>,
     path_tree: RTree<PathTreeObject<NodeId, P>>,
     node_tree: RTree<NodeTreeObject<NodeId>>,
-    path_connection: UndirectedGraph<NodeId, P::Handle>,
+    path_connection: UndirectedGraph<NodeId, P::Attribution>,
     id_generator: IdGenerator,
 }
 
 impl<N, P> Default for PathNetwork<N, P>
 where
-    N: PathNetworkNodeTrait,
+    N: NodeTrait,
     P: PathTrait,
 {
     fn default() -> Self {
@@ -58,7 +78,7 @@ where
 
 impl<N, P> PathNetwork<N, P>
 where
-    N: PathNetworkNodeTrait,
+    N: NodeTrait,
     P: PathTrait,
 {
     /// Create a new path network.
@@ -76,7 +96,7 @@ where
     ///
     /// This function always returns an optimized path network as a result
     /// because all nodes and paths are bulk added to the network.
-    pub fn from(nodes: Vec<N>, paths: &[(usize, usize, P::Handle)]) -> Option<Self> {
+    pub fn from(nodes: Vec<N>, paths: &[(usize, usize, P::Attribution)]) -> Option<Self> {
         let mut id_generator: IdGenerator = IdGenerator::new();
 
         // distribute NodeIds to nodes
@@ -221,26 +241,26 @@ where
         &mut self,
         start: NodeId,
         end: NodeId,
-        handle: P::Handle,
-    ) -> Option<(NodeId, NodeId, P::Handle)> {
+        attr: P::Attribution,
+    ) -> Option<(NodeId, NodeId, P::Attribution)> {
         if start == end {
             return None;
         }
-        if self.path_connection.has_edge(start, end, &handle).is_some() {
+        if self.path_connection.has_edge(start, end, &attr).is_some() {
             return None;
         }
 
         if let (Some(start_node), Some(end_node)) = (self.nodes.get(&start), self.nodes.get(&end)) {
-            self.path_connection.add_edge(start, end, handle.clone());
+            self.path_connection.add_edge(start, end, attr.clone());
 
             let (start_site, end_site) = ((*start_node).get_site(), (*end_node).get_site());
 
             self.path_tree.insert(PathTreeObject::new(
-                P::new(start_site, end_site, handle.clone()),
+                P::new(start_site, end_site, attr.clone()),
                 (start, end),
             ));
 
-            Some((start, end, handle))
+            Some((start, end, attr))
         } else {
             None
         }
@@ -251,7 +271,7 @@ where
         &mut self,
         start: NodeId,
         end: NodeId,
-        handle: P::Handle,
+        attr: P::Attribution,
     ) -> Option<(NodeId, NodeId)> {
         let (start_site, end_site) = if let (Some(start_node), Some(end_node)) =
             (self.nodes.get(&start), self.nodes.get(&end))
@@ -261,10 +281,10 @@ where
             return None;
         };
 
-        self.path_connection.remove_edge(start, end, handle.clone());
+        self.path_connection.remove_edge(start, end, attr.clone());
 
         self.path_tree.remove(&PathTreeObject::new(
-            P::new(start_site, end_site, handle),
+            P::new(start_site, end_site, attr),
             (start, end),
         ));
 
@@ -295,8 +315,8 @@ where
     }
 
     /// Check if there is a path between two nodes.
-    pub fn has_path(&self, start: NodeId, to: NodeId, handle: P::Handle) -> bool {
-        self.path_connection.has_edge(start, to, &handle).is_some()
+    pub fn has_path(&self, start: NodeId, to: NodeId, attr: P::Attribution) -> bool {
+        self.path_connection.has_edge(start, to, &attr).is_some()
     }
 
     /// Search nodes around a site within a radius.
@@ -350,7 +370,7 @@ where
     /// Parse the network into a list of nodes and paths.
     ///
     /// This function is not exposed now, but it may be useful in the future.
-    fn parse(&self) -> (Vec<N>, Vec<(usize, usize, P::Handle)>) {
+    fn parse(&self) -> (Vec<N>, Vec<(usize, usize, P::Attribution)>) {
         let nodes = self.nodes.values().collect::<Vec<_>>();
 
         // temporary data structure to convert NodeId to usize
@@ -370,7 +390,7 @@ where
                     self.path_connection
                         .has_connection(start, end)?
                         .iter()
-                        .map(|handle| (start_index, end_index, handle.clone()))
+                        .map(|attr| (start_index, end_index, attr.clone()))
                         .collect::<Vec<_>>(),
                 )
             })
@@ -407,27 +427,56 @@ mod tests {
     /// Node for testing the path network.
     /// This struct is used only for testing.
     #[derive(Debug, Clone, PartialEq, Eq)]
-    struct MockNode {
-        site: Site,
-    }
+    struct MockNode(Site);
 
     impl MockNode {
         fn new(x: f64, y: f64) -> Self {
-            Self {
-                site: Site::new(x, y),
-            }
+            Self(Site::new(x, y))
         }
     }
 
-    impl PathNetworkNodeTrait for MockNode {
+    impl NodeTrait for MockNode {
         fn get_site(&self) -> Site {
-            self.site
+            self.0
+        }
+    }
+
+    /// Path for testing the path network.
+    /// This struct is used only for testing.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct MockPath(PathBezier);
+
+    impl PathTrait for MockPath {
+        type Attribution = PathHandle;
+
+        fn new(start: Site, end: Site, attribution: Self::Attribution) -> Self {
+            Self(PathBezier::new(start, end, attribution))
+        }
+
+        fn get_attribution(&self) -> Self::Attribution {
+            self.0.get_handle()
+        }
+
+        fn get_intersections(&self, other: &Self) -> Vec<Site> {
+            self.0.get_intersections(&other.0)
+        }
+
+        fn get_projection(&self, site: &Site) -> Option<Site> {
+            self.0.get_projection(site)
+        }
+
+        fn get_distance(&self, site: &Site) -> f64 {
+            self.0.get_distance(site)
+        }
+
+        fn get_bounds(&self) -> (Site, Site) {
+            self.0.get_bounds()
         }
     }
 
     #[test]
     fn test_path_network() {
-        let mut network: PathNetwork<MockNode, PathBezier> = PathNetwork::new();
+        let mut network: PathNetwork<MockNode, MockPath> = PathNetwork::new();
         let node0 = network.add_node(MockNode::new(0.0, 0.0));
         let node1 = network.add_node(MockNode::new(1.0, 1.0));
         let node2 = network.add_node(MockNode::new(2.0, 2.0));
@@ -473,7 +522,7 @@ mod tests {
 
     #[test]
     fn test_path_crossing_no_crosses() {
-        let mut network: PathNetwork<MockNode, PathBezier> = PathNetwork::new();
+        let mut network: PathNetwork<MockNode, MockPath> = PathNetwork::new();
         let node0 = network.add_node(MockNode::new(0.0, 1.0));
         let node1 = network.add_node(MockNode::new(2.0, 3.0));
         let node2 = network.add_node(MockNode::new(4.0, 5.0));
@@ -491,7 +540,7 @@ mod tests {
 
     #[test]
     fn test_path_crossing_all_cross() {
-        let mut network: PathNetwork<MockNode, PathBezier> = PathNetwork::new();
+        let mut network: PathNetwork<MockNode, MockPath> = PathNetwork::new();
 
         let nodes = vec![
             MockNode::new(0.0, 2.0),
@@ -531,7 +580,7 @@ mod tests {
 
     #[test]
     fn test_nodes_around_site() {
-        let mut network = PathNetwork::new();
+        let mut network: PathNetwork<MockNode, MockPath> = PathNetwork::new();
         let node0 = network.add_node(MockNode::new(0.0, 0.0));
         let node1 = network.add_node(MockNode::new(1.0, 1.0));
         let node2 = network.add_node(MockNode::new(2.0, 2.0));
@@ -562,13 +611,13 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 3);
 
-        let line = PathBezier::new(Site::new(1.0, 3.0), Site::new(3.0, 2.0), PathHandle::Linear);
+        let line = MockPath::new(Site::new(1.0, 3.0), Site::new(3.0, 2.0), PathHandle::Linear);
         let nodes = network
             .nodes_around_path_iter(line, 1.0)
             .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 3);
 
-        let line = PathBezier::new(Site::new(1.0, 0.0), Site::new(0.0, 1.0), PathHandle::Linear);
+        let line = MockPath::new(Site::new(1.0, 0.0), Site::new(0.0, 1.0), PathHandle::Linear);
         let nodes = network
             .nodes_around_path_iter(line, 2.5)
             .collect::<Vec<_>>();
@@ -583,7 +632,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 1);
 
-        let line = PathBezier::new(Site::new(1.0, 0.0), Site::new(0.0, 1.0), PathHandle::Linear);
+        let line = MockPath::new(Site::new(1.0, 0.0), Site::new(0.0, 1.0), PathHandle::Linear);
         let nodes = network
             .nodes_around_path_iter(line, 2.5)
             .collect::<Vec<_>>();
@@ -618,7 +667,7 @@ mod tests {
             paths
         };
 
-        let mut network0: PathNetwork<MockNode, PathBezier> = PathNetwork::new();
+        let mut network0: PathNetwork<MockNode, MockPath> = PathNetwork::new();
         let nodeids0 = nodes
             .clone()
             .into_iter()
@@ -629,7 +678,7 @@ mod tests {
             network0.add_path(nodeids0[*start], nodeids0[*end], handle.clone());
         }
 
-        let network1: PathNetwork<MockNode, PathBezier> =
+        let network1: PathNetwork<MockNode, MockPath> =
             PathNetwork::from(nodes.clone(), &paths).unwrap();
         let nodeids1 = nodes
             .iter()
@@ -671,7 +720,7 @@ mod tests {
 
         let loop_count = 10;
 
-        let mut network: PathNetwork<MockNode, PathBezier> = PathNetwork::new();
+        let mut network: PathNetwork<MockNode, MockPath> = PathNetwork::new();
 
         let nodeids = nodes
             .clone()

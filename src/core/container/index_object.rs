@@ -1,6 +1,8 @@
 use rstar::{PointDistance, RTreeObject};
 
-use crate::core::geometry::{path::PathTrait, site::Site};
+use crate::core::geometry::site::Site;
+
+use super::path_network::PathTrait;
 
 pub trait PathTreeIDTrait: Copy + PartialEq {}
 impl<T> PathTreeIDTrait for T where T: Copy + PartialEq {}
