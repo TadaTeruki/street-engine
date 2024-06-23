@@ -29,14 +29,14 @@ where
 }
 
 /// Undirected edge-attributed multigraph.
-/// 
+///
 /// This is a graph where the edges are undirected, have attributes
 /// and can have multiple paths between two nodes.
-/// 
+///
 /// N: Node.
-/// 
+///
 /// H: Handle. This is the identifier of the edge.
-/// 
+///
 /// A: Attribute. This is the attribute of the edge.
 #[derive(Debug, Clone)]
 pub struct UeamGraph<N, H, A>
