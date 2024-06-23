@@ -43,7 +43,6 @@ pub struct UeamGraph<N, H, A>
 where
     N: Eq + Ord + Copy,
     H: Eq,
-    A: Eq,
 {
     edges: BTreeMap<N, BTreeSet<N>>,
     handles: BTreeMap<GraphKey<N>, Vec<(H, A)>>,
@@ -53,7 +52,6 @@ impl<N, H, A> UeamGraph<N, H, A>
 where
     N: Eq + Ord + Copy,
     H: Eq,
-    A: Eq,
 {
     /// Create a new undirected graph.
     pub fn new() -> Self {

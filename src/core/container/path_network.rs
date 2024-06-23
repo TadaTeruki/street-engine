@@ -59,7 +59,7 @@ pub struct PathNetwork<N, P, PA>
 where
     N: NodeTrait,
     P: PathTrait,
-    PA: Eq,
+    PA: Clone,
 {
     nodes: BTreeMap<NodeId, N>,
     path_tree: RTree<PathTreeObject<NodeId, P>>,
@@ -72,7 +72,7 @@ impl<N, P, PA> Default for PathNetwork<N, P, PA>
 where
     N: NodeTrait,
     P: PathTrait,
-    PA: Clone + Eq,
+    PA: Clone,
 {
     fn default() -> Self {
         Self::new()
@@ -83,7 +83,7 @@ impl<N, P, PA> PathNetwork<N, P, PA>
 where
     N: NodeTrait,
     P: PathTrait,
-    PA: Clone + Eq,
+    PA: Clone,
 {
     /// Create a new path network.
     pub fn new() -> Self {
