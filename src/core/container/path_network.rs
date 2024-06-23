@@ -16,13 +16,13 @@ pub trait NodeTrait: Eq + Clone {
 
 /// Trait for paths.
 pub trait PathTrait {
-    type Attribution: Clone + Eq;
+    type Handle: Copy + Eq;
 
-    /// Create a new path with start, end sites and attribution.
-    fn new(start: Site, end: Site, attribution: Self::Attribution) -> Self;
+    /// Create a new path with start, end sites.
+    fn new(start: Site, end: Site, handle: Self::Handle) -> Self;
 
-    /// Get the attribution of the path.
-    fn get_attribution(&self) -> Self::Attribution;
+    /// Get the handle of the path.
+    fn get_handle(&self) -> Self::Handle;
 
     /// Calculate the intersection of two paths or return None.
     fn get_intersections(&self, other: &Self) -> Vec<Site>;
@@ -62,7 +62,7 @@ where
     nodes: BTreeMap<NodeId, N>,
     path_tree: RTree<PathTreeObject<NodeId, P>>,
     node_tree: RTree<NodeTreeObject<NodeId>>,
-    path_connection: UndirectedGraph<NodeId, P::Attribution>,
+    path_connection: UndirectedGraph<NodeId, P::Handle>,
     id_generator: IdGenerator,
 }
 
@@ -96,7 +96,7 @@ where
     ///
     /// This function always returns an optimized path network as a result
     /// because all nodes and paths are bulk added to the network.
-    pub fn from(nodes: Vec<N>, paths: &[(usize, usize, P::Attribution)]) -> Option<Self> {
+    pub fn from(nodes: Vec<N>, paths: &[(usize, usize, P::Handle)]) -> Option<Self> {
         let mut id_generator: IdGenerator = IdGenerator::new();
 
         // distribute NodeIds to nodes
@@ -112,7 +112,7 @@ where
         let paths = paths
             .iter()
             .filter_map(|(start, end, handle)| {
-                Some((nodes.get(*start)?.0, nodes.get(*end)?.0, handle.clone()))
+                Some((nodes.get(*start)?.0, nodes.get(*end)?.0, *handle))
             })
             .collect::<Vec<_>>();
         // if there are invalid paths, return None
@@ -131,7 +131,7 @@ where
         let path_connection = paths.iter().fold(
             UndirectedGraph::new(),
             |mut path_connection, (start, end, handle)| {
-                path_connection.add_edge(*start, *end, handle.clone());
+                path_connection.add_edge(*start, *end, *handle);
                 path_connection
             },
         );
@@ -145,7 +145,7 @@ where
                     let (start_site, end_site) =
                         (nodes.get(start)?.get_site(), nodes.get(end)?.get_site());
                     Some(PathTreeObject::new(
-                        P::new(start_site, end_site, handle.clone()),
+                        P::new(start_site, end_site, *handle),
                         (*start, *end),
                     ))
                 })
@@ -241,26 +241,26 @@ where
         &mut self,
         start: NodeId,
         end: NodeId,
-        attr: P::Attribution,
-    ) -> Option<(NodeId, NodeId, P::Attribution)> {
+        handle: P::Handle,
+    ) -> Option<(NodeId, NodeId, P::Handle)> {
         if start == end {
             return None;
         }
-        if self.path_connection.has_edge(start, end, &attr).is_some() {
+        if self.path_connection.has_edge(start, end, &handle).is_some() {
             return None;
         }
 
         if let (Some(start_node), Some(end_node)) = (self.nodes.get(&start), self.nodes.get(&end)) {
-            self.path_connection.add_edge(start, end, attr.clone());
+            self.path_connection.add_edge(start, end, handle.clone());
 
             let (start_site, end_site) = ((*start_node).get_site(), (*end_node).get_site());
 
             self.path_tree.insert(PathTreeObject::new(
-                P::new(start_site, end_site, attr.clone()),
+                P::new(start_site, end_site, handle.clone()),
                 (start, end),
             ));
 
-            Some((start, end, attr))
+            Some((start, end, handle))
         } else {
             None
         }
@@ -271,7 +271,7 @@ where
         &mut self,
         start: NodeId,
         end: NodeId,
-        attr: P::Attribution,
+        handle: P::Handle,
     ) -> Option<(NodeId, NodeId)> {
         let (start_site, end_site) = if let (Some(start_node), Some(end_node)) =
             (self.nodes.get(&start), self.nodes.get(&end))
@@ -281,10 +281,10 @@ where
             return None;
         };
 
-        self.path_connection.remove_edge(start, end, attr.clone());
+        self.path_connection.remove_edge(start, end, handle.clone());
 
         self.path_tree.remove(&PathTreeObject::new(
-            P::new(start_site, end_site, attr),
+            P::new(start_site, end_site, handle),
             (start, end),
         ));
 
@@ -315,8 +315,8 @@ where
     }
 
     /// Check if there is a path between two nodes.
-    pub fn has_path(&self, start: NodeId, to: NodeId, attr: P::Attribution) -> bool {
-        self.path_connection.has_edge(start, to, &attr).is_some()
+    pub fn has_path(&self, start: NodeId, to: NodeId, handle: P::Handle) -> bool {
+        self.path_connection.has_edge(start, to, &handle).is_some()
     }
 
     /// Search nodes around a site within a radius.
@@ -370,7 +370,7 @@ where
     /// Parse the network into a list of nodes and paths.
     ///
     /// This function is not exposed now, but it may be useful in the future.
-    fn parse(&self) -> (Vec<N>, Vec<(usize, usize, P::Attribution)>) {
+    fn parse(&self) -> (Vec<N>, Vec<(usize, usize, P::Handle)>) {
         let nodes = self.nodes.values().collect::<Vec<_>>();
 
         // temporary data structure to convert NodeId to usize
@@ -390,7 +390,7 @@ where
                     self.path_connection
                         .has_connection(start, end)?
                         .iter()
-                        .map(|attr| (start_index, end_index, attr.clone()))
+                        .map(|handle| (start_index, end_index, handle.clone()))
                         .collect::<Vec<_>>(),
                 )
             })
@@ -447,13 +447,13 @@ mod tests {
     struct MockPath(PathBezier);
 
     impl PathTrait for MockPath {
-        type Attribution = PathHandle;
+        type Handle = PathHandle;
 
-        fn new(start: Site, end: Site, attribution: Self::Attribution) -> Self {
-            Self(PathBezier::new(start, end, attribution))
+        fn new(start: Site, end: Site, handle: Self::Handle) -> Self {
+            Self(PathBezier::new(start, end, handle))
         }
 
-        fn get_attribution(&self) -> Self::Attribution {
+        fn get_handle(&self) -> Self::Handle {
             self.0.get_handle()
         }
 
