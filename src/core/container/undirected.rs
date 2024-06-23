@@ -97,6 +97,7 @@ where
         Some((a, b))
     }
 
+    /// Check if the two nodes are connected with the attribute.
     pub fn has_edge(&self, a: N, b: N, attr: &A) -> Option<&A> {
         self.attributions
             .get(&AttributionKey::new(a, b))

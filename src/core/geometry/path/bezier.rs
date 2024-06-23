@@ -209,4 +209,24 @@ mod tests {
         let site = Site::new(1.0, 3.0);
         assert_eq!(line.get_projection(&site), None);
     }
+
+    #[test]
+    fn test_bounds() {
+        // linear
+        let line = PathBezier::new_linear(Site::new(1.0, 1.0), Site::new(3.0, 3.0));
+        assert_eq!(
+            line.get_bounds(),
+            (Site::new(1.0, 1.0), Site::new(3.0, 3.0))
+        );
+
+        // curved
+        let line = PathBezier::from_2d_vectors(
+            Site::new(1.0, 1.0),
+            Some((Angle::new(0.0), 1.0)),
+            Site::new(3.0, 3.0),
+            Some((Angle::new(0.0), 1.0)),
+        );
+        println!("{:?}", line.get_bounds());
+        assert!(line.get_bounds().0.y < 1.0);
+    }
 }

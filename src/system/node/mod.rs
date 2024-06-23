@@ -1,12 +1,9 @@
 use nodetype::TransportNodeType;
 use numeric::Stage;
 
-use crate::{
-    core::{
-        container::path_network::NodeTrait,
-        geometry::{angle::Angle, path::bezier::PathBezier, site::Site},
-    },
-    unit::Length,
+use crate::core::{
+    container::path_network::NodeTrait,
+    geometry::{angle::Angle, site::Site},
 };
 
 pub mod metrics;
