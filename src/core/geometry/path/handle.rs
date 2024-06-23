@@ -4,18 +4,23 @@ use crate::core::geometry::site::Site;
 ///
 /// This is a wrapper around the bezier-rs crate.
 #[derive(Debug, Copy, Clone)]
-pub enum PathHandle {
+pub enum PathBezierHandle {
     Linear,
     Quadratic(Site),
     Cubic(Site, Site),
 }
 
-impl PartialEq for PathHandle {
+impl PartialEq for PathBezierHandle {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (PathHandle::Linear, PathHandle::Linear) => true,
-            (PathHandle::Quadratic(handle0), PathHandle::Quadratic(handle1)) => handle0 == handle1,
-            (PathHandle::Cubic(handle0, handle1), PathHandle::Cubic(handle2, handle3)) => {
+            (PathBezierHandle::Linear, PathBezierHandle::Linear) => true,
+            (PathBezierHandle::Quadratic(handle0), PathBezierHandle::Quadratic(handle1)) => {
+                handle0 == handle1
+            }
+            (
+                PathBezierHandle::Cubic(handle0, handle1),
+                PathBezierHandle::Cubic(handle2, handle3),
+            ) => {
                 (handle0, handle1) == (handle2, handle3) || (handle0, handle1) == (handle3, handle2)
             }
             _ => false,
@@ -23,4 +28,4 @@ impl PartialEq for PathHandle {
     }
 }
 
-impl Eq for PathHandle {}
+impl Eq for PathBezierHandle {}

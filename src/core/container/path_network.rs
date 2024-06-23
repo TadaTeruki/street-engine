@@ -18,18 +18,10 @@ pub trait NodeTrait: Eq + Clone {
 pub trait PathTrait {
     /// Handle for the path. This is the identifier of the path.
     type Handle: Copy + Eq;
+    type Position: Copy;
 
     /// Create a new path with start, end sites.
     fn new(start: Site, end: Site, handle: Self::Handle) -> Self;
-
-    /// Get the handle of the path.
-    fn get_handle(&self) -> Self::Handle;
-
-    /// Calculate the intersection of two paths or return None.
-    fn get_intersections(&self, other: &Self) -> Vec<Site>;
-
-    /// Calculate the perpendicular projection of the site on the path.
-    fn get_projection(&self, site: &Site) -> Option<Site>;
 
     /// Calculate the distance from the site to the path.
     fn get_distance(&self, site: &Site) -> f64;
@@ -437,7 +429,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::core::geometry::path::{bezier::PathBezier, handle::PathHandle};
+    use crate::core::geometry::path::{
+        bezier::{PathBezier, PathBezierPosition},
+        handle::PathBezierHandle,
+    };
 
     use super::*;
 
@@ -464,22 +459,11 @@ mod tests {
     struct MockPath(PathBezier);
 
     impl PathTrait for MockPath {
-        type Handle = PathHandle;
+        type Handle = PathBezierHandle;
+        type Position = PathBezierPosition;
 
         fn new(start: Site, end: Site, handle: Self::Handle) -> Self {
             Self(PathBezier::new(start, end, handle))
-        }
-
-        fn get_handle(&self) -> Self::Handle {
-            self.0.get_handle()
-        }
-
-        fn get_intersections(&self, other: &Self) -> Vec<Site> {
-            self.0.get_intersections(&other.0)
-        }
-
-        fn get_projection(&self, site: &Site) -> Option<Site> {
-            self.0.get_projection(site)
         }
 
         fn get_distance(&self, site: &Site) -> f64 {
@@ -507,64 +491,82 @@ mod tests {
         let node3 = network.add_node(MockNode::new(3.0, 3.0));
         let node4 = network.add_node(MockNode::new(1.0, 4.0));
 
-        network.add_path(node0, node1, PathHandle::Linear, MockAttr::A);
-        network.add_path(node1, node2, PathHandle::Linear, MockAttr::B);
+        network.add_path(node0, node1, PathBezierHandle::Linear, MockAttr::A);
+        network.add_path(node1, node2, PathBezierHandle::Linear, MockAttr::B);
         network.add_path(
             node1,
             node2,
-            PathHandle::Quadratic(Site::new(1.5, 1.5)),
+            PathBezierHandle::Quadratic(Site::new(1.5, 1.5)),
             MockAttr::C,
         );
-        network.add_path(node2, node3, PathHandle::Linear, MockAttr::C);
+        network.add_path(node2, node3, PathBezierHandle::Linear, MockAttr::C);
         network.add_path(
             node3,
             node4,
-            PathHandle::Cubic(Site::new(2.0, 3.0), Site::new(1.0, 3.5)),
+            PathBezierHandle::Cubic(Site::new(2.0, 3.0), Site::new(1.0, 3.5)),
             MockAttr::A,
         );
-        network.add_path(node4, node2, PathHandle::Linear, MockAttr::A);
+        network.add_path(node4, node2, PathBezierHandle::Linear, MockAttr::A);
         assert_eq!(
-            network.has_path(node0, node1, PathHandle::Linear),
+            network.has_path(node0, node1, PathBezierHandle::Linear),
             Some(MockAttr::A)
         );
         assert_eq!(
-            network.has_path(node1, node2, PathHandle::Linear),
+            network.has_path(node1, node2, PathBezierHandle::Linear),
             Some(MockAttr::B)
         );
         assert_eq!(
-            network.has_path(node1, node2, PathHandle::Quadratic(Site::new(1.5, 1.5))),
+            network.has_path(
+                node1,
+                node2,
+                PathBezierHandle::Quadratic(Site::new(1.5, 1.5))
+            ),
             Some(MockAttr::C)
         );
         assert_eq!(
-            network.has_path(node2, node3, PathHandle::Linear),
+            network.has_path(node2, node3, PathBezierHandle::Linear),
             Some(MockAttr::C)
         );
         assert_eq!(
             network.has_path(
                 node3,
                 node4,
-                PathHandle::Cubic(Site::new(2.0, 3.0), Site::new(1.0, 3.5))
+                PathBezierHandle::Cubic(Site::new(2.0, 3.0), Site::new(1.0, 3.5))
             ),
             Some(MockAttr::A)
         );
 
         assert_eq!(
-            network.has_path(node0, node1, PathHandle::Quadratic(Site::new(1.5, 1.5))),
+            network.has_path(
+                node0,
+                node1,
+                PathBezierHandle::Quadratic(Site::new(1.5, 1.5))
+            ),
             None
         );
-        assert_eq!(network.has_path(node0, node2, PathHandle::Linear), None);
+        assert_eq!(
+            network.has_path(node0, node2, PathBezierHandle::Linear),
+            None
+        );
 
         assert!(network.check_path_state_is_consistent());
 
         // remove paths
-        network.remove_path(node1, node2, PathHandle::Linear);
-        assert_eq!(network.has_path(node1, node2, PathHandle::Linear), None);
+        network.remove_path(node1, node2, PathBezierHandle::Linear);
         assert_eq!(
-            network.has_path(node1, node2, PathHandle::Quadratic(Site::new(1.5, 1.5))),
+            network.has_path(node1, node2, PathBezierHandle::Linear),
+            None
+        );
+        assert_eq!(
+            network.has_path(
+                node1,
+                node2,
+                PathBezierHandle::Quadratic(Site::new(1.5, 1.5))
+            ),
             Some(MockAttr::C)
         );
         assert_eq!(
-            network.has_path(node2, node3, PathHandle::Linear),
+            network.has_path(node2, node3, PathBezierHandle::Linear),
             Some(MockAttr::C)
         );
 
@@ -572,7 +574,10 @@ mod tests {
 
         network.remove_node(node1);
 
-        assert_eq!(network.has_path(node0, node1, PathHandle::Linear), None);
+        assert_eq!(
+            network.has_path(node0, node1, PathBezierHandle::Linear),
+            None
+        );
 
         assert!(network.check_path_state_is_consistent());
     }
@@ -584,8 +589,8 @@ mod tests {
         let node1 = network.add_node(MockNode::new(2.0, 3.0));
         let node2 = network.add_node(MockNode::new(4.0, 5.0));
 
-        network.add_path(node0, node1, PathHandle::Linear, ());
-        network.add_path(node1, node2, PathHandle::Linear, ());
+        network.add_path(node0, node1, PathBezierHandle::Linear, ());
+        network.add_path(node1, node2, PathBezierHandle::Linear, ());
 
         let paths = network
             .paths_touching_rect_iter(Site::new(0.0, 0.0), Site::new(1.0, 1.0))
@@ -594,7 +599,12 @@ mod tests {
 
         let node3 = network.add_node(MockNode::new(-0.5, 0.0));
         let node4 = network.add_node(MockNode::new(-0.5, 1.0));
-        network.add_path(node3, node4, PathHandle::Quadratic(Site::new(0.5, 1.5)), ());
+        network.add_path(
+            node3,
+            node4,
+            PathBezierHandle::Quadratic(Site::new(0.5, 1.5)),
+            (),
+        );
 
         let paths = network
             .paths_touching_rect_iter(Site::new(0.0, 0.0), Site::new(1.0, 1.0))
@@ -624,7 +634,7 @@ mod tests {
             // Add all paths between nodes
             // When i == j, the path is expected to be ignored
             for j in i..nodes.len() {
-                network.add_path(nodes[i], nodes[j], PathHandle::Linear, ());
+                network.add_path(nodes[i], nodes[j], PathBezierHandle::Linear, ());
             }
         }
 
@@ -632,7 +642,7 @@ mod tests {
             for j in 0..nodes.len() {
                 if i != j {
                     assert!(network
-                        .has_path(NodeId(i), NodeId(j), PathHandle::Linear)
+                        .has_path(NodeId(i), NodeId(j), PathBezierHandle::Linear)
                         .is_some());
                 }
             }
@@ -655,11 +665,11 @@ mod tests {
         let node3 = network.add_node(MockNode::new(3.0, 3.0));
         let node4 = network.add_node(MockNode::new(1.0, 4.0));
 
-        network.add_path(node0, node1, PathHandle::Linear, ());
-        network.add_path(node1, node2, PathHandle::Linear, ());
-        network.add_path(node2, node3, PathHandle::Linear, ());
-        network.add_path(node3, node4, PathHandle::Linear, ());
-        network.add_path(node4, node2, PathHandle::Linear, ());
+        network.add_path(node0, node1, PathBezierHandle::Linear, ());
+        network.add_path(node1, node2, PathBezierHandle::Linear, ());
+        network.add_path(node2, node3, PathBezierHandle::Linear, ());
+        network.add_path(node3, node4, PathBezierHandle::Linear, ());
+        network.add_path(node4, node2, PathBezierHandle::Linear, ());
 
         let site = Site::new(1.0, 1.0);
         let nodes = network
@@ -679,19 +689,27 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 3);
 
-        let line = MockPath::new(Site::new(1.0, 3.0), Site::new(3.0, 2.0), PathHandle::Linear);
+        let line = MockPath::new(
+            Site::new(1.0, 3.0),
+            Site::new(3.0, 2.0),
+            PathBezierHandle::Linear,
+        );
         let nodes = network
             .nodes_around_path_iter(line, 1.0)
             .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 3);
 
-        let line = MockPath::new(Site::new(1.0, 0.0), Site::new(0.0, 1.0), PathHandle::Linear);
+        let line = MockPath::new(
+            Site::new(1.0, 0.0),
+            Site::new(0.0, 1.0),
+            PathBezierHandle::Linear,
+        );
         let nodes = network
             .nodes_around_path_iter(line, 2.5)
             .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 3);
 
-        network.remove_path(node3, node4, PathHandle::Linear);
+        network.remove_path(node3, node4, PathBezierHandle::Linear);
         network.remove_node(node1);
 
         let site = Site::new(2.0, 1.0);
@@ -700,7 +718,11 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(nodes.len(), 1);
 
-        let line = MockPath::new(Site::new(1.0, 0.0), Site::new(0.0, 1.0), PathHandle::Linear);
+        let line = MockPath::new(
+            Site::new(1.0, 0.0),
+            Site::new(0.0, 1.0),
+            PathBezierHandle::Linear,
+        );
         let nodes = network
             .nodes_around_path_iter(line, 2.5)
             .collect::<Vec<_>>();
@@ -730,7 +752,7 @@ mod tests {
                     let attr = &vec![MockAttr::A, MockAttr::B, MockAttr::C]
                         [xorshift(i * nodes.len() + j) % 3];
                     if xorshift(i * nodes.len() + j) % 2 == 0 {
-                        paths.push((i, j, PathHandle::Linear, attr.clone()));
+                        paths.push((i, j, PathBezierHandle::Linear, attr.clone()));
                     }
                 }
             }
@@ -774,14 +796,14 @@ mod tests {
 
         for i in 0..nodes.len() {
             for j in 0..nodes.len() {
-                let r0 = network0.has_path(nodeids0[i], nodeids0[j], PathHandle::Linear);
-                let r1 = network1.has_path(nodeids1[i], nodeids1[j], PathHandle::Linear);
+                let r0 = network0.has_path(nodeids0[i], nodeids0[j], PathBezierHandle::Linear);
+                let r1 = network1.has_path(nodeids1[i], nodeids1[j], PathBezierHandle::Linear);
                 assert_eq!(r0, r1);
 
-                let r2 = network2.has_path(nodeids2[i], nodeids2[j], PathHandle::Linear);
+                let r2 = network2.has_path(nodeids2[i], nodeids2[j], PathBezierHandle::Linear);
                 assert_eq!(r1, r2);
 
-                let r3 = network3.has_path(nodeids3[i], nodeids3[j], PathHandle::Linear);
+                let r3 = network3.has_path(nodeids3[i], nodeids3[j], PathBezierHandle::Linear);
                 assert_eq!(r2, r3);
             }
         }
@@ -809,7 +831,12 @@ mod tests {
                 (0..nodes.len()).for_each(|j| {
                     let id = i * nodes.len() + j;
                     if xorshift(id + seed_start) % 2 == 0 {
-                        network.add_path(nodeids[i], nodeids[j], PathHandle::Linear, id as u64);
+                        network.add_path(
+                            nodeids[i],
+                            nodeids[j],
+                            PathBezierHandle::Linear,
+                            id as u64,
+                        );
                     }
                 });
             });
@@ -820,7 +847,7 @@ mod tests {
                 (0..nodes.len()).for_each(|j| {
                     let id = i * nodes.len() + j;
                     if xorshift(id + seed_start) % 3 == 0 {
-                        network.remove_path(nodeids[i], nodeids[j], PathHandle::Linear);
+                        network.remove_path(nodeids[i], nodeids[j], PathBezierHandle::Linear);
                     }
                 });
             });
