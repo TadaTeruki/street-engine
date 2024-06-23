@@ -2,7 +2,7 @@ use nodetype::TransportNodeType;
 use numeric::Stage;
 
 use crate::{
-    core::{container::path_network::NodeTrait, geometry::site::Site},
+    core::{container::path_network::PathNetworkNodeTrait, geometry::site::Site},
     unit::Length,
 };
 
@@ -48,7 +48,7 @@ impl TransportNode {
 
 impl Eq for TransportNode {}
 
-impl NodeTrait for TransportNode {
+impl PathNetworkNodeTrait for TransportNode {
     fn get_site(&self) -> Site {
         self.site
     }

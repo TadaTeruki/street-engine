@@ -10,12 +10,12 @@ use super::{
 };
 
 /// Trait for a node in the path network.
-pub trait NodeTrait: Eq + Clone {
+pub trait PathNetworkNodeTrait: Eq + Clone {
     fn get_site(&self) -> Site;
 }
 
 /// Trait for paths.
-pub trait PathTrait {
+pub trait PathNetworkPathTrait {
     /// Handle for the path. This is the identifier of the path.
     type Handle: Copy + Eq;
     type Position: Copy;
@@ -49,8 +49,8 @@ impl NodeId {
 #[derive(Debug, Clone)]
 pub struct PathNetwork<N, P, PA>
 where
-    N: NodeTrait,
-    P: PathTrait,
+    N: PathNetworkNodeTrait,
+    P: PathNetworkPathTrait,
     PA: Clone,
 {
     nodes: BTreeMap<NodeId, N>,
@@ -62,8 +62,8 @@ where
 
 impl<N, P, PA> Default for PathNetwork<N, P, PA>
 where
-    N: NodeTrait,
-    P: PathTrait,
+    N: PathNetworkNodeTrait,
+    P: PathNetworkPathTrait,
     PA: Clone,
 {
     fn default() -> Self {
@@ -73,8 +73,8 @@ where
 
 impl<N, P, PA> PathNetwork<N, P, PA>
 where
-    N: NodeTrait,
-    P: PathTrait,
+    N: PathNetworkNodeTrait,
+    P: PathNetworkPathTrait,
     PA: Clone,
 {
     /// Create a new path network.
@@ -447,7 +447,7 @@ mod tests {
         }
     }
 
-    impl NodeTrait for MockNode {
+    impl PathNetworkNodeTrait for MockNode {
         fn get_site(&self) -> Site {
             self.0
         }
@@ -458,7 +458,7 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct MockPath(PathBezier);
 
-    impl PathTrait for MockPath {
+    impl PathNetworkPathTrait for MockPath {
         type Handle = PathBezierHandle;
         type Position = PathBezierPosition;
 

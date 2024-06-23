@@ -2,7 +2,7 @@ use rstar::{PointDistance, RTreeObject};
 
 use crate::core::geometry::site::Site;
 
-use super::path_network::PathTrait;
+use super::path_network::PathNetworkPathTrait;
 
 pub trait PathTreeIDTrait: Copy + PartialEq {}
 impl<T> PathTreeIDTrait for T where T: Copy + PartialEq {}
@@ -11,7 +11,7 @@ impl<T> PathTreeIDTrait for T where T: Copy + PartialEq {}
 pub struct PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
-    P: PathTrait,
+    P: PathNetworkPathTrait,
 {
     path: P,
     node_ids: (ID, ID),
@@ -20,7 +20,7 @@ where
 impl<ID, P> PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
-    P: PathTrait,
+    P: PathNetworkPathTrait,
 {
     pub fn new(path: P, node_ids: (ID, ID)) -> Self {
         Self { path, node_ids }
@@ -34,7 +34,7 @@ where
 impl<ID, P> RTreeObject for PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
-    P: PathTrait,
+    P: PathNetworkPathTrait,
 {
     type Envelope = rstar::AABB<[f64; 2]>;
 
@@ -47,7 +47,7 @@ where
 impl<ID, P> PointDistance for PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
-    P: PathTrait,
+    P: PathNetworkPathTrait,
 {
     fn distance_2(&self, point: &[f64; 2]) -> f64 {
         self.path
@@ -59,7 +59,7 @@ where
 impl<ID, P> PartialEq for PathTreeObject<ID, P>
 where
     ID: PathTreeIDTrait,
-    P: PathTrait,
+    P: PathNetworkPathTrait,
 {
     fn eq(&self, other: &Self) -> bool {
         self.node_ids == other.node_ids || self.node_ids == (other.node_ids.1, other.node_ids.0)

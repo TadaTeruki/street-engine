@@ -1,5 +1,5 @@
 use crate::core::{
-    container::path_network::PathTrait,
+    container::path_network::PathNetworkPathTrait,
     geometry::{
         path::{
             bezier::{PathBezier, PathBezierPosition},
@@ -18,7 +18,7 @@ pub struct TransportPath {
     curve: PathBezier,
 }
 
-impl PathTrait for TransportPath {
+impl PathNetworkPathTrait for TransportPath {
     type Handle = PathBezierHandle;
     type Position = PathBezierPosition;
 
