@@ -3,7 +3,7 @@ use crate::core::geometry::site::Site;
 /// Handles for bezier curves.
 ///
 /// This is a wrapper around the bezier-rs crate.
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum PathHandle {
     Linear,
     Quadratic(Site),
