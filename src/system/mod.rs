@@ -1,4 +1,4 @@
-mod growth;
-mod node;
-mod path;
-mod rule;
+pub mod growth;
+pub mod node;
+pub mod path;
+pub mod rule;

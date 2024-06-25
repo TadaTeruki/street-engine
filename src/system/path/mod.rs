@@ -1,16 +1,18 @@
-use crate::core::{
-    container::path_network::PathNetworkPathTrait,
-    geometry::{
-        path::{
-            bezier::{PathBezier, PathBezierPosition},
-            handle::PathBezierHandle,
+use crate::{
+    core::{
+        container::path_network::PathNetworkPathTrait,
+        geometry::{
+            path::{
+                bezier::{PathBezier, PathBezierPosition},
+                handle::PathBezierHandle,
+            },
+            site::Site,
         },
-        site::Site,
     },
+    unit::Length,
 };
 
-mod factor;
-mod metrics;
+pub mod factor;
 
 /// A path in the transport network.
 #[derive(Debug, Clone, PartialEq)]
@@ -53,5 +55,9 @@ impl TransportPath {
     {
         let (curve0, curve1) = self.curve.split(position);
         (Self { curve: curve0 }, Self { curve: curve1 })
+    }
+
+    fn get_length(&self) -> Length {
+        Length::new(self.curve.get_length())
     }
 }

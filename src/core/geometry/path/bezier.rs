@@ -161,6 +161,11 @@ impl PathBezier {
             Site::new(bounds[1].x, bounds[1].y),
         )
     }
+
+    /// Get the length of the bezier curve.
+    pub fn get_length(&self) -> f64 {
+        self.curve.length(Some(10))
+    }
 }
 
 #[cfg(test)]
