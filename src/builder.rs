@@ -85,20 +85,24 @@ where
         node_id: NodeId,
         direction: Angle,
         stage: Stage,
-    ) -> Option<Stump> {
+    ) -> Option<()> {
         let node_start = path_network.get_node(node_id)?;
         let metrics = TransportMetrics::initial();
         let rule = self
             .rule_provider
             .get_rule(node_start.get_site(), stage, &metrics)?;
 
-        Stump::new(
+        let stump = Stump::new(
             (node_id, node_start),
             direction,
             PathConstructionFactors { metrics, rule },
             self.terrain_provider,
             self.path_prioritizator,
-        )
+        )?;
+
+        self.stump_heap.push(stump);
+
+        Some(())
     }
 }
 
