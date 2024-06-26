@@ -12,9 +12,9 @@ use crate::{
 pub trait TransportRuleProvider {
     fn get_rule(
         &self,
-        site: &Site,
+        site: Site,
         stage: Stage,
-        metrics: TransportMetrics,
+        metrics: &TransportMetrics,
     ) -> Option<TransportRule>;
 }
 
@@ -34,9 +34,9 @@ impl MockSameRuleProvider {
 impl TransportRuleProvider for MockSameRuleProvider {
     fn get_rule(
         &self,
-        _site: &Site,
+        _site: Site,
         _stage: Stage,
-        _metrics: TransportMetrics,
+        _metrics: &TransportMetrics,
     ) -> Option<TransportRule> {
         Some(self.rule.clone())
     }

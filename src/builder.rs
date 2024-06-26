@@ -13,29 +13,37 @@ use crate::{
             TransportPath,
         },
     },
-    traits::{TerrainProvider, TransportRuleProvider},
+    traits::{PathPrioritizator, TerrainProvider, TransportRuleProvider},
 };
 
 /// Transport network builder.
-pub struct TransportBuilder<'a, RP, TP>
+pub struct TransportBuilder<'a, RP, TP, PP>
 where
     RP: TransportRuleProvider,
     TP: TerrainProvider,
+    PP: PathPrioritizator,
 {
     rule_provider: &'a RP,
     terrain_provider: &'a TP,
+    path_prioritizator: &'a PP,
     stump_heap: BinaryHeap<Stump>,
 }
-impl<'a, RP, TP> TransportBuilder<'a, RP, TP>
+impl<'a, RP, TP, PP> TransportBuilder<'a, RP, TP, PP>
 where
     RP: TransportRuleProvider,
     TP: TerrainProvider,
+    PP: PathPrioritizator,
 {
     /// Create a new `TransportBuilder`.
-    pub fn new(rule_provider: &'a RP, terrain_provider: &'a TP) -> Self {
+    pub fn new(
+        rule_provider: &'a RP,
+        terrain_provider: &'a TP,
+        path_prioritizator: &'a PP,
+    ) -> Self {
         Self {
             rule_provider,
             terrain_provider,
+            path_prioritizator,
             stump_heap: BinaryHeap::new(),
         }
     }
@@ -50,24 +58,23 @@ where
         origin_site: Site,
         direction_radian: f64,
     ) -> Option<Self> {
-        let origin_node =
-            TransportNode::new(origin_site, Stage::initial(), TransportNodeType::Land);
+        let stage = Stage::initial();
+        let origin_node = TransportNode::new(origin_site, stage, TransportNodeType::Land);
         let origin_node_id = path_network.add_node(origin_node);
 
-        /*
         self.push_new_stump(
             path_network,
             origin_node_id,
-            Angle::new(angle_radian),
-            origin_node.stage,
+            Angle::new(direction_radian),
+            stage,
         );
         self.push_new_stump(
             path_network,
             origin_node_id,
-            Angle::new(angle_radian).opposite(),
-            origin_node.stage,
+            Angle::new(direction_radian).opposite(),
+            stage,
         );
-        */
+
         Some(self)
     }
 
@@ -81,27 +88,17 @@ where
     ) -> Option<Stump> {
         let node_start = path_network.get_node(node_id)?;
         let metrics = TransportMetrics::initial();
-        let rules = self
+        let rule = self
             .rule_provider
-            .get_rule(&node_start.get_site(), stage, metrics)?;
+            .get_rule(node_start.get_site(), stage, &metrics)?;
 
-        let stump = Stump::new(node_id, direction, PathConstructionFactors { stage, rules });
-
-        let (expected_end_site, expected_end_creates_bridge) =
-            self.expect_end_of_path(node_start.site, angle_expected, stage, &rules)?;
-
-        let priority = self.path_evaluator.evaluate(PathPrioritizationFactors {
-            site_start: node_start.site,
-            site_end: expected_end_site,
-            angle: angle_expected,
-            path_length: rules.path_normal_length,
-            stage,
-            creates_bridge: expected_end_creates_bridge,
-        })?;
-
-        self.stump_heap.push(stump.clone());
-
-        Some(stump)
+        Stump::new(
+            (node_id, node_start),
+            direction,
+            PathConstructionFactors { metrics, rule },
+            self.terrain_provider,
+            self.path_prioritizator,
+        )
     }
 }
 

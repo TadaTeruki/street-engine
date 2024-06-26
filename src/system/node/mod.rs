@@ -32,6 +32,10 @@ impl TransportNode {
         self.site
     }
 
+    pub fn get_stage(&self) -> Stage {
+        self.stage
+    }
+
     pub fn get_nodetype(&self) -> TransportNodeType {
         self.nodetype
     }

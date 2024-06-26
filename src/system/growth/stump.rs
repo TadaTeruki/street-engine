@@ -47,7 +47,7 @@ fn check_elevation_diff(
 impl Stump {
     /// Create a new stump and determine the shape of the path to grow (not considering other paths yet).
     pub fn new<TP, PP>(
-        node_tuple: (NodeId, TransportNode),
+        node_tuple: (NodeId, &TransportNode),
         normal_direction: Angle,
         factor: PathConstructionFactors,
         terrain_provider: &TP,
