@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 /// A unit of measurement for elevation.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct Elevation(f64);
@@ -37,6 +39,14 @@ impl Length {
 
     pub fn value(&self) -> f64 {
         self.0
+    }
+}
+
+impl Add for Length {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self(self.0 + other.0)
     }
 }
 

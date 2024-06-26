@@ -17,9 +17,6 @@ pub struct TransportRule {
     /// Extra length of the path to search intersections.
     pub path_extra_length_for_intersection: Length,
 
-    /// Radius of the node.
-    pub node_radius: Length,
-
     /// Maximum elevation difference of the path.
     ///
     /// To extend a path, the elevation difference (=slope) between the start and end of the path should be less than this value.
@@ -45,7 +42,6 @@ impl Default for TransportRule {
         Self {
             path_normal_length: Length::new(0.0),
             path_extra_length_for_intersection: Length::new(0.0),
-            node_radius: Length::new(0.0),
             path_slope_elevation_diff_limit: GrowthRuleElevationDiff::AlwaysAllow,
             path_grade_separation_elevation_diff_required: GrowthRuleElevationDiff::AlwaysDeny,
             branch_rule: Default::default(),
@@ -90,13 +86,13 @@ impl TransportRule {
     }
 
     /// Set the rules to create branches.
-    pub fn branch_rules(mut self, branch_rule: BranchRule) -> Self {
+    pub fn branch_rule(mut self, branch_rule: BranchRule) -> Self {
         self.branch_rule = branch_rule;
         self
     }
 
     /// Set the rules to determine the direction of the path.
-    pub fn path_direction_rules(mut self, path_direction_rule: PathDirectionRule) -> Self {
+    pub fn path_direction_rule(mut self, path_direction_rule: PathDirectionRule) -> Self {
         self.path_direction_rule = path_direction_rule;
         self
     }

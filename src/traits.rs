@@ -1,6 +1,11 @@
 use crate::{
     core::geometry::site::Site,
-    system::{node::numeric::Stage, path::factor::metrics::TransportMetrics, rule::TransportRule},
+    system::{
+        node::{numeric::Stage, TransportNode},
+        path::{factor::metrics::TransportMetrics, TransportPath},
+        rule::TransportRule,
+    },
+    unit::Elevation,
 };
 
 /// Provider of transport rules.
@@ -37,20 +42,32 @@ impl TransportRuleProvider for MockSameRuleProvider {
     }
 }
 
-/// Provider of terrain elevation.
+pub enum TerrainType {
+    Land,
+    Water,
+    Void,
+}
+
+impl TerrainType {
+    pub fn is_land(&self) -> bool {
+        matches!(self, TerrainType::Land)
+    }
+}
+
+/// Provider of terrain.
 pub trait TerrainProvider {
-    fn get_elevation(&self, site: &Site) -> Option<f64>;
+    fn get_terrain(&self, site: &Site) -> (TerrainType, Option<Elevation>);
 }
 
 /// Terrain provider that provides a flat surface.
 ///
 /// This is used only for testing purposes.
 pub(crate) struct MockSurfaceTerrain {
-    elevation: f64,
+    elevation: Elevation,
 }
 
 impl MockSurfaceTerrain {
-    pub fn new(elevation: f64) -> Self {
+    pub fn new(elevation: Elevation) -> Self {
         Self {
             elevation: elevation,
         }
@@ -58,8 +75,8 @@ impl MockSurfaceTerrain {
 }
 
 impl TerrainProvider for MockSurfaceTerrain {
-    fn get_elevation(&self, _site: &Site) -> Option<f64> {
-        Some(self.elevation)
+    fn get_terrain(&self, _site: &Site) -> (TerrainType, Option<Elevation>) {
+        (TerrainType::Land, Some(self.elevation))
     }
 }
 
@@ -67,23 +84,36 @@ impl TerrainProvider for MockSurfaceTerrain {
 ///
 /// This is used only for testing purposes.
 pub(crate) struct MockVoronoiTerrain {
-    spots: Vec<(Site, f64)>,
+    spots: Vec<(Site, Elevation)>,
 }
 
 impl MockVoronoiTerrain {
-    pub fn new(spots: Vec<(Site, f64)>) -> Self {
+    pub fn new(spots: Vec<(Site, Elevation)>) -> Self {
         Self { spots }
     }
 }
 
 impl TerrainProvider for MockVoronoiTerrain {
-    fn get_elevation(&self, site: &Site) -> Option<f64> {
+    fn get_terrain(&self, site: &Site) -> (TerrainType, Option<Elevation>) {
         self.spots
             .iter()
             .map(|(spot, elevation)| (spot.distance(site), elevation))
             .min_by(|(distance1, _), (distance2, _)| distance1.total_cmp(distance2))
-            .map(|(_, elevation)| *elevation)
+            .map(|(_, elevation)| {
+                if elevation.value() > 0.0 {
+                    (TerrainType::Land, Some(*elevation))
+                } else {
+                    (TerrainType::Water, Some(*elevation))
+                }
+            })
+            .unwrap_or((TerrainType::Void, None))
     }
+}
+
+/// Path prioritizator.
+pub trait PathPrioritizator {
+    /// Calculate the priority of the path from the start node and the expected path.
+    fn prioritize(&self, start_node: &TransportNode, path_expected: TransportPath) -> Option<f64>;
 }
 
 /// Provider of random f64 values.

@@ -3,8 +3,151 @@ use crate::{
         container::path_network::NodeId,
         geometry::{angle::Angle, path::bezier::PathBezier},
     },
-    system::node::TransportNode,
+    system::{
+        node::TransportNode,
+        path::{factor::PathConstructionFactors, TransportPath},
+        rule::TransportRule,
+    },
+    traits::{PathPrioritizator, TerrainProvider},
+    unit::{Elevation, Length},
 };
+
+/// Stump is a vector associated with a node which is used to determine the direction of the path to grow.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Stump {
+    /// The node id of the stump.
+    node_id: NodeId,
+    /// The direction of the stump to grow.
+    direction: Angle,
+    /// The factors of the path which are referenced when the path is created.
+    ///
+    /// This value will be moved into the attribute of the path in the path network.
+    factor: PathConstructionFactors,
+    /// The priority of the stump to grow.
+    priority: f64,
+    /// The flag to indicate if the path creates a bridge.
+    creates_bridge: bool,
+}
+
+/// Checks if the elevation difference from a node to a site is not too steep.
+fn check_elevation_diff(
+    elevation0: Elevation,
+    elevation1: Elevation,
+    path_length: Length,
+    rule: &TransportRule,
+) -> bool {
+    let allowed_elevation_diff = rule
+        .path_slope_elevation_diff_limit
+        .value(path_length)
+        .value();
+    let real_elevation_diff = (elevation0.value() - elevation1.value()).abs();
+    real_elevation_diff <= allowed_elevation_diff
+}
+
+impl Stump {
+    /// Create a new stump and determine the shape of the path to grow (not considering other paths yet).
+    pub fn new<TP, PP>(
+        node_tuple: (NodeId, TransportNode),
+        normal_direction: Angle,
+        factor: PathConstructionFactors,
+        terrain_provider: &TP,
+        path_prioritizator: &PP,
+    ) -> Option<Self>
+    where
+        TP: TerrainProvider,
+        PP: PathPrioritizator,
+    {
+        let (node_id, node) = node_tuple;
+        let rule = factor.rule.clone();
+
+        normal_direction
+            .iter_range_around(
+                rule.path_direction_rule.max_radian,
+                rule.path_direction_rule.comparison_step,
+            )
+            .filter_map(|direction| {
+                for i in 0..=rule.bridge_rule.check_step {
+                    let bridge_path_length = if rule.bridge_rule.check_step == 0 {
+                        Length::new(0.0)
+                    } else {
+                        Length::new(
+                            rule.bridge_rule.max_bridge_length.value() * (i as f64)
+                                / (rule.bridge_rule.check_step as f64),
+                        )
+                    };
+                    let path_straight_length = rule.path_normal_length + bridge_path_length;
+                    let site_end = node
+                        .get_site()
+                        .extend(direction, path_straight_length.value());
+                    let path = TransportPath::from_curve(PathBezier::from_2d_vectors(
+                        node.get_site(),
+                        Some((direction, rule.path_normal_length.value())),
+                        site_end,
+                        None,
+                    ));
+                    // check terrain
+                    let terrain_end = terrain_provider.get_terrain(&site_end);
+                    if !terrain_end.0.is_land() {
+                        continue;
+                    }
+                    // check elevation diff
+                    if let (Some(elevation_node), Some(elevation_end)) = (
+                        terrain_provider.get_terrain(&node.get_site()).1,
+                        terrain_end.1,
+                    ) {
+                        if !check_elevation_diff(
+                            elevation_node,
+                            elevation_end,
+                            path.get_length(),
+                            &rule,
+                        ) {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+
+                    if let Some(priority) = path_prioritizator.prioritize(&node, path) {
+                        return Some((priority, direction, i > 0));
+                    }
+                }
+                None
+            })
+            .max_by(|a, b| a.0.total_cmp(&b.0))
+            .map(|(priority, direction, creates_bridge)| Self {
+                node_id,
+                direction,
+                factor,
+                priority,
+                creates_bridge,
+            })
+    }
+
+    /*
+    fn determine_growth(
+        &self,
+        node_start: &TransportNode,
+        encount_nodes: &[EncountNode],
+        encount_paths: &[EncountPath],
+    ) {
+
+    }*/
+}
+
+impl Eq for Stump {}
+
+impl PartialOrd for Stump {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.priority.partial_cmp(&other.priority)
+    }
+}
+
+impl Ord for Stump {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.priority.total_cmp(&other.priority)
+    }
+}
+
 /*
 struct EncountNode {
     node: TransportNode,
@@ -18,37 +161,6 @@ struct EncountPath {
     //relation_type: NetworkRelationType,
 }
 */
-
-/// Stump is a vector associated with a node which is used to determine the direction of the path to grow.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Stump {
-    /// The node id of the stump.
-    node_id: NodeId,
-    /// The direction of the stump to grow.
-    direction: Angle,
-    /// The priority of the stump to grow.
-    priority: f64,
-}
-
-impl Stump {
-    /// Create a new stump.
-    pub fn new(node_id: NodeId, direction: Angle, priority: f64) -> Self {
-        Self {
-            node_id,
-            direction,
-            priority,
-        }
-    }
-    /*
-    fn determine_growth(
-        &self,
-        node_start: &TransportNode,
-        encount_nodes: &[EncountNode],
-        encount_paths: &[EncountPath],
-    ) {
-
-    }*/
-}
 
 /*
 impl NodeStump {

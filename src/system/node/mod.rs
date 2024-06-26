@@ -1,10 +1,7 @@
 use nodetype::TransportNodeType;
 use numeric::Stage;
 
-use crate::{
-    core::{container::path_network::PathNetworkNodeTrait, geometry::site::Site},
-    unit::Length,
-};
+use crate::core::{container::path_network::PathNetworkNodeTrait, geometry::site::Site};
 
 pub mod nodetype;
 pub mod numeric;
@@ -18,25 +15,25 @@ pub struct TransportNode {
     /// Stage of the node.
     stage: Stage,
 
-    /// Radius of the node.
-    radius: Length,
-
     /// Type of the node (e.g. land, bridge, tunnel, etc.)
     nodetype: TransportNodeType,
 }
 
 impl TransportNode {
-    pub fn new(site: Site, stage: Stage, radius: Length, nodetype: TransportNodeType) -> Self {
+    pub fn new(site: Site, stage: Stage, nodetype: TransportNodeType) -> Self {
         Self {
             site,
             stage,
-            radius,
             nodetype,
         }
     }
 
     pub fn get_site(&self) -> Site {
         self.site
+    }
+
+    pub fn get_nodetype(&self) -> TransportNodeType {
+        self.nodetype
     }
 }
 

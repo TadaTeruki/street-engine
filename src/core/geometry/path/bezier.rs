@@ -1,4 +1,5 @@
 use bezier_rs::{Bezier, TValue};
+use rstar::PointDistance;
 
 use crate::core::geometry::{angle::Angle, site::Site};
 
@@ -69,19 +70,25 @@ impl PathBezier {
     /// Create a new bezier curve from two 2D vectors.
     pub fn from_2d_vectors(
         site_start: Site,
-        allow_with_distance_start: Option<(Angle, f64)>,
+        vector_start: Option<(Angle, f64)>,
         site_end: Site,
-        allow_with_distance_end: Option<(Angle, f64)>,
+        vector_end: Option<(Angle, f64)>,
     ) -> Self {
         let site_start_term =
-            allow_with_distance_start.map(|(angle, distance)| site_start.extend(angle, distance));
+            vector_start.map(|(angle, distance)| site_start.extend(angle, distance));
 
-        let site_end_term =
-            allow_with_distance_end.map(|(angle, distance)| site_end.extend(angle, distance));
+        let site_end_term = vector_end.map(|(angle, distance)| site_end.extend(angle, distance));
 
         if let (Some(site_start_term), Some(site_end_term)) = (site_start_term, site_end_term) {
             // if both are Some
-            Self::new_cubic(site_start, site_end, site_start_term, site_end_term)
+            if site_start.distance_2(&site_start_term) > site_start.distance_2(&site_end_term)
+                || site_end.distance_2(&site_end_term) > site_end.distance_2(&site_start_term)
+            {
+                // if the path is too short, use linear
+                Self::new_linear(site_start, site_end)
+            } else {
+                Self::new_cubic(site_start, site_end, site_start_term, site_end_term)
+            }
         } else if let Some(site_start_term) = site_start_term {
             // if one is Some
             Self::new_quadratic(site_start, site_end, site_start_term)
@@ -91,6 +98,22 @@ impl PathBezier {
         } else {
             // if both are None
             Self::new_linear(site_start, site_end)
+        }
+    }
+
+    /// Get the angle at the start and end of the bezier curve.
+    pub fn get_angle(&self) -> (Angle, Angle) {
+        let handles = self.get_handle();
+        let start = Site::new(self.curve.start.x, self.curve.start.y);
+        let end = Site::new(self.curve.end.x, self.curve.end.y);
+        match handles {
+            PathBezierHandle::Linear => (start.get_angle(&end), end.get_angle(&start)),
+            PathBezierHandle::Quadratic(handle) => {
+                (start.get_angle(&handle), end.get_angle(&handle))
+            }
+            PathBezierHandle::Cubic(handle0, handle1) => {
+                (start.get_angle(&handle0), end.get_angle(&handle1))
+            }
         }
     }
 

@@ -2,6 +2,7 @@ use crate::{
     core::{
         container::path_network::PathNetworkPathTrait,
         geometry::{
+            angle::Angle,
             path::{
                 bezier::{PathBezier, PathBezierPosition},
                 handle::PathBezierHandle,
@@ -41,6 +42,14 @@ impl PathNetworkPathTrait for TransportPath {
 }
 
 impl TransportPath {
+    pub fn from_curve(curve: PathBezier) -> Self {
+        Self { curve }
+    }
+
+    pub fn get_angle(&self) -> (Angle, Angle) {
+        self.curve.get_angle()
+    }
+
     fn get_intersections(&self, other: &Self) -> Vec<(Site, PathBezierPosition)> {
         self.curve.get_intersections(&other.curve)
     }
@@ -57,7 +66,7 @@ impl TransportPath {
         (Self { curve: curve0 }, Self { curve: curve1 })
     }
 
-    fn get_length(&self) -> Length {
+    pub fn get_length(&self) -> Length {
         Length::new(self.curve.get_length())
     }
 }
