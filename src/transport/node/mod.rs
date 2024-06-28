@@ -90,7 +90,7 @@ mod tests {
             stage: Stage::default(),
             rules_start: rules.clone(),
             metrics: PathMetrics::default(),
-            evaluation: 0.0,
+            priority: 0.0,
         };
 
         // New node
@@ -248,7 +248,7 @@ mod tests {
             stage: Stage::default(),
             rules_start: rules.clone(),
             metrics: PathMetrics::default(),
-            evaluation: 0.0,
+            priority: 0.0,
         };
 
         let next = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
@@ -321,7 +321,7 @@ mod tests {
                 stage: Stage::default(),
                 rules_start: rules.clone(),
                 metrics: PathMetrics::default(),
-                evaluation: 0.0,
+                priority: 0.0,
             };
 
             NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone()).determine_growth(

@@ -12,41 +12,45 @@ use super::{
         transport_node::TransportNode,
     },
     params::{
-        evaluation::PathEvaluationFactors,
         metrics::PathMetrics,
         numeric::Stage,
+        priority::PathPrioritizationFactors,
         rules::{check_elevation_diff, TransportRules},
         PathParams,
     },
-    traits::{PathEvaluator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
+    traits::{PathPrioritizator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };
 
-pub struct TransportBuilder<'a, RP, TP, PE>
+pub struct TransportBuilder<'a, RP, TP, PP>
 where
     RP: TransportRulesProvider,
     TP: TerrainProvider,
-    PE: PathEvaluator,
+    PP: PathPrioritizator,
 {
     path_network: PathNetwork<TransportNode>,
     rules_provider: &'a RP,
     terrain_provider: &'a TP,
-    path_evaluator: &'a PE,
+    path_prioritizator: &'a PP,
     stump_heap: BinaryHeap<NodeStump>,
 }
 
-impl<'a, RP, TP, PE> TransportBuilder<'a, RP, TP, PE>
+impl<'a, RP, TP, PP> TransportBuilder<'a, RP, TP, PP>
 where
     RP: TransportRulesProvider,
     TP: TerrainProvider,
-    PE: PathEvaluator,
+    PP: PathPrioritizator,
 {
     /// Create a new `TransportBuilder`.
-    pub fn new(rules_provider: &'a RP, terrain_provider: &'a TP, path_evaluator: &'a PE) -> Self {
+    pub fn new(
+        rules_provider: &'a RP,
+        terrain_provider: &'a TP,
+        path_prioritizator: &'a PP,
+    ) -> Self {
         Self {
             path_network: PathNetwork::new(),
             rules_provider,
             terrain_provider,
-            path_evaluator,
+            path_prioritizator,
             stump_heap: BinaryHeap::new(),
         }
     }
@@ -61,21 +65,22 @@ where
     ) -> Option<NodeStump> {
         let node_start = self.path_network.get_node(node_start_id)?;
 
-        let rules_start =
-            self.rules_provider
-                .get_rules(&node_start.site, angle_expected_end, stage, &metrics)?;
+        let rules_start = self
+            .rules_provider
+            .get_rules(&node_start.site, stage, &metrics)?;
 
         let (estimated_end_site, estimated_end_is_bridge) =
             self.expect_end_of_path(node_start.site, angle_expected_end, stage, &rules_start)?;
 
-        let evaluation = self.path_evaluator.evaluate(PathEvaluationFactors {
-            site_start: node_start.site,
-            site_end: estimated_end_site,
-            angle: angle_expected_end,
-            path_length: rules_start.path_normal_length,
-            stage,
-            is_bridge: estimated_end_is_bridge,
-        })?;
+        let priority = self
+            .path_prioritizator
+            .prioritize(PathPrioritizationFactors {
+                site_start: node_start.site,
+                site_end: estimated_end_site,
+                path_length: rules_start.path_normal_length,
+                stage,
+                is_bridge: estimated_end_is_bridge,
+            })?;
 
         let stump = NodeStump::new(
             node_start_id,
@@ -84,7 +89,7 @@ where
                 stage,
                 rules_start,
                 metrics,
-                evaluation,
+                priority,
             },
         );
 
@@ -180,14 +185,16 @@ where
                     let path_length = rules_start.path_normal_length + bridge_path_length;
                     let site_end = site_start.extend(angle, path_length);
                     let is_bridge = i > 0;
-                    if let Some(evaluation) = self.path_evaluator.evaluate(PathEvaluationFactors {
-                        site_start,
-                        site_end,
-                        angle,
-                        path_length,
-                        stage,
-                        is_bridge,
-                    }) {
+                    if let Some(priority) =
+                        self.path_prioritizator
+                            .prioritize(PathPrioritizationFactors {
+                                site_start,
+                                site_end,
+                                path_length,
+                                stage,
+                                is_bridge,
+                            })
+                    {
                         if let (Some(elevation_start), Some(elevation_end)) = (
                             self.terrain_provider.get_elevation(&site_start),
                             self.terrain_provider.get_elevation(&site_end),
@@ -198,7 +205,7 @@ where
                                 path_length,
                                 rules_start.path_elevation_diff_limit,
                             ) {
-                                return Some((site_end, evaluation, is_bridge));
+                                return Some((site_end, priority, is_bridge));
                             }
                         }
                     }

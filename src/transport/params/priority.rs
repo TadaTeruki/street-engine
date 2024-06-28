@@ -1,15 +1,13 @@
-use crate::core::geometry::{angle::Angle, site::Site};
+use crate::core::geometry::site::Site;
 
 use super::numeric::Stage;
 
-/// Factors for evaluating path.
-pub struct PathEvaluationFactors {
+/// Factors for prioritizing the path.
+pub struct PathPrioritizationFactors {
     /// The start site of the path.
     pub site_start: Site,
     /// The end site of the path.
     pub site_end: Site,
-    /// The angle of the path.
-    pub angle: Angle,
     /// The length of the path.
     pub path_length: f64,
     /// The stage of the path.

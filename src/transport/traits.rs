@@ -1,18 +1,14 @@
-use crate::core::geometry::{angle::Angle, site::Site};
+use crate::core::geometry::site::Site;
 
 use super::params::{
-    evaluation::PathEvaluationFactors, metrics::PathMetrics, numeric::Stage, rules::TransportRules,
+    metrics::PathMetrics, numeric::Stage, priority::PathPrioritizationFactors,
+    rules::TransportRules,
 };
 
 /// Provider of transport rules.
 pub trait TransportRulesProvider {
-    fn get_rules(
-        &self,
-        site: &Site,
-        angle: Angle,
-        stage: Stage,
-        metrics: &PathMetrics,
-    ) -> Option<TransportRules>;
+    fn get_rules(&self, site: &Site, stage: Stage, metrics: &PathMetrics)
+        -> Option<TransportRules>;
 }
 
 /// Provider of terrain elevation.
@@ -20,9 +16,10 @@ pub trait TerrainProvider {
     fn get_elevation(&self, site: &Site) -> Option<f64>;
 }
 
-/// Provider of evaluation of the path.
-pub trait PathEvaluator {
-    fn evaluate(&self, factors: PathEvaluationFactors) -> Option<f64>;
+/// Prioritizator of path.
+pub trait PathPrioritizator {
+    /// Calculate the priority of the path from the start node and the expected path.
+    fn prioritize(&self, factors: PathPrioritizationFactors) -> Option<f64>;
 }
 
 /// Provider of random f64 values.

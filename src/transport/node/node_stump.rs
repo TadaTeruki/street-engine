@@ -28,7 +28,7 @@ impl PartialOrd for NodeStump {
 
 impl Ord for NodeStump {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.params.evaluation.total_cmp(&other.params.evaluation)
+        self.params.priority.total_cmp(&other.params.priority)
     }
 }
 
