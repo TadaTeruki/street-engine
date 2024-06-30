@@ -3,7 +3,7 @@ use crate::{
         container::path_network::NodeId,
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
     },
-    transport::params::{rules::check_elevation_diff, PathParams},
+    transport::params::PathParams,
 };
 
 use super::{
@@ -117,12 +117,13 @@ impl Stump {
                     // slope check
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = existing_node.site.distance(&search_start);
-                    check_elevation_diff(
-                        node_start.elevation,
-                        existing_node.elevation,
-                        distance,
-                        self.params.rules_start.path_elevation_diff_limit,
-                    )
+                    self.params
+                        .rules_start
+                        .path_slope_elevation_diff_limit
+                        .check_constructable(
+                            (node_start.elevation, existing_node.elevation),
+                            distance,
+                        )
                 })
                 .min_by(|a, b: &&(&TransportNode, NodeId)| {
                     let distance_a = a.0.site.distance_2(&search_start);
@@ -181,12 +182,13 @@ impl Stump {
                     // slope check
                     // if the elevation difference is too large, the path cannot be connected.
                     let distance = crossing_node.site.distance(&search_start);
-                    check_elevation_diff(
-                        node_start.elevation,
-                        crossing_node.elevation,
-                        distance,
-                        self.params.rules_start.path_elevation_diff_limit,
-                    )
+                    self.params
+                        .rules_start
+                        .path_slope_elevation_diff_limit
+                        .check_constructable(
+                            (node_start.elevation, crossing_node.elevation),
+                            distance,
+                        )
                 })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
@@ -225,12 +227,15 @@ impl Stump {
 
         // check slope
         let distance = search_start.distance(&node_expected_end.site);
-        if !check_elevation_diff(
-            node_start.elevation,
-            node_expected_end.elevation,
-            distance,
-            self.params.rules_start.path_elevation_diff_limit,
-        ) {
+        if !self
+            .params
+            .rules_start
+            .path_slope_elevation_diff_limit
+            .check_constructable(
+                (node_start.elevation, node_expected_end.elevation),
+                distance,
+            )
+        {
             return GrowthTypes {
                 next_node: NextNodeType::None,
                 bridge_node: BridgeNodeType::None,

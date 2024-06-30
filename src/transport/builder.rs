@@ -12,11 +12,8 @@ use super::{
         transport_node::TransportNode,
     },
     params::{
-        metrics::PathMetrics,
-        numeric::Stage,
-        priority::PathPrioritizationFactors,
-        rules::{check_elevation_diff, TransportRules},
-        PathParams,
+        metrics::PathMetrics, numeric::Stage, priority::PathPrioritizationFactors,
+        rules::TransportRules, PathParams,
     },
     traits::{PathPrioritizator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };
@@ -199,12 +196,10 @@ where
                             self.terrain_provider.get_elevation(&site_start),
                             self.terrain_provider.get_elevation(&site_end),
                         ) {
-                            if check_elevation_diff(
-                                elevation_start,
-                                elevation_end,
-                                path_length,
-                                rules_start.path_elevation_diff_limit,
-                            ) {
+                            if rules_start
+                                .path_slope_elevation_diff_limit
+                                .check_constructable((elevation_start, elevation_end), path_length)
+                            {
                                 return Some((site_end, priority, is_bridge));
                             }
                         }

@@ -1,11 +1,14 @@
 use street_engine::{
-    core::geometry::{angle::Angle, site::Site},
+    core::geometry::site::Site,
     transport::{
         params::{
             metrics::PathMetrics,
             numeric::Stage,
             priority::PathPrioritizationFactors,
-            rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
+            rules::{
+                branch::BranchRules, bridge::BridgeRules, direction::PathDirectionRules,
+                ElevationDiffLimit, TransportRules,
+            },
         },
         traits::{PathPrioritizator, TransportRulesProvider},
     },
@@ -39,7 +42,8 @@ impl<'a> TransportRulesProvider for RulesProviderForRailway<'a> {
         Some(TransportRules {
             path_normal_length,
             path_extra_length_for_intersection: path_normal_length * 0.7,
-            path_elevation_diff_limit: Some(10.0),
+            path_slope_elevation_diff_limit: ElevationDiffLimit::Linear(10.0),
+            path_grade_separate_elevation_diff_required: 10.0,
             branch_rules: BranchRules {
                 branch_density: (0.3 + population_density * 0.2) * branch_motivation,
                 staging_probability: 0.0,

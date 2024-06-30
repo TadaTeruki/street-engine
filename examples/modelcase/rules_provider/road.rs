@@ -1,11 +1,14 @@
 use street_engine::{
-    core::geometry::{angle::Angle, site::Site},
+    core::geometry::site::Site,
     transport::{
         params::{
             metrics::PathMetrics,
             numeric::Stage,
             priority::PathPrioritizationFactors,
-            rules::{BranchRules, BridgeRules, PathDirectionRules, TransportRules},
+            rules::{
+                branch::BranchRules, bridge::BridgeRules, direction::PathDirectionRules,
+                ElevationDiffLimit, TransportRules,
+            },
         },
         traits::{PathPrioritizator, TransportRulesProvider},
     },
@@ -39,12 +42,16 @@ impl<'a> TransportRulesProvider for RulesProviderForRoad<'a> {
             0.45
         };
 
+        let path_slope_elevation_diff_limit =
+            ElevationDiffLimit::NonLinear(|length: f64| length.powf(0.5) * 2.0 + 1.0);
+
         if is_street {
             // street
             Some(TransportRules {
                 path_normal_length,
                 path_extra_length_for_intersection: path_normal_length * 0.7,
-                path_elevation_diff_limit: None,
+                path_slope_elevation_diff_limit,
+                path_grade_separate_elevation_diff_required: 10.0,
                 branch_rules: BranchRules {
                     branch_density: 0.01 + population_density * 0.99,
                     staging_probability: 0.0,
@@ -60,7 +67,8 @@ impl<'a> TransportRulesProvider for RulesProviderForRoad<'a> {
             Some(TransportRules {
                 path_normal_length,
                 path_extra_length_for_intersection: path_normal_length * 0.7,
-                path_elevation_diff_limit: Some(10.0),
+                path_slope_elevation_diff_limit,
+                path_grade_separate_elevation_diff_required: 10.0,
                 branch_rules: BranchRules {
                     branch_density: 0.2 + population_density * 0.8,
                     staging_probability: 0.97,
