@@ -58,7 +58,7 @@ fn main() {
     let mut rnd = RandomF64::new();
 
     let network = TransportBuilder::new(&rules_provider_road, &map_provider, &rules_provider_road)
-        .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, Some(Stage::from_num(1)))
+        .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, Some(Stage::from_num(0)))
         .unwrap()
         .iterate_as_possible(&mut rnd)
         .snapshot()
