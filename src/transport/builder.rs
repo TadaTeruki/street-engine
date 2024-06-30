@@ -8,7 +8,7 @@ use crate::core::{
 use super::{
     node::{
         growth_type::{BridgeNodeType, GrowthTypes, NextNodeType},
-        node_stump::NodeStump,
+        stump::Stump,
         transport_node::TransportNode,
     },
     params::{
@@ -31,7 +31,7 @@ where
     rules_provider: &'a RP,
     terrain_provider: &'a TP,
     path_prioritizator: &'a PP,
-    stump_heap: BinaryHeap<NodeStump>,
+    stump_heap: BinaryHeap<Stump>,
 }
 
 impl<'a, RP, TP, PP> TransportBuilder<'a, RP, TP, PP>
@@ -62,7 +62,7 @@ where
         angle_expected_end: Angle,
         stage: Stage,
         metrics: PathMetrics,
-    ) -> Option<NodeStump> {
+    ) -> Option<Stump> {
         let node_start = self.path_network.get_node(node_start_id)?;
 
         let rules_start = self
@@ -82,7 +82,7 @@ where
                 is_bridge: estimated_end_is_bridge,
             })?;
 
-        let stump = NodeStump::new(
+        let stump = Stump::new(
             node_start_id,
             angle_expected_end,
             PathParams {
@@ -216,7 +216,7 @@ where
             .map(|(site, _, is_bridge)| (site, is_bridge))
     }
 
-    fn determine_growth_from_stump(&self, stump: &NodeStump) -> Option<GrowthTypes> {
+    fn determine_growth_from_stump(&self, stump: &Stump) -> Option<GrowthTypes> {
         let stump_node = self.path_network.get_node(stump.get_node_id())?;
         // Set the end site of the path again.
         let site_expected_end_opt = self.expect_end_of_path(

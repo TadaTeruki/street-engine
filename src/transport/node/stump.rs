@@ -12,21 +12,21 @@ use super::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct NodeStump {
+pub struct Stump {
     node_id: NodeId,
     angle_expected: Angle,
     params: PathParams,
 }
 
-impl Eq for NodeStump {}
+impl Eq for Stump {}
 
-impl PartialOrd for NodeStump {
+impl PartialOrd for Stump {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for NodeStump {
+impl Ord for Stump {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.params.priority.total_cmp(&other.params.priority)
     }
@@ -34,7 +34,7 @@ impl Ord for NodeStump {
 
 type RelatedNode<'a> = (&'a TransportNode, NodeId);
 
-impl NodeStump {
+impl Stump {
     /// Create a new node stump.
     pub fn new(node_id: NodeId, angle_expected: Angle, params: PathParams) -> Self {
         Self {

@@ -1,5 +1,5 @@
 pub mod growth_type;
-pub mod node_stump;
+pub mod stump;
 pub mod transport_node;
 
 #[cfg(test)]
@@ -19,7 +19,7 @@ mod tests {
 
     use super::{
         growth_type::{GrowthTypes, NextNodeType},
-        node_stump::NodeStump,
+        stump::Stump,
         transport_node::TransportNode,
     };
 
@@ -94,7 +94,7 @@ mod tests {
         };
 
         // New node
-        let new = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let new = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
                 &TransportNode {
@@ -127,7 +127,7 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
-        let intersect = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let intersect = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
                 &TransportNode {
@@ -154,7 +154,7 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
-        let existing = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let existing = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
                 &TransportNode {
@@ -181,7 +181,7 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
-        let existing = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let existing = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
                 &TransportNode {
@@ -251,7 +251,7 @@ mod tests {
             priority: 0.0,
         };
 
-        let next = NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone())
+        let next = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
             .determine_growth(
                 &node_start,
                 &TransportNode {
@@ -324,7 +324,7 @@ mod tests {
                 priority: 0.0,
             };
 
-            NodeStump::new(NodeId::new(10000), angle_expected_end, params.clone()).determine_growth(
+            Stump::new(NodeId::new(10000), angle_expected_end, params.clone()).determine_growth(
                 &node_start,
                 &TransportNode {
                     site: site_expected_end,
