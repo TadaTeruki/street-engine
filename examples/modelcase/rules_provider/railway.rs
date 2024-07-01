@@ -43,7 +43,7 @@ impl<'a> TransportRulesProvider for RulesProviderForRailway<'a> {
             path_normal_length,
             path_extra_length_for_intersection: path_normal_length * 0.7,
             path_slope_elevation_diff_limit: ElevationDiffLimit::Linear(10.0),
-            path_grade_separate_elevation_diff_required: 10.0,
+            path_grade_separation_elevation_diff_threshold: f64::MAX,
             branch_rules: BranchRules {
                 branch_density: (0.3 + population_density * 0.2) * branch_motivation,
                 staging_probability: 0.0,

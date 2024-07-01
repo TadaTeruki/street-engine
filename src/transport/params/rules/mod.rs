@@ -14,12 +14,13 @@ pub struct TransportRules {
     /// Extra length of the path to search intersections.
     pub path_extra_length_for_intersection: f64,
 
-    /// Maximum elevation difference of the path.
+    /// Maximum elevation difference of the path to construct.
     ///
     /// To extend a path, the elevation difference (=slope) between the start and end of the path should be less than this value.
-    ///
-    /// To construct grade-separate paths, the elevation difference between the paths should be more than this value.
     pub path_slope_elevation_diff_limit: ElevationDiffLimit,
+
+    /// If the elevation difference of the crossing points of two paths is greater than this value, the paths must be grade-separated.
+    pub path_grade_separation_elevation_diff_threshold: f64,
 
     /// Probability of branching. If 1.0, the path will always create branch.
     pub branch_rules: BranchRules,
@@ -37,6 +38,7 @@ impl Default for TransportRules {
             path_normal_length: 0.0,
             path_extra_length_for_intersection: 0.0,
             path_slope_elevation_diff_limit: ElevationDiffLimit::AlwaysAllow,
+            path_grade_separation_elevation_diff_threshold: 0.0,
             branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
             bridge_rules: BridgeRules::default(),
@@ -60,12 +62,22 @@ impl TransportRules {
         self
     }
 
-    /// Set the maximum elevation difference of the path.
+    /// Set the maximum elevation difference of the path to construct.
     pub fn path_slope_elevation_diff_limit(
         mut self,
         path_slope_elevation_diff_limit: ElevationDiffLimit,
     ) -> Self {
         self.path_slope_elevation_diff_limit = path_slope_elevation_diff_limit;
+        self
+    }
+
+    /// Set the minimum elevation difference of the crossing points of paths.
+    pub fn path_grade_separation_elevation_diff_threshold(
+        mut self,
+        path_grade_separation_elevation_diff_threshold: f64,
+    ) -> Self {
+        self.path_grade_separation_elevation_diff_threshold =
+            path_grade_separation_elevation_diff_threshold;
         self
     }
 
@@ -98,7 +110,7 @@ pub enum ElevationDiffLimit {
     /// The limit will be proportional to the path length. (specified elevation * path length)
     Linear(f64),
     /// The limit will be a non-linear function of the path length.
-    NonLinear(fn(f64) -> f64),
+    NonLinear(fn(path_length: f64) -> f64),
 }
 
 impl ElevationDiffLimit {

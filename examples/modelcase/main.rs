@@ -3,7 +3,7 @@ use graphics::write_to_image;
 use map_provider::MapProvider;
 use naturalneighbor::Interpolator;
 use random::RandomF64;
-use rules_provider::{railway::RulesProviderForRailway, road::RulesProviderForRoad};
+use rules_provider::road::RulesProviderForRoad;
 use street_engine::{
     core::geometry::site::Site,
     transport::{builder::TransportBuilder, params::numeric::Stage},
@@ -17,7 +17,7 @@ mod rules_provider;
 
 fn main() {
     let node_num = 50000;
-    let seed = 0;
+    let seed = 100;
     let bound_min = Site {
         x: -100.0,
         y: -50.0,

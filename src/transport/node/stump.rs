@@ -74,16 +74,26 @@ impl Stump {
         )
     }
 
+    /// Check elevation difference of two paths to determine if the paths can be grade separated.
+    fn can_create_grade_separated(&self, elevation0: f64, elevation1: f64) -> bool {
+        let diff = (elevation0 - elevation1).abs();
+        diff > self
+            .params
+            .rules_start
+            .path_grade_separation_elevation_diff_threshold
+    }
+
     fn get_crossing<'a>(
         line: &'a LineSegment,
         related_paths: &'a [(RelatedNode<'a>, RelatedNode<'a>)],
-    ) -> Vec<(&'a RelatedNode<'a>, &'a RelatedNode<'a>, Site)> {
+    ) -> Vec<(&'a RelatedNode<'a>, &'a RelatedNode<'a>, (Site, f64))> {
         related_paths
             .iter()
             .filter_map(|(path_start, path_end)| {
                 let path_line = LineSegment::new(path_start.0.site, path_end.0.site);
                 if let Some(intersect) = path_line.get_intersection(line) {
-                    return Some((path_start, path_end, intersect));
+                    let elevation = path_start.0.elevation_on_path(path_end.0, intersect);
+                    return Some((path_start, path_end, (intersect, elevation)));
                 }
                 None
             })
@@ -136,6 +146,13 @@ impl Stump {
                     .filter(|(path_start, path_end, _)| {
                         *existing_node_id != path_start.1 && *existing_node_id != path_end.1
                     })
+                    .filter(|(_, _, (_, intersect_elevation))| {
+                        // if the path must be grade separated, intersection cannot be created.
+                        !self.can_create_grade_separated(
+                            *intersect_elevation,
+                            existing_node.elevation,
+                        )
+                    })
                     .count()
                         == 0
                 })
@@ -171,17 +188,14 @@ impl Stump {
                 .get_expected_site_to_with_extra_length(node_start.site, node_expected_end.site);
             let search_line = LineSegment::new(search_start, search_end);
 
-            let crossing_path = Self::get_crossing(&search_line, related_paths)
-                .into_iter()
-                .map(|(path_start, path_end, intersect)| {
-                    let distance_0 = path_start.0.site.distance(&intersect);
-                    let distance_1 = path_end.0.site.distance(&intersect);
-                    let prop_start = distance_1 / (distance_0 + distance_1);
+            let crossings = Self::get_crossing(&search_line, related_paths);
+            let crossing_path = crossings
+                .iter()
+                .map(|(path_start, path_end, (intersect_site, _))| {
                     (
                         TransportNode::new(
-                            intersect,
-                            path_start.0.elevation * prop_start
-                                + path_end.0.elevation * (1.0 - prop_start),
+                            *intersect_site,
+                            path_start.0.elevation_on_path(path_end.0, *intersect_site),
                             path_start.0.path_stage(path_end.0),
                             path_start.0.path_is_bridge(path_end.0),
                         ),
@@ -199,7 +213,6 @@ impl Stump {
                 });
 
             if let Some((crossing_node, path_nodes)) = crossing_path {
-                ////self.check_slope(node_start, crossing_node)
                 // if it cross the bridge, the path cannot be connected.
                 if path_nodes.0 .0.path_is_bridge(path_nodes.1 .0) {
                     return GrowthTypes {
@@ -224,6 +237,17 @@ impl Stump {
                         (path_nodes.0 .1, path_nodes.1 .1),
                     ),
                     bridge_node: middle,
+                };
+            }
+
+            // if no intersection is created and there are existing paths
+            // which prevent the incoming path from being created as grade separated, the path cannot be connected.
+            if crossings.iter().any(|(_, _, (_, intersect_elevation))| {
+                !self.can_create_grade_separated(*intersect_elevation, node_expected_end.elevation)
+            }) {
+                return GrowthTypes {
+                    next_node: NextNodeType::None,
+                    bridge_node: BridgeNodeType::None,
                 };
             }
         }

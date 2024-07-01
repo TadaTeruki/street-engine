@@ -25,6 +25,13 @@ impl TransportNode {
     pub fn path_stage(&self, other: &Self) -> Stage {
         self.stage.max(other.stage)
     }
+
+    pub fn elevation_on_path(&self, other: &Self, site: Site) -> f64 {
+        let distance_0 = self.site.distance(&site);
+        let distance_1 = other.site.distance(&site);
+        let prop_start = distance_1 / (distance_0 + distance_1);
+        self.elevation * prop_start + other.elevation * (1.0 - prop_start)
+    }
 }
 
 impl Eq for TransportNode {}
