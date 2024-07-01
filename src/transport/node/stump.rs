@@ -74,6 +74,32 @@ impl Stump {
         )
     }
 
+    fn get_crossing<'a>(
+        line: &'a LineSegment,
+        related_paths: &'a [(RelatedNode<'a>, RelatedNode<'a>)],
+    ) -> Vec<(&'a RelatedNode<'a>, &'a RelatedNode<'a>, Site)> {
+        related_paths
+            .iter()
+            .filter_map(|(path_start, path_end)| {
+                let path_line = LineSegment::new(path_start.0.site, path_end.0.site);
+                if let Some(intersect) = path_line.get_intersection(line) {
+                    return Some((path_start, path_end, intersect));
+                }
+                None
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn check_slope(&self, node0: &TransportNode, node1: &TransportNode) -> bool {
+        // slope check
+        // if the elevation difference is too large, the path cannot be connected.
+        let distance = node0.site.distance(&node1.site);
+        self.params
+            .rules_start
+            .path_slope_elevation_diff_limit
+            .check_slope((node0.elevation, node1.elevation), distance)
+    }
+
     /// Determine the next node type from related(close) nodes and paths.
     pub fn determine_growth(
         &self,
@@ -102,29 +128,18 @@ impl Stump {
                 })
                 .filter(|(existing_node, existing_node_id)| {
                     // no intersection check
-                    let has_intersection = related_paths.iter().any(|(path_start, path_end)| {
-                        if *existing_node_id == path_start.1 || *existing_node_id == path_end.1 {
-                            // ignore
-                            return false;
-                        }
-                        let path_line = LineSegment::new(path_start.0.site, path_end.0.site);
-                        let search_line = LineSegment::new(search_start, existing_node.site);
-                        path_line.get_intersection(&search_line).is_some()
-                    });
-                    !has_intersection
+                    Self::get_crossing(
+                        &LineSegment::new(search_start, existing_node.site),
+                        related_paths,
+                    )
+                    .iter()
+                    .filter(|(path_start, path_end, _)| {
+                        *existing_node_id != path_start.1 && *existing_node_id != path_end.1
+                    })
+                    .count()
+                        == 0
                 })
-                .filter(|(existing_node, _)| {
-                    // slope check
-                    // if the elevation difference is too large, the path cannot be connected.
-                    let distance = existing_node.site.distance(&search_start);
-                    self.params
-                        .rules_start
-                        .path_slope_elevation_diff_limit
-                        .check_constructable(
-                            (node_start.elevation, existing_node.elevation),
-                            distance,
-                        )
-                })
+                .filter(|(existing_node, _)| self.check_slope(node_start, existing_node))
                 .min_by(|a, b: &&(&TransportNode, NodeId)| {
                     let distance_a = a.0.site.distance_2(&search_start);
                     let distance_b = b.0.site.distance_2(&search_start);
@@ -156,39 +171,26 @@ impl Stump {
                 .get_expected_site_to_with_extra_length(node_start.site, node_expected_end.site);
             let search_line = LineSegment::new(search_start, search_end);
 
-            let crossing_path = related_paths
-                .iter()
-                .filter_map(|(path_start, path_end)| {
-                    let path_line = LineSegment::new(path_start.0.site, path_end.0.site);
-
-                    if let Some(intersect) = path_line.get_intersection(&search_line) {
-                        let distance_0 = path_start.0.site.distance(&intersect);
-                        let distance_1 = path_end.0.site.distance(&intersect);
-                        let prop_start = distance_1 / (distance_0 + distance_1);
-                        return Some((
-                            TransportNode::new(
-                                intersect,
-                                path_start.0.elevation * prop_start
-                                    + path_end.0.elevation * (1.0 - prop_start),
-                                path_start.0.path_stage(path_end.0),
-                                path_start.0.path_is_bridge(path_end.0),
-                            ),
-                            (path_start, path_end),
-                        ));
-                    }
-                    None
+            let crossing_path = Self::get_crossing(&search_line, related_paths)
+                .into_iter()
+                .map(|(path_start, path_end, intersect)| {
+                    let distance_0 = path_start.0.site.distance(&intersect);
+                    let distance_1 = path_end.0.site.distance(&intersect);
+                    let prop_start = distance_1 / (distance_0 + distance_1);
+                    (
+                        TransportNode::new(
+                            intersect,
+                            path_start.0.elevation * prop_start
+                                + path_end.0.elevation * (1.0 - prop_start),
+                            path_start.0.path_stage(path_end.0),
+                            path_start.0.path_is_bridge(path_end.0),
+                        ),
+                        (path_start, path_end),
+                    )
                 })
                 .filter(|(crossing_node, _)| {
-                    // slope check
-                    // if the elevation difference is too large, the path cannot be connected.
-                    let distance = crossing_node.site.distance(&search_start);
-                    self.params
-                        .rules_start
-                        .path_slope_elevation_diff_limit
-                        .check_constructable(
-                            (node_start.elevation, crossing_node.elevation),
-                            distance,
-                        )
+                    // check slope
+                    self.check_slope(node_start, crossing_node)
                 })
                 .min_by(|a, b| {
                     let distance_a = a.0.site.distance_2(&search_start);
@@ -197,6 +199,7 @@ impl Stump {
                 });
 
             if let Some((crossing_node, path_nodes)) = crossing_path {
+                ////self.check_slope(node_start, crossing_node)
                 // if it cross the bridge, the path cannot be connected.
                 if path_nodes.0 .0.path_is_bridge(path_nodes.1 .0) {
                     return GrowthTypes {
@@ -226,16 +229,7 @@ impl Stump {
         }
 
         // check slope
-        let distance = search_start.distance(&node_expected_end.site);
-        if !self
-            .params
-            .rules_start
-            .path_slope_elevation_diff_limit
-            .check_constructable(
-                (node_start.elevation, node_expected_end.elevation),
-                distance,
-            )
-        {
+        if !self.check_slope(node_start, node_expected_end) {
             return GrowthTypes {
                 next_node: NextNodeType::None,
                 bridge_node: BridgeNodeType::None,

@@ -17,12 +17,9 @@ pub struct TransportRules {
     /// Maximum elevation difference of the path.
     ///
     /// To extend a path, the elevation difference (=slope) between the start and end of the path should be less than this value.
-    pub path_slope_elevation_diff_limit: ElevationDiffLimit,
-
-    /// Required elevation difference of the grade-separate paths.
     ///
     /// To construct grade-separate paths, the elevation difference between the paths should be more than this value.
-    pub path_grade_separate_elevation_diff_required: f64,
+    pub path_slope_elevation_diff_limit: ElevationDiffLimit,
 
     /// Probability of branching. If 1.0, the path will always create branch.
     pub branch_rules: BranchRules,
@@ -40,7 +37,6 @@ impl Default for TransportRules {
             path_normal_length: 0.0,
             path_extra_length_for_intersection: 0.0,
             path_slope_elevation_diff_limit: ElevationDiffLimit::AlwaysAllow,
-            path_grade_separate_elevation_diff_required: 0.0,
             branch_rules: BranchRules::default(),
             path_direction_rules: PathDirectionRules::default(),
             bridge_rules: BridgeRules::default(),
@@ -73,16 +69,6 @@ impl TransportRules {
         self
     }
 
-    /// Set the required elevation difference of the grade-separate paths.
-    pub fn path_grade_separate_elevation_diff_required(
-        mut self,
-        path_grade_separate_elevation_diff_required: f64,
-    ) -> Self {
-        self.path_grade_separate_elevation_diff_required =
-            path_grade_separate_elevation_diff_required;
-        self
-    }
-
     /// Set the probability of branching.
     pub fn branch_rules(mut self, branch_rules: BranchRules) -> Self {
         self.branch_rules = branch_rules;
@@ -105,9 +91,13 @@ impl TransportRules {
 /// The limit of the elevation difference.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ElevationDiffLimit {
+    /// Always allow to construct a path.
     AlwaysAllow,
+    /// Always deny to construct a path.
     AlwaysDeny,
+    /// The limit will be proportional to the path length. (specified elevation * path length)
     Linear(f64),
+    /// The limit will be a non-linear function of the path length.
     NonLinear(fn(f64) -> f64),
 }
 
@@ -122,8 +112,8 @@ impl ElevationDiffLimit {
         }
     }
 
-    /// Check if the path is constructable.
-    pub fn check_constructable(&self, elevations: (f64, f64), path_length: f64) -> bool {
+    /// Check if the slope is proper to construct a path.
+    pub fn check_slope(&self, elevations: (f64, f64), path_length: f64) -> bool {
         let elevation_diff = (elevations.1 - elevations.0).abs();
         elevation_diff <= self.value(path_length)
     }
