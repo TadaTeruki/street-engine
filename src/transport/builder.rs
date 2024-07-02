@@ -296,7 +296,7 @@ where
         self
     }
 
-    pub fn snapshot(self) -> (PathNetwork<TransportNode>, Self) {
-        (self.path_network.clone().into_optimized(), self)
+    pub fn snapshot(self) -> (Option<PathNetwork<TransportNode>>, Self) {
+        (self.path_network.clone().reconstruct(), self)
     }
 }

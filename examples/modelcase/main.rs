@@ -72,7 +72,7 @@ fn main() {
         img_width,
         img_height,
         &terrain,
-        &network,
+        &network.unwrap(),
         &population_densities,
         filename,
     );

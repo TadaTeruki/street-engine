@@ -21,20 +21,7 @@ pub enum BridgeNodeType {
 }
 
 impl BridgeNodeType {
-    pub fn get_middle(&self) -> Option<&TransportNode> {
-        match self {
-            BridgeNodeType::Middle(node) => Some(node),
-            BridgeNodeType::None => None,
-        }
-    }
-
-    pub fn has_middle(&self) -> bool {
-        match self {
-            BridgeNodeType::Middle(_) => true,
-            BridgeNodeType::None => false,
-        }
-    }
-
+    #[cfg(test)]
     pub fn is_none(&self) -> bool {
         match self {
             BridgeNodeType::Middle(_) => false,

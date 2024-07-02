@@ -58,11 +58,12 @@ where
 
     /// Get the number of nodes in the graph.
     /// This function is now only for testing, but it may be useful in the future.
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn order(&self) -> usize {
         self.edges.len()
     }
 
+    #[cfg(test)]
     /// Get the number of edges in the graph.
     pub fn size(&self) -> usize {
         self.edges.values().map(|set| set.len()).sum::<usize>() / 2

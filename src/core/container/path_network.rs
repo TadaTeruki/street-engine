@@ -20,6 +20,26 @@ impl NodeId {
     pub fn new(id: usize) -> Self {
         Self(id)
     }
+
+    fn as_num(&self) -> usize {
+        self.0
+    }
+}
+
+/// NodeIdGenerator is a simple struct that generates random ids.
+///
+/// This struct doesn't provide any methods to check the uniqueness of the generated ids.
+#[derive(Debug, Clone, Default)]
+pub struct NodeIdGenerator {
+    next_id: usize,
+}
+
+impl NodeIdGenerator {
+    pub fn generate_id(&mut self) -> NodeId {
+        let id = self.next_id;
+        self.next_id += 1;
+        NodeId::new(id)
+    }
 }
 
 /// Path network.
@@ -37,7 +57,7 @@ where
     path_tree: RTree<PathTreeObject<NodeId>>,
     node_tree: RTree<NodeTreeObject<NodeId>>,
     path_connection: UndirectedGraph<NodeId>,
-    last_node_id: NodeId,
+    id_generator: NodeIdGenerator,
 }
 
 impl<N> Default for PathNetwork<N>
@@ -60,7 +80,7 @@ where
             path_tree: RTree::new(),
             node_tree: RTree::new(),
             path_connection: UndirectedGraph::new(),
-            last_node_id: NodeId::new(0),
+            id_generator: NodeIdGenerator::default(),
         }
     }
     /// Get nodes in the network.
@@ -77,13 +97,20 @@ where
             })
     }
 
+    fn generate_id_with_check(&mut self) -> NodeId {
+        let mut node_id = self.id_generator.generate_id();
+        while self.nodes.contains_key(&node_id) {
+            node_id = self.id_generator.generate_id();
+        }
+        node_id
+    }
+
     /// Add a node to the network.
     pub(crate) fn add_node(&mut self, node: N) -> NodeId {
-        let node_id = self.last_node_id;
+        let node_id = self.generate_id_with_check();
         self.nodes.insert(node_id, node);
         self.node_tree
             .insert(NodeTreeObject::new(node.into(), node_id));
-        self.last_node_id = NodeId::new(node_id.0 + 1);
         node_id
     }
 
@@ -220,17 +247,112 @@ where
             .map(|object| object.node_ids())
     }
 
+    /// Parse the network into a list of nodes and paths.
+    ///
+    /// This function is not exposed now, but it may be useful in the future.
+    fn parse(&self) -> (Vec<N>, Vec<(usize, usize)>) {
+        let nodes = self.nodes.iter().map(|(_, node)| *node).collect::<Vec<_>>();
+        let paths = self
+            .path_tree
+            .iter()
+            .map(|object| {
+                let (start, end) = object.node_ids();
+                (start.as_num(), end.as_num())
+            })
+            .collect::<Vec<_>>();
+        (nodes, paths)
+    }
+
+    pub fn from(nodes: Vec<N>, paths: &[(usize, usize)]) -> Option<Self> {
+        let mut id_generator = NodeIdGenerator::default();
+
+        // distribute NodeIds to nodes
+        let nodes = nodes
+            .into_iter()
+            .map(|node| (id_generator.generate_id(), node))
+            .collect::<Vec<_>>();
+
+        // original paths length
+        let paths_len = paths.len();
+
+        // convert paths from usize to NodeId
+        let paths = paths
+            .iter()
+            .filter_map(|(start, end)| Some((nodes.get(*start)?.0, nodes.get(*end)?.0)))
+            .collect::<Vec<_>>();
+        // if there are invalid paths, return None
+        if paths.len() != paths_len {
+            return None;
+        }
+
+        let node_into_site = |node: N| -> Site { Into::<Site>::into(node) };
+
+        // rtree for nodes
+        let node_tree = RTree::bulk_load(
+            nodes
+                .iter()
+                .map(|(node_id, node)| NodeTreeObject::new(node_into_site(*node), *node_id))
+                .collect::<Vec<_>>(),
+        );
+
+        let path_connection = paths.iter().fold(
+            UndirectedGraph::new(),
+            |mut path_connection, (start, end)| {
+                path_connection.add_edge(*start, *end);
+                path_connection
+            },
+        );
+
+        let nodes = nodes.into_iter().collect::<BTreeMap<_, _>>();
+
+        let path_tree = RTree::bulk_load(
+            paths
+                .iter()
+                .filter_map(|(start, end)| {
+                    let (start_site, end_site) = (
+                        node_into_site(*nodes.get(start)?),
+                        node_into_site(*nodes.get(end)?),
+                    );
+                    Some(PathTreeObject::new(
+                        LineSegment::new(start_site, end_site),
+                        (*start, *end),
+                    ))
+                })
+                .collect::<Vec<_>>(),
+        );
+        // if there are invalid paths, return None
+        if path_tree.size() != paths_len {
+            return None;
+        }
+        Some(Self {
+            nodes,
+            path_tree,
+            node_tree,
+            path_connection,
+            id_generator,
+        })
+    }
+
     /// Get the optimized path network.
-    pub fn into_optimized(self) -> Self {
-        // TODO: optimize the path network
-        self
+    pub fn reconstruct(self) -> Option<Self> {
+        let (nodes, paths) = self.parse();
+        Self::from(nodes, &paths)
     }
 
     /// This function is only for testing
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn check_path_state_is_consistent(&self) -> bool {
         self.path_tree.size() == self.path_connection.size()
             && self.nodes.len() == self.node_tree.size()
+    }
+
+    /// Search the nearest node from a site.
+    /// This function is only for testing, but can be exposed in the future.
+    #[cfg(test)]
+    pub fn search_nearest_node(&self, site: Site) -> Option<NodeId> {
+        self.node_tree
+            .nearest_neighbor(&[site.x, site.y])
+            .map(|object| *object.node_id())
     }
 }
 
@@ -440,6 +562,76 @@ mod tests {
             });
 
             assert!(network.check_path_state_is_consistent());
+        }
+    }
+
+    fn xorshift(x: usize) -> usize {
+        let mut x = x;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        x
+    }
+
+    #[test]
+    fn test_reconstruction() {
+        let nodes = (0..300)
+            .map(|i| Site::new(i as f64, i as f64))
+            .collect::<Vec<_>>();
+
+        let paths = {
+            let mut paths = Vec::new();
+            for i in 0..nodes.len() {
+                for j in i + 1..nodes.len() {
+                    if xorshift(i * nodes.len() + j) % 2 == 0 {
+                        paths.push((i, j));
+                    }
+                }
+            }
+            paths
+        };
+
+        let mut network0: PathNetwork<Site> = PathNetwork::new();
+        let nodeids0 = nodes
+            .clone()
+            .into_iter()
+            .map(|node| network0.add_node(node))
+            .collect::<Vec<_>>();
+
+        for (start, end) in paths.iter() {
+            network0.add_path(nodeids0[*start], nodeids0[*end]);
+        }
+
+        let network1: PathNetwork<Site> = PathNetwork::from(nodes.clone(), &paths).unwrap();
+        let nodeids1 = nodes
+            .iter()
+            .map(|node| network1.search_nearest_node(*node).unwrap())
+            .collect::<Vec<_>>();
+
+        let network2 = network0.clone().reconstruct().unwrap();
+        let nodeids2 = nodes
+            .iter()
+            .map(|node| network2.search_nearest_node(*node).unwrap())
+            .collect::<Vec<_>>();
+
+        let network3 = network1.clone().reconstruct().unwrap();
+        let nodeids3 = nodes
+            .iter()
+            .map(|node| network3.search_nearest_node(*node).unwrap())
+            .collect::<Vec<_>>();
+
+        for i in 0..nodes.len() {
+            for j in 0..nodes.len() {
+                let r0 = network0.has_path(nodeids0[i], nodeids0[j]);
+                let r1 = network1.has_path(nodeids1[i], nodeids1[j]);
+                assert_eq!(r0, r1);
+
+                let r2 = network2.has_path(nodeids2[i], nodeids2[j]);
+                assert_eq!(r1, r2);
+
+                let r3 = network3.has_path(nodeids3[i], nodeids3[j]);
+                assert_eq!(r2, r3);
+            }
         }
     }
 }

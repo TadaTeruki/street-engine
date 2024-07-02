@@ -3,7 +3,7 @@ use naturalneighbor::Interpolator;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use street_engine::{
     core::{container::path_network::PathNetwork, geometry::site::Site},
-    transport::node::transport_node::TransportNode,
+    transport::node::TransportNode,
 };
 use tiny_skia::{Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
 
