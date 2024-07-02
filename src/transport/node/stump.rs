@@ -50,6 +50,25 @@ impl Ord for Stump {
 type RelatedNode<'a> = (&'a TransportNode, NodeId);
 
 impl Stump {
+    /// Create a new stump.
+    pub(super) fn new(
+        node_id: NodeId,
+        node_expected_end: TransportNode,
+        rules: TransportRules,
+        metrics: PathMetrics,
+        priority: f64,
+        creates_bridge: bool,
+    ) -> Self {
+        Self {
+            node_id,
+            node_expected_end,
+            rules,
+            metrics,
+            priority,
+            creates_bridge,
+        }
+    }
+
     /// Create a new stump for the given conditions.
     pub fn create<TP, PP>(
         terrain_provider: &TP,
@@ -118,19 +137,19 @@ impl Stump {
             creates_bridge,
         })?;
 
-        Some(Self {
+        Some(Self::new(
             node_id,
-            node_expected_end: TransportNode::new(
+            TransportNode::new(
                 estimated_end_site,
                 terrain_provider.get_elevation(&estimated_end_site)?,
                 stage,
                 false,
             ),
-            rules: rules.clone(),
-            metrics: metrics.clone(),
+            rules.clone(),
+            metrics.clone(),
             priority,
             creates_bridge,
-        })
+        ))
     }
 
     pub fn get_node_id(&self) -> NodeId {

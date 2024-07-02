@@ -45,7 +45,6 @@ mod tests {
             is_bridge,
         }
     }
-    /*
     #[test]
     fn test_next_node() {
         let nodes = vec![
@@ -80,26 +79,16 @@ mod tests {
             .site
             .extend(angle_expected_end, rules.path_normal_length);
 
-        let params = PathParams {
-            stage: Stage::default(),
-            rules_start: rules.clone(),
-            metrics: PathMetrics::default(),
-            priority: 0.0,
-        };
-
         // New node
-        let new = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
-            .determine_growth(
-                &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
-                &nodes_parsed,
-                &paths_parsed,
-            );
+        let new = Stump::new(
+            NodeId::new(10000),
+            TransportNode::new(site_expected_end, 0.0, Stage::default(), false),
+            rules.clone(),
+            PathMetrics::default(),
+            0.0,
+            false,
+        )
+        .determine_growth(&node_start, &nodes_parsed, &paths_parsed);
 
         if let NextNodeType::New(node) = new.next_node {
             assert_eq_f64!(
@@ -121,18 +110,16 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
-        let intersect = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
-            .determine_growth(
-                &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
-                &nodes_parsed,
-                &paths_parsed,
-            );
+
+        let intersect = Stump::new(
+            NodeId::new(10000),
+            TransportNode::new(site_expected_end, 0.0, Stage::default(), false),
+            rules.clone(),
+            PathMetrics::default(),
+            0.0,
+            false,
+        )
+        .determine_growth(&node_start, &nodes_parsed, &paths_parsed);
 
         if let NextNodeType::Intersect(node, _) = intersect.next_node {
             assert_eq_f64!(node.site.distance(&Site::new(0.5, 0.5)), 0.0);
@@ -148,18 +135,16 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
-        let existing = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
-            .determine_growth(
-                &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
-                &nodes_parsed,
-                &paths_parsed,
-            );
+
+        let existing = Stump::new(
+            NodeId::new(10000),
+            TransportNode::new(site_expected_end, 0.0, Stage::default(), false),
+            rules.clone(),
+            PathMetrics::default(),
+            0.0,
+            false,
+        )
+        .determine_growth(&node_start, &nodes_parsed, &paths_parsed);
 
         if let NextNodeType::Existing(node_id) = existing.next_node {
             assert_eq!(node_id, NodeId::new(1));
@@ -175,18 +160,15 @@ mod tests {
         let site_expected_end = node_start
             .site
             .extend(angle_expected_end, rules.path_normal_length);
-        let existing = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
-            .determine_growth(
-                &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
-                &nodes_parsed,
-                &paths_parsed,
-            );
+        let existing = Stump::new(
+            NodeId::new(10000),
+            TransportNode::new(site_expected_end, 0.0, Stage::default(), false),
+            rules.clone(),
+            PathMetrics::default(),
+            0.0,
+            false,
+        )
+        .determine_growth(&node_start, &nodes_parsed, &paths_parsed);
 
         if let NextNodeType::Existing(node_id) = existing.next_node {
             assert_eq!(node_id, NodeId::new(1));
@@ -240,25 +222,15 @@ mod tests {
             .site
             .extend(angle_expected_end, rules.path_normal_length);
 
-        let params = PathParams {
-            stage: Stage::default(),
-            rules_start: rules.clone(),
-            metrics: PathMetrics::default(),
-            priority: 0.0,
-        };
-
-        let next = Stump::new(NodeId::new(10000), angle_expected_end, params.clone())
-            .determine_growth(
-                &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: 0.0,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
-                &nodes_parsed,
-                &paths_parsed,
-            );
+        let next = Stump::new(
+            NodeId::new(10000),
+            TransportNode::new(site_expected_end, 0.0, Stage::default(), false),
+            rules.clone(),
+            PathMetrics::default(),
+            0.0,
+            false,
+        )
+        .determine_growth(&node_start, &nodes_parsed, &paths_parsed);
 
         println!("{:?}", next.next_node);
 
@@ -308,25 +280,15 @@ mod tests {
             let site_expected_end = node_start
                 .site
                 .extend(angle_expected_end, rules.path_normal_length);
-
-            let params = PathParams {
-                stage: Stage::default(),
-                rules_start: rules.clone(),
-                metrics: PathMetrics::default(),
-                priority: 0.0,
-            };
-
-            Stump::new(NodeId::new(10000), angle_expected_end, params.clone()).determine_growth(
-                &node_start,
-                &TransportNode {
-                    site: site_expected_end,
-                    elevation: elevation_end,
-                    stage: params.stage,
-                    is_bridge: false,
-                },
-                &nodes_parsed,
-                &paths_parsed,
+            Stump::new(
+                NodeId::new(10000),
+                TransportNode::new(site_expected_end, elevation_end, Stage::default(), false),
+                rules.clone(),
+                PathMetrics::default(),
+                0.0,
+                false,
             )
+            .determine_growth(&node_start, &nodes_parsed, &paths_parsed)
         };
 
         // New node which passes between two existing paths
@@ -359,5 +321,4 @@ mod tests {
             panic!("Unexpected node type");
         }
     }
-    */
 }

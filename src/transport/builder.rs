@@ -11,9 +11,7 @@ use super::{
         stump::Stump,
         transport_node::TransportNode,
     },
-    params::{
-        metrics::PathMetrics, numeric::Stage
-    },
+    params::{metrics::PathMetrics, numeric::Stage},
     traits::{PathPrioritizator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };
 
@@ -61,9 +59,7 @@ where
     ) -> Option<()> {
         let node = self.path_network.get_node(node_start_id)?;
 
-        let rules = self
-            .rules_provider
-            .get_rules(&node.site, stage, &metrics)?;
+        let rules = self.rules_provider.get_rules(&node.site, stage, &metrics)?;
 
         let stump = Stump::create(
             self.terrain_provider,
