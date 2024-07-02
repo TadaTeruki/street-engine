@@ -174,13 +174,14 @@ where
 
     /// Search nodes around a site within a radius.
     pub fn nodes_around_site_iter(&self, site: Site, radius: f64) -> impl Iterator<Item = &NodeId> {
-        self.nodes.iter().filter_map(move |(node_id, &node)| {
-            if site.distance(&node.into()) <= radius {
-                Some(node_id)
-            } else {
-                None
-            }
-        })
+        let envelope = rstar::AABB::from_corners(
+            [site.x - radius, site.y - radius],
+            [site.x + radius, site.y + radius],
+        );
+        self.node_tree
+            .locate_in_envelope(&envelope)
+            .filter(move |object| site.distance(object.site()) <= radius)
+            .map(|object| object.node_id())
     }
 
     /// Search nodes around a line segment within a radius.
