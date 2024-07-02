@@ -18,7 +18,7 @@ impl TransportNode {
         }
     }
 
-    pub fn path_is_bridge(&self, other: &Self) -> bool {
+    pub fn path_creates_bridge(&self, other: &Self) -> bool {
         self.is_bridge || other.is_bridge
     }
 

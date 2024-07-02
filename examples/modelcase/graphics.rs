@@ -82,7 +82,7 @@ pub fn write_to_image(
                     0.8
                 };
 
-                let color = if inode.path_is_bridge(jnode) {
+                let color = if inode.path_creates_bridge(jnode) {
                     [0, 230, 240]
                 } else {
                     [0, 0, 0]

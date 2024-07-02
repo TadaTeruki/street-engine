@@ -12,8 +12,7 @@ use super::{
         transport_node::TransportNode,
     },
     params::{
-        metrics::PathMetrics, numeric::Stage, priority::PathPrioritizationFactors,
-        rules::TransportRules, PathParams,
+        metrics::PathMetrics, numeric::Stage
     },
     traits::{PathPrioritizator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };
@@ -59,40 +58,26 @@ where
         angle_expected_end: Angle,
         stage: Stage,
         metrics: PathMetrics,
-    ) -> Option<Stump> {
-        let node_start = self.path_network.get_node(node_start_id)?;
+    ) -> Option<()> {
+        let node = self.path_network.get_node(node_start_id)?;
 
-        let rules_start = self
+        let rules = self
             .rules_provider
-            .get_rules(&node_start.site, stage, &metrics)?;
+            .get_rules(&node.site, stage, &metrics)?;
 
-        let (estimated_end_site, estimated_end_is_bridge) =
-            self.expect_end_of_path(node_start.site, angle_expected_end, stage, &rules_start)?;
-
-        let priority = self
-            .path_prioritizator
-            .prioritize(PathPrioritizationFactors {
-                site_start: node_start.site,
-                site_end: estimated_end_site,
-                path_length: rules_start.path_normal_length,
-                stage,
-                is_bridge: estimated_end_is_bridge,
-            })?;
-
-        let stump = Stump::new(
-            node_start_id,
+        let stump = Stump::create(
+            self.terrain_provider,
+            self.path_prioritizator,
+            (node, node_start_id),
             angle_expected_end,
-            PathParams {
-                stage,
-                rules_start,
-                metrics,
-                priority,
-            },
-        );
+            stage,
+            &rules,
+            &metrics,
+        )?;
 
-        self.stump_heap.push(stump.clone());
+        self.stump_heap.push(stump);
 
-        Some(stump)
+        Some(())
     }
 
     /// Add an origin node to the path network.
@@ -156,84 +141,15 @@ where
         self
     }
 
-    /// Query the expected end of the path.
-    /// Return the site and is the path to be a bridge.
-    fn expect_end_of_path(
-        &self,
-        site_start: Site,
-        angle_expected: Angle,
-        stage: Stage,
-        rules_start: &TransportRules,
-    ) -> Option<(Site, bool)> {
-        let path_direction_rules = &rules_start.path_direction_rules;
-        angle_expected
-            .iter_range_around(
-                path_direction_rules.max_radian,
-                path_direction_rules.comparison_step,
-            )
-            .filter_map(|angle| {
-                for i in 0..=rules_start.bridge_rules.check_step {
-                    let bridge_path_length = if rules_start.bridge_rules.check_step == 0 {
-                        0.0
-                    } else {
-                        rules_start.bridge_rules.max_bridge_length * (i as f64)
-                            / (rules_start.bridge_rules.check_step as f64)
-                    };
-                    let path_length = rules_start.path_normal_length + bridge_path_length;
-                    let site_end = site_start.extend(angle, path_length);
-                    let is_bridge = i > 0;
-                    if let Some(priority) =
-                        self.path_prioritizator
-                            .prioritize(PathPrioritizationFactors {
-                                site_start,
-                                site_end,
-                                path_length,
-                                stage,
-                                is_bridge,
-                            })
-                    {
-                        if let (Some(elevation_start), Some(elevation_end)) = (
-                            self.terrain_provider.get_elevation(&site_start),
-                            self.terrain_provider.get_elevation(&site_end),
-                        ) {
-                            if rules_start
-                                .path_slope_elevation_diff_limit
-                                .check_slope((elevation_start, elevation_end), path_length)
-                            {
-                                return Some((site_end, priority, is_bridge));
-                            }
-                        }
-                    }
-                }
-                None
-            })
-            .max_by(|(_, ev0, _), (_, ev1, _)| ev0.total_cmp(ev1))
-            .map(|(site, _, is_bridge)| (site, is_bridge))
-    }
-
     fn determine_growth_from_stump(&self, stump: &Stump) -> Option<GrowthTypes> {
         let stump_node = self.path_network.get_node(stump.get_node_id())?;
-        // Set the end site of the path again.
-        let site_expected_end_opt = self.expect_end_of_path(
-            stump_node.site,
-            stump.angle_expected(),
-            stump.get_path_params().stage,
-            &stump.get_path_params().rules_start,
-        );
-
-        let (site_expected_end, to_be_bridge_end) = site_expected_end_opt?;
-
-        let elevation_expected_end = self.terrain_provider.get_elevation(&site_expected_end)?;
 
         // Find nodes around the line from the start site to the expected end site.
         let related_nodes = self
             .path_network
             .nodes_around_line_iter(
-                LineSegment::new(stump_node.site, site_expected_end),
-                stump
-                    .get_path_params()
-                    .rules_start
-                    .path_extra_length_for_intersection,
+                LineSegment::new(stump_node.site, stump.get_node_expected_end().site),
+                stump.get_rules().path_extra_length_for_intersection,
             )
             .filter(|&node_id| *node_id != stump.get_node_id())
             .filter_map(|node_id| Some((self.path_network.get_node(*node_id)?, *node_id)))
@@ -242,7 +158,7 @@ where
         // Find paths touching the rectangle around the line.
         let related_paths = self
             .path_network
-            .paths_touching_rect_iter(stump_node.site, site_expected_end)
+            .paths_touching_rect_iter(stump_node.site, stump.get_node_expected_end().site)
             .filter(|(node_id_start, node_id_end)| {
                 *node_id_start != stump.get_node_id() && *node_id_end != stump.get_node_id()
             })
@@ -254,17 +170,7 @@ where
             .collect::<Vec<_>>();
 
         // Determine the growth of the path.
-        let growth = stump.determine_growth(
-            stump_node,
-            &TransportNode::new(
-                site_expected_end,
-                elevation_expected_end,
-                stump.get_path_params().stage,
-                to_be_bridge_end,
-            ),
-            &related_nodes,
-            &related_paths,
-        );
+        let growth = stump.determine_growth(stump_node, &related_nodes, &related_paths);
 
         Some(growth)
     }
@@ -291,7 +197,7 @@ where
             growth.next_node,
             growth.bridge_node,
             prior_stump.get_node_id(),
-            prior_stump.get_path_params(),
+            &prior_stump,
         )
     }
 
@@ -301,7 +207,7 @@ where
         next_node_type: NextNodeType,
         bridge_node_type: BridgeNodeType,
         stump_node_id: NodeId,
-        path_params: &PathParams,
+        stump: &Stump,
     ) -> Self
     where
         R: RandomF64Provider,
@@ -315,7 +221,7 @@ where
                 next_node_type,
                 BridgeNodeType::None,
                 bridge_node_id,
-                path_params,
+                stump,
             );
         }
 
@@ -348,43 +254,43 @@ where
                 self.push_new_stump(
                     node_id,
                     straight_angle,
-                    path_params.stage,
-                    path_params.metrics.incremented(false, false),
+                    stump.get_stage(),
+                    stump.get_metrics().incremented(false, false),
                 );
                 let clockwise_branch =
-                    rng.gen_f64() < path_params.rules_start.branch_rules.branch_density;
+                    rng.gen_f64() < stump.get_rules().branch_rules.branch_density;
                 if clockwise_branch {
                     let clockwise_staging =
-                        rng.gen_f64() < path_params.rules_start.branch_rules.staging_probability;
+                        rng.gen_f64() < stump.get_rules().branch_rules.staging_probability;
                     let next_stage = if clockwise_staging {
-                        path_params.stage.incremented()
+                        stump.get_stage().incremented()
                     } else {
-                        path_params.stage
+                        stump.get_stage()
                     };
                     self.push_new_stump(
                         node_id,
                         straight_angle.right_clockwise(),
                         next_stage,
-                        path_params.metrics.incremented(clockwise_staging, true),
+                        stump.get_metrics().incremented(clockwise_staging, true),
                     );
                 }
 
                 let counterclockwise_branch =
-                    rng.gen_f64() < path_params.rules_start.branch_rules.branch_density;
+                    rng.gen_f64() < stump.get_rules().branch_rules.branch_density;
                 if counterclockwise_branch {
                     let counterclockwise_staging =
-                        rng.gen_f64() < path_params.rules_start.branch_rules.staging_probability;
+                        rng.gen_f64() < stump.get_rules().branch_rules.staging_probability;
                     let next_stage = if counterclockwise_staging {
-                        path_params.stage.incremented()
+                        stump.get_stage().incremented()
                     } else {
-                        path_params.stage
+                        stump.get_stage()
                     };
                     self.push_new_stump(
                         node_id,
                         straight_angle.right_counterclockwise(),
                         next_stage,
-                        path_params
-                            .metrics
+                        stump
+                            .get_metrics()
                             .incremented(counterclockwise_staging, true),
                     );
                 }

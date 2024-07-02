@@ -13,5 +13,5 @@ pub struct PathPrioritizationFactors {
     /// The stage of the path.
     pub stage: Stage,
     /// Whether the path is a bridge.
-    pub is_bridge: bool,
+    pub creates_bridge: bool,
 }

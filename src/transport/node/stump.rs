@@ -3,7 +3,13 @@ use crate::{
         container::path_network::NodeId,
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
     },
-    transport::params::PathParams,
+    transport::{
+        params::{
+            metrics::PathMetrics, numeric::Stage, priority::PathPrioritizationFactors,
+            rules::TransportRules,
+        },
+        traits::{PathPrioritizator, TerrainProvider},
+    },
 };
 
 use super::{
@@ -13,9 +19,18 @@ use super::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stump {
+    /// node id which this stump is created for.
     node_id: NodeId,
-    angle_expected: Angle,
-    params: PathParams,
+    /// expected end node of the path.
+    node_expected_end: TransportNode,
+    /// rules for the path to be created by this stump.
+    rules: TransportRules,
+    /// metrics for the path to be created by this stump.
+    metrics: PathMetrics,
+    /// priority of stump to be dequed.
+    priority: f64,
+    /// if the path is to be created is a bridge.
+    creates_bridge: bool,
 }
 
 impl Eq for Stump {}
@@ -28,34 +43,114 @@ impl PartialOrd for Stump {
 
 impl Ord for Stump {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.params.priority.total_cmp(&other.params.priority)
+        self.priority.total_cmp(&other.priority)
     }
 }
 
 type RelatedNode<'a> = (&'a TransportNode, NodeId);
 
 impl Stump {
-    /// Create a new node stump.
-    pub fn new(node_id: NodeId, angle_expected: Angle, params: PathParams) -> Self {
-        Self {
+    /// Create a new stump for the given conditions.
+    pub fn create<TP, PP>(
+        terrain_provider: &TP,
+        path_prioritizator: &PP,
+        node_tuple: (&TransportNode, NodeId),
+        angle_expected: Angle,
+        stage: Stage,
+        rules: &TransportRules,
+        metrics: &PathMetrics,
+    ) -> Option<Self>
+    where
+        TP: TerrainProvider,
+        PP: PathPrioritizator,
+    {
+        let (node, node_id) = node_tuple;
+
+        let path_direction_rules = &rules.path_direction_rules;
+        let (estimated_end_site, creates_bridge) = angle_expected
+            .iter_range_around(
+                path_direction_rules.max_radian,
+                path_direction_rules.comparison_step,
+            )
+            .filter_map(|angle| {
+                for i in 0..=rules.bridge_rules.check_step {
+                    let bridge_path_length = if rules.bridge_rules.check_step == 0 {
+                        0.0
+                    } else {
+                        rules.bridge_rules.max_bridge_length * (i as f64)
+                            / (rules.bridge_rules.check_step as f64)
+                    };
+                    let path_length = rules.path_normal_length + bridge_path_length;
+                    let site_end = node.site.extend(angle, path_length);
+                    let creates_bridge = i > 0;
+                    if let Some(priority) =
+                        path_prioritizator.prioritize(PathPrioritizationFactors {
+                            site_start: node.site,
+                            site_end,
+                            path_length,
+                            stage,
+                            creates_bridge,
+                        })
+                    {
+                        if let (Some(elevation_start), Some(elevation_end)) = (
+                            terrain_provider.get_elevation(&node.site),
+                            terrain_provider.get_elevation(&site_end),
+                        ) {
+                            if rules
+                                .path_slope_elevation_diff_limit
+                                .check_slope((elevation_start, elevation_end), path_length)
+                            {
+                                return Some((site_end, priority, creates_bridge));
+                            }
+                        }
+                    }
+                }
+                None
+            })
+            .max_by(|(_, ev0, _), (_, ev1, _)| ev0.total_cmp(ev1))
+            .map(|(site, _, creates_bridge)| (site, creates_bridge))?;
+
+        let priority = path_prioritizator.prioritize(PathPrioritizationFactors {
+            site_start: node.site,
+            site_end: estimated_end_site,
+            path_length: rules.path_normal_length,
+            stage,
+            creates_bridge,
+        })?;
+
+        Some(Self {
             node_id,
-            angle_expected,
-            params,
-        }
+            node_expected_end: TransportNode::new(
+                estimated_end_site,
+                terrain_provider.get_elevation(&estimated_end_site)?,
+                stage,
+                false,
+            ),
+            rules: rules.clone(),
+            metrics: metrics.clone(),
+            priority,
+            creates_bridge,
+        })
     }
 
-    /// Get node id
     pub fn get_node_id(&self) -> NodeId {
         self.node_id
     }
 
-    /// Get the end site of the path.
-    pub fn angle_expected(&self) -> Angle {
-        self.angle_expected
+    pub fn get_node_expected_end(&self) -> &TransportNode {
+        &self.node_expected_end
     }
 
-    pub fn get_path_params(&self) -> &PathParams {
-        &self.params
+    pub fn get_rules(&self) -> &TransportRules {
+        &self.rules
+    }
+
+    pub fn get_metrics(&self) -> &PathMetrics {
+        &self.metrics
+    }
+
+    pub fn get_stage(&self) -> Stage {
+        self.node_expected_end.stage
     }
 
     /// Get the end site of the path with extra length.
@@ -66,8 +161,7 @@ impl Stump {
         site_expected_end: Site,
     ) -> Site {
         let path_length = site_expected_end.distance(&start_site);
-        let scale = (path_length + self.params.rules_start.path_extra_length_for_intersection)
-            / path_length;
+        let scale = (path_length + self.rules.path_extra_length_for_intersection) / path_length;
         Site::new(
             start_site.x + (site_expected_end.x - start_site.x) * scale,
             start_site.y + (site_expected_end.y - start_site.y) * scale,
@@ -77,10 +171,7 @@ impl Stump {
     /// Check elevation difference of two paths to determine if the paths can be grade separated.
     fn can_create_grade_separated(&self, elevation0: f64, elevation1: f64) -> bool {
         let diff = (elevation0 - elevation1).abs();
-        diff > self
-            .params
-            .rules_start
-            .path_grade_separation_elevation_diff_threshold
+        diff > self.rules.path_grade_separation_elevation_diff_threshold
     }
 
     fn get_crossing<'a>(
@@ -104,8 +195,7 @@ impl Stump {
         // slope check
         // if the elevation difference is too large, the path cannot be connected.
         let distance = node0.site.distance(&node1.site);
-        self.params
-            .rules_start
+        self.rules
             .path_slope_elevation_diff_limit
             .check_slope((node0.elevation, node1.elevation), distance)
     }
@@ -114,11 +204,11 @@ impl Stump {
     pub fn determine_growth(
         &self,
         node_start: &TransportNode,
-        node_expected_end: &TransportNode,
         related_nodes: &[RelatedNode],
         related_paths: &[(RelatedNode, RelatedNode)],
     ) -> GrowthTypes {
         let search_start = node_start.site;
+        let node_expected_end = &self.node_expected_end;
 
         // Existing Node
         // For this situation, path crosses are needed to be checked again because the direction of the path can be changed from original.
@@ -129,11 +219,11 @@ impl Stump {
                     // distance check for decreasing the number of candidates
                     LineSegment::new(search_start, node_expected_end.site)
                         .get_distance(&existing_node.site)
-                        < self.params.rules_start.path_extra_length_for_intersection
+                        < self.rules.path_extra_length_for_intersection
                 })
                 .filter(|(existing_node, _)| {
-                    // is_bridge check
-                    // if the existing node is is_bridge, the path cannot be connected.
+                    // creates_bridge check
+                    // if the existing node is creates_bridge, the path cannot be connected.
                     !existing_node.is_bridge
                 })
                 .filter(|(existing_node, existing_node_id)| {
@@ -164,7 +254,7 @@ impl Stump {
                 });
 
             if let Some((existing_node, existing_node_id)) = existing_node_id {
-                let middle = if node_expected_end.is_bridge {
+                let middle = if self.creates_bridge {
                     let middle_site = search_start.midpoint(&existing_node.site);
                     BridgeNodeType::Middle(TransportNode::new(
                         middle_site,
@@ -197,7 +287,7 @@ impl Stump {
                             *intersect_site,
                             path_start.0.elevation_on_path(path_end.0, *intersect_site),
                             path_start.0.path_stage(path_end.0),
-                            path_start.0.path_is_bridge(path_end.0),
+                            path_start.0.path_creates_bridge(path_end.0),
                         ),
                         (path_start, path_end),
                     )
@@ -214,13 +304,13 @@ impl Stump {
 
             if let Some((crossing_node, path_nodes)) = crossing_path {
                 // if it cross the bridge, the path cannot be connected.
-                if path_nodes.0 .0.path_is_bridge(path_nodes.1 .0) {
+                if path_nodes.0 .0.path_creates_bridge(path_nodes.1 .0) {
                     return GrowthTypes {
                         next_node: NextNodeType::None,
                         bridge_node: BridgeNodeType::None,
                     };
                 }
-                let middle = if node_expected_end.is_bridge {
+                let middle = if self.creates_bridge {
                     let middle_site = search_start.midpoint(&crossing_node.site);
                     BridgeNodeType::Middle(TransportNode::new(
                         middle_site,
@@ -262,7 +352,7 @@ impl Stump {
 
         // New Node
         // Path crosses are already checked in the previous steps.
-        let middle = if node_expected_end.is_bridge {
+        let middle = if self.creates_bridge {
             let middle_site = search_start.midpoint(&node_expected_end.site);
             BridgeNodeType::Middle(TransportNode::new(
                 middle_site,
