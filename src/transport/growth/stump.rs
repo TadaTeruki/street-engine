@@ -4,6 +4,7 @@ use crate::{
         geometry::{angle::Angle, line_segment::LineSegment, site::Site},
     },
     transport::{
+        node::TransportNode,
         params::{
             metrics::PathMetrics, numeric::Stage, priority::PathPrioritizationFactors,
             rules::TransportRules,
@@ -12,10 +13,7 @@ use crate::{
     },
 };
 
-use super::{
-    growth_type::{BridgeNodeType, GrowthTypes, NextNodeType},
-    transport_node::TransportNode,
-};
+use super::growth_type::{BridgeNodeType, GrowthTypes, NextNodeType};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stump {

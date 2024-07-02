@@ -6,11 +6,11 @@ use crate::core::{
 };
 
 use super::{
-    node::{
+    growth::{
         growth_type::{BridgeNodeType, GrowthTypes, NextNodeType},
         stump::Stump,
-        transport_node::TransportNode,
     },
+    node::TransportNode,
     params::{metrics::PathMetrics, numeric::Stage},
     traits::{PathPrioritizator, RandomF64Provider, TerrainProvider, TransportRulesProvider},
 };

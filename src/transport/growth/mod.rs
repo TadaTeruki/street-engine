@@ -1,6 +1,5 @@
 pub mod growth_type;
 pub mod stump;
-pub mod transport_node;
 
 #[cfg(test)]
 mod tests {
@@ -9,17 +8,19 @@ mod tests {
             container::path_network::NodeId,
             geometry::{angle::Angle, site::Site},
         },
-        transport::params::{
-            metrics::PathMetrics,
-            numeric::Stage,
-            rules::{ElevationDiffLimit, TransportRules},
+        transport::{
+            node::TransportNode,
+            params::{
+                metrics::PathMetrics,
+                numeric::Stage,
+                rules::{ElevationDiffLimit, TransportRules},
+            },
         },
     };
 
     use super::{
         growth_type::{GrowthTypes, NextNodeType},
         stump::Stump,
-        transport_node::TransportNode,
     };
 
     macro_rules! assert_eq_f64 {

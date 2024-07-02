@@ -1,6 +1,4 @@
-use crate::core::container::path_network::NodeId;
-
-use super::transport_node::TransportNode;
+use crate::{core::container::path_network::NodeId, transport::node::TransportNode};
 
 #[derive(Debug)]
 pub struct GrowthTypes {
