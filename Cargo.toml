@@ -20,3 +20,7 @@ noise = "0.9.0"
 fastlem = "0.1.4"
 terrain-graph = "1.0.1"
 tiny-skia = "0.11.4"
+worley-particle = { git = "https://github.com/TadaTeruki/worley-particle", features = ["particlemap"] }
+vislayers = { git = "https://github.com/TadaTeruki/vislayers" }
+drainage-basin-builder = { git = "https://github.com/TadaTeruki/drainage-basin-builder" }
+gtk4 = "0.9.6"

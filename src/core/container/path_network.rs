@@ -251,7 +251,7 @@ where
     ///
     /// This function is not exposed now, but it may be useful in the future.
     fn parse(&self) -> (Vec<N>, Vec<(usize, usize)>) {
-        let nodes = self.nodes.iter().map(|(_, node)| *node).collect::<Vec<_>>();
+        let nodes = self.nodes.values().cloned().collect::<Vec<_>>();
         let paths = self
             .path_tree
             .iter()

@@ -60,6 +60,7 @@ fn main() {
     let network = TransportBuilder::new(&rules_provider_road, &map_provider, &rules_provider_road)
         .add_origin(Site { x: 0.0, y: 0.0 }, 0.0, Some(Stage::from_num(0)))
         .unwrap()
+        //.connect_origins()
         .iterate_as_possible(&mut rnd)
         .snapshot()
         .0;
