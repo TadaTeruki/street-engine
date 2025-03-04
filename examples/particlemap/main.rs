@@ -2,21 +2,12 @@ use std::{cell::RefCell, rc::Rc};
 
 use drainage_basin_builder::map::DrainageMap;
 use factor::FactorsMap;
-use gtk4::{
-    cairo::{Context, ImageSurface},
-    prelude::WidgetExt,
-    DrawingArea,
-};
+use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{
-    colormap::SimpleColorMap,
     geometry::FocusRange,
     window::{Layer, Visualizer},
 };
-use worley_particle::map::{
-    grad::GradStrategy,
-    lerp::{vertorization::Band, IDWStrategy, InterpolationMethod},
-    ParticleMap,
-};
+use worley_particle::map::ParticleMap;
 
 mod bands;
 mod factor;
