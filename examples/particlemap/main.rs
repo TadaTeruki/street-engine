@@ -7,6 +7,7 @@ use worley_particle::map::ParticleMap;
 
 mod bands;
 mod factor;
+mod habitability;
 
 fn main() {
     let particlemap_dir = "examples/particlemap/data";

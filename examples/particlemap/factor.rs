@@ -1,12 +1,8 @@
-use crate::bands::Bands;
+use crate::{bands::Bands, habitability::create_habitability_map};
 use drainage_basin_builder::map::DrainageMap;
 use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{colormap::SimpleColorMap, geometry::FocusRange, window::Layer};
-use worley_particle::map::{
-    grad::{GradDifferenceType, GradDirectionType, GradStrategy},
-    lerp::{IDWStrategy, InterpolationMethod},
-    ParticleMap,
-};
+use worley_particle::map::ParticleMap;
 
 pub struct FactorsMap {
     elevation_map: ParticleMap<f64>,
@@ -17,64 +13,19 @@ pub struct FactorsMap {
     habitability_bands: Bands,
 }
 
-fn gradient_to_habitability(gradient: f64) -> Option<f64> {
-    let habitability = 1.0 - gradient.abs() / 3.0;
-    if habitability < 0.0 {
-        return None;
-    }
-    Some(habitability.sqrt())
-}
-
 impl FactorsMap {
-    fn create_habitability_map(
-        elevation_map: &ParticleMap<f64>,
-        sea_level: f64,
-    ) -> ParticleMap<f64> {
-        elevation_map
-            .iter()
-            .filter_map(|(particle, elevation)| {
-                if *elevation < sea_level {
-                    return None;
-                }
-                let (x, y) = particle.site();
-                let gradient = elevation_map.get_gradient(
-                    x,
-                    y,
-                    &GradStrategy {
-                        delta: elevation_map.params().scale,
-                        direction_type: GradDirectionType::Steepest,
-                        difference_type: GradDifferenceType::Central,
-                        ..Default::default()
-                    },
-                    &InterpolationMethod::IDW(IDWStrategy::default_from_params(
-                        elevation_map.params(),
-                    )),
-                )?;
-                let havitability = gradient_to_habitability(gradient.value)?;
-                Some((*particle, havitability))
-            })
-            .collect::<ParticleMap<f64>>()
-    }
-
     pub fn new(
         elevation_map: ParticleMap<f64>,
         drainage_map: DrainageMap,
         habitability_map: Option<ParticleMap<f64>>,
         sea_level: f64,
     ) -> Self {
-        let habitability_map = habitability_map
-            .unwrap_or_else(|| Self::create_habitability_map(&elevation_map, sea_level));
+        let habitability_map =
+            habitability_map.unwrap_or_else(|| create_habitability_map(&elevation_map, sea_level));
 
         let elevation_bands = Bands::new(&elevation_map, 80, 300000.0, sea_level, 1.0);
 
-        // Create bands for the population gradient map
-        let habitability_bands = Bands::new(
-            &habitability_map,
-            5,
-            300000.0,
-            0.0, // Min value as specified
-            1.0, // Max value as specified
-        );
+        let habitability_bands = Bands::new(&habitability_map, 5, 300000.0, 0.0, 1.0);
 
         Self {
             elevation_map,
