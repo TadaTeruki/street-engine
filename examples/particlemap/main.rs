@@ -8,6 +8,7 @@ use worley_particle::map::ParticleMap;
 mod bands;
 mod factor;
 mod habitability;
+mod places;
 
 fn main() {
     let particlemap_dir = "examples/particlemap/data";
@@ -30,7 +31,7 @@ fn main() {
     let habitability_map = ParticleMap::<f64>::read_from_file(&habitablity_path).ok();
     let habitability_map_is_none = habitability_map.is_none();
 
-    let factors_map = FactorsMap::new(elevation_map, drainage_map, habitability_map, 0.0025);
+    let factors_map = FactorsMap::new(elevation_map, drainage_map, habitability_map, 1e-5);
 
     if habitability_map_is_none {
         factors_map

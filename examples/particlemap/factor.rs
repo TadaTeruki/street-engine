@@ -1,16 +1,14 @@
-use std::collections::HashMap;
-
-use crate::{bands::Bands, habitability::create_habitability_map};
+use crate::{bands::Bands, habitability::create_habitability_map, places::PlaceMapCollection};
 use drainage_basin_builder::map::DrainageMap;
 use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{colormap::SimpleColorMap, geometry::FocusRange, window::Layer};
-use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
+use worley_particle::{map::ParticleMap, ParticleParameters};
 
 pub struct FactorsMap {
     elevation_map: ParticleMap<f64>,
     drainage_map: DrainageMap,
     habitability_map: ParticleMap<f64>,
-    place_map: ParticleMap<(Particle, f64)>,
+    place_maps: PlaceMapCollection,
 
     elevation_bands: Bands,
     habitability_bands: Bands,
@@ -30,38 +28,45 @@ impl FactorsMap {
 
         let habitability_bands = Bands::new(&habitability_map, 5, 300000.0, 0.0, 1.0);
 
-        let place_particle_param = ParticleParameters {
-            scale: elevation_map.params().scale * 3.0,
-            min_randomness: 0.5,
-            max_randomness: 0.5,
-            ..Default::default()
-        };
-
-        let mut place_hashmap = HashMap::new();
-
-        habitability_map
-            .iter()
-            .for_each(|(habitability_particle, habitability)| {
-                let (x, y) = habitability_particle.site();
-                let place_particle = Particle::from(x, y, place_particle_param);
-                // if the habitability is higher than existing habitability or None, update the place particle
-                if let Some((_, existing_habitability)) = place_hashmap.get(&place_particle) {
-                    if habitability > existing_habitability {
-                        place_hashmap
-                            .insert(place_particle, (*habitability_particle, *habitability));
-                    }
-                } else {
-                    place_hashmap.insert(place_particle, (*habitability_particle, *habitability));
-                }
-            });
-
-        let place_map = ParticleMap::new(place_particle_param, place_hashmap);
+        let place_maps = PlaceMapCollection::new(
+            vec![
+                (
+                    ParticleParameters {
+                        scale: elevation_map.params().scale * 1.5,
+                        min_randomness: 0.5,
+                        max_randomness: 0.5,
+                        ..Default::default()
+                    },
+                    [200, 0, 0, 100],
+                ),
+                (
+                    ParticleParameters {
+                        scale: elevation_map.params().scale * 5.0,
+                        min_randomness: 0.5,
+                        max_randomness: 0.5,
+                        ..Default::default()
+                    },
+                    [0, 0, 200, 100],
+                ),
+                (
+                    ParticleParameters {
+                        scale: elevation_map.params().scale * 15.0,
+                        min_randomness: 0.8,
+                        max_randomness: 0.8,
+                        ..Default::default()
+                    },
+                    [200, 200, 0, 150],
+                ),
+            ],
+            &elevation_map,
+            &habitability_map,
+        );
 
         Self {
             elevation_map,
             drainage_map,
             habitability_map,
-            place_map,
+            place_maps,
             elevation_bands,
             habitability_bands,
         }
@@ -116,20 +121,7 @@ impl Layer for FactorsMap {
             0.3,
         );
 
-        // draw circles for communities
-        let area_width = drawing_area.width();
-        let area_height = drawing_area.height();
-
-        let rect = focus_range.to_rect(area_width as f64, area_height as f64);
-
-        for (_, (particle, _)) in self.place_map.iter() {
-            let x = rect.map_coord_x(particle.site().0, 0.0, area_width as f64);
-            let y = rect.map_coord_y(particle.site().1, 0.0, area_height as f64);
-
-            cr.set_source_rgba(1.0, 0.0, 0.0, 0.5);
-            cr.arc(x, y, 5.0, 0.0, 2.0 * std::f64::consts::PI);
-            cr.fill().expect("Failed to draw place");
-        }
+        self.place_maps.draw(drawing_area, cr, focus_range);
     }
 }
 
