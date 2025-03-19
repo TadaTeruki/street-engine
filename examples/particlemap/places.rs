@@ -4,9 +4,12 @@ use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{geometry::FocusRange, window::Layer};
 use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
 
+use crate::disjoint_set::DisjointSet;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlaceNode {
     core_particle: Option<Particle>,
+    cluster_id: Option<Particle>,
     habitability: f64,
 }
 
@@ -19,16 +22,17 @@ impl UnitPlaceMap {
     pub fn new(
         place_particle_param: ParticleParameters,
         color: [u8; 4],
-        elevation_map: &ParticleMap<f64>,
+        base_map: &ParticleMap<f64>,
         habitability_map: &ParticleMap<f64>,
     ) -> Self {
         let mut place_hashmap = HashMap::new();
 
-        elevation_map.iter().for_each(|(elevation_particle, _)| {
-            let (x, y) = elevation_particle.site();
+        base_map.iter().for_each(|(base_particle, _)| {
+            let (x, y) = base_particle.site();
             let place_particle = Particle::from(x, y, place_particle_param);
             place_hashmap.entry(place_particle).or_insert(PlaceNode {
                 core_particle: None,
+                cluster_id: None,
                 habitability: 0.0,
             });
         });
@@ -45,12 +49,40 @@ impl UnitPlaceMap {
                             place_particle,
                             PlaceNode {
                                 core_particle: Some(*habitability_particle),
+                                cluster_id: None,
                                 habitability: *habitability,
                             },
                         );
                     }
                 }
             });
+
+        let particles_with_core: Vec<Particle> = place_hashmap
+            .iter()
+            .filter_map(|(particle, node)| {
+                if node.core_particle.is_some() {
+                    Some(*particle)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let mut disjoint_set = DisjointSet::new(&particles_with_core);
+
+        for &particle in &particles_with_core {
+            for neighbor in particle.calculate_voronoi().neighbors {
+                if particles_with_core.contains(&neighbor) {
+                    disjoint_set.union(particle, neighbor);
+                }
+            }
+        }
+
+        for (particle, node) in place_hashmap.iter_mut() {
+            disjoint_set
+                .find(*particle)
+                .map(|root| node.cluster_id = Some(root));
+        }
 
         let particle_map = ParticleMap::new(place_particle_param, place_hashmap);
 
@@ -68,11 +100,7 @@ impl Layer for UnitPlaceMap {
 
         let rect = focus_range.to_rect(area_width as f64, area_height as f64);
 
-        for (_, node) in self.map.iter() {
-            if node.habitability <= 0.0 {
-                continue;
-            }
-
+        for (particle, node) in self.map.iter() {
             let core_particle = if let Some(core_particle) = node.core_particle {
                 core_particle
             } else {

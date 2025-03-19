@@ -35,6 +35,7 @@ impl FactorsMap {
                         scale: elevation_map.params().scale * 1.5,
                         min_randomness: 0.5,
                         max_randomness: 0.5,
+                        seed: 324,
                         ..Default::default()
                     },
                     [200, 0, 0, 100],
@@ -44,6 +45,7 @@ impl FactorsMap {
                         scale: elevation_map.params().scale * 5.0,
                         min_randomness: 0.5,
                         max_randomness: 0.5,
+                        seed: 158,
                         ..Default::default()
                     },
                     [0, 0, 200, 100],
@@ -53,10 +55,31 @@ impl FactorsMap {
                         scale: elevation_map.params().scale * 15.0,
                         min_randomness: 0.8,
                         max_randomness: 0.8,
+                        seed: 113,
                         ..Default::default()
                     },
                     [200, 200, 0, 150],
                 ),
+                // (
+                //     ParticleParameters {
+                //         scale: elevation_map.params().scale * 35.0,
+                //         min_randomness: 0.8,
+                //         max_randomness: 0.8,
+                //         seed: 972,
+                //         ..Default::default()
+                //     },
+                //     [200, 200, 200, 150],
+                // ),
+                // (
+                //     ParticleParameters {
+                //         scale: elevation_map.params().scale * 100.0,
+                //         min_randomness: 0.8,
+                //         max_randomness: 0.8,
+                //         seed: 151,
+                //         ..Default::default()
+                //     },
+                //     [250, 200, 250, 250],
+                // ),
             ],
             &elevation_map,
             &habitability_map,

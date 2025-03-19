@@ -35,7 +35,7 @@ where
 
     /// Check if there is an edge between two nodes.
     pub fn has_edge(&self, a: N, b: N) -> bool {
-        self.edges.get(&a).map_or(false, |set| set.contains(&b))
+        self.edges.get(&a).is_some_and(|set| set.contains(&b))
     }
 
     /// Remove an edge from the graph.
