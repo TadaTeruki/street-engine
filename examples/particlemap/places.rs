@@ -9,7 +9,6 @@ use crate::disjoint_set::DisjointSet;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlaceNode {
     core_particle: Option<Particle>,
-    cluster_id: Option<Particle>,
     habitability: f64,
 }
 
@@ -32,7 +31,6 @@ impl UnitPlaceMap {
             let place_particle = Particle::from(x, y, place_particle_param);
             place_hashmap.entry(place_particle).or_insert(PlaceNode {
                 core_particle: None,
-                cluster_id: None,
                 habitability: 0.0,
             });
         });
@@ -49,42 +47,12 @@ impl UnitPlaceMap {
                             place_particle,
                             PlaceNode {
                                 core_particle: Some(*habitability_particle),
-                                cluster_id: None,
                                 habitability: *habitability,
                             },
                         );
                     }
                 }
             });
-
-        let particles_with_core: Vec<Particle> = place_hashmap
-            .iter()
-            .filter_map(|(particle, node)| {
-                if node.core_particle.is_some() {
-                    Some(*particle)
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let mut disjoint_set = DisjointSet::new(&particles_with_core);
-
-        for &particle in &particles_with_core {
-            for neighbor in particle.calculate_voronoi().neighbors {
-                if particles_with_core.contains(&neighbor) {
-                    disjoint_set.union(particle, neighbor);
-                }
-            }
-        }
-
-        for (particle, node) in place_hashmap.iter_mut() {
-            disjoint_set
-                .find(*particle)
-                .map(|root| node.cluster_id = Some(root));
-        }
-
-        let particle_map = ParticleMap::new(place_particle_param, place_hashmap);
 
         Self {
             map: particle_map,
@@ -130,18 +98,13 @@ pub struct PlaceMapCollection {
 impl PlaceMapCollection {
     pub fn new(
         place_particle_params: Vec<(ParticleParameters, [u8; 4])>,
-        elevation_map: &ParticleMap<f64>,
+        base_map: &ParticleMap<f64>,
         habitability_map: &ParticleMap<f64>,
     ) -> Self {
         let maps = place_particle_params
             .iter()
             .map(|(param, color)| {
-                UnitPlaceMap::new(
-                    param.clone(),
-                    color.clone(),
-                    elevation_map,
-                    habitability_map,
-                )
+                UnitPlaceMap::new(param.clone(), color.clone(), base_map, habitability_map)
             })
             .collect::<Vec<UnitPlaceMap>>();
         Self { maps }

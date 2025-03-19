@@ -6,7 +6,6 @@ use vislayers::window::Visualizer;
 use worley_particle::map::ParticleMap;
 
 mod bands;
-mod disjoint_set;
 mod factor;
 mod habitability;
 mod places;
