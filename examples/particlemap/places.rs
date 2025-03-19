@@ -100,7 +100,7 @@ impl Layer for UnitPlaceMap {
 
         let rect = focus_range.to_rect(area_width as f64, area_height as f64);
 
-        for (particle, node) in self.map.iter() {
+        for (_, node) in self.map.iter() {
             let core_particle = if let Some(core_particle) = node.core_particle {
                 core_particle
             } else {
