@@ -29,7 +29,7 @@ impl Bands {
                 particle_map.corners(),
                 rasterise_scale,
                 &thresholds,
-                &InterpolationMethod::IDW(IDWStrategy::default_from_params(particle_map.params())),
+                InterpolationMethod::IDW(IDWStrategy::default_from_params(particle_map.params())),
                 true,
             )
             .expect("Error generating bands");

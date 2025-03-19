@@ -4,8 +4,6 @@ use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{geometry::FocusRange, window::Layer};
 use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
 
-use crate::disjoint_set::DisjointSet;
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlaceNode {
     core_particle: Option<Particle>,
@@ -54,6 +52,8 @@ impl UnitPlaceMap {
                 }
             });
 
+        let particle_map = ParticleMap::new(place_particle_param, place_hashmap);
+
         Self {
             map: particle_map,
             color,
@@ -69,8 +69,8 @@ impl Layer for UnitPlaceMap {
         let rect = focus_range.to_rect(area_width as f64, area_height as f64);
 
         for (_, node) in self.map.iter() {
-            let core_particle = if let Some(core_particle) = node.core_particle {
-                core_particle
+            let core_particle = if let Some(particle) = node.core_particle {
+                particle
             } else {
                 continue;
             };
