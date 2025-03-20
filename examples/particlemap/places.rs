@@ -14,12 +14,12 @@ pub struct PlaceNode {
     pub evaluation: f64,
 }
 
-pub struct UnitPlaceMap {
+pub struct PlaceMap {
     map: ParticleMap<Option<PlaceNode>>,
     color: [u8; 4],
 }
 
-impl UnitPlaceMap {
+impl PlaceMap {
     pub fn new<E: PlaceNodeEstimator>(
         place_particle_param: ParticleParameters,
         color: [u8; 4],
@@ -46,7 +46,7 @@ impl UnitPlaceMap {
     }
 }
 
-impl Layer for UnitPlaceMap {
+impl Layer for PlaceMap {
     fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange) {
         let area_width = drawing_area.width();
         let area_height = drawing_area.height();

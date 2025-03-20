@@ -1,7 +1,7 @@
 use crate::{
     bands::Bands,
     flatness::create_flatness_map,
-    places::{PlaceNode, PlaceNodeEstimator, UnitPlaceMap},
+    places::{PlaceMap, PlaceNode, PlaceNodeEstimator},
 };
 use drainage_basin_builder::map::DrainageMap;
 use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
@@ -12,7 +12,7 @@ pub struct FactorsMap {
     elevation_map: ParticleMap<f64>,
     drainage_map: DrainageMap,
     flatness_map: ParticleMap<f64>,
-    place_maps: Vec<UnitPlaceMap>,
+    place_maps: Vec<PlaceMap>,
 
     elevation_bands: Bands,
     flatness_bands: Bands,
@@ -71,7 +71,7 @@ impl FactorsMap {
             ..Default::default()
         };
 
-        let quarter_place_map = UnitPlaceMap::new(
+        let quarter_place_map = PlaceMap::new(
             place_map_base_params,
             [200, 0, 0, 100],
             QuarterPlaceNodeEstimator {
