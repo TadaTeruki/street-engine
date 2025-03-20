@@ -1,6 +1,6 @@
-use worley_particle::{map::ParticleMap, Particle};
+use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
 
-use super::{PlaceNode, PlaceNodeAttributes, PlaceNodeEstimator};
+use super::{PlaceMap, PlaceNode, PlaceNodeAttributes, PlaceNodeEstimator};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct QuarterAttributes {
@@ -44,4 +44,27 @@ impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a>
             },
         })
     }
+}
+
+pub fn create_quarter_place_map(
+    elevation_map: &ParticleMap<f64>,
+    flatness_map: &ParticleMap<f64>,
+) -> PlaceMap<QuarterAttributes> {
+    let place_map_base_params = ParticleParameters {
+        scale: elevation_map.params().scale * 2.0,
+        min_randomness: 0.8,
+        max_randomness: 0.8,
+        seed: 324,
+        ..Default::default()
+    };
+
+    let quarter_place_map = PlaceMap::new(
+        place_map_base_params,
+        QuarterPlaceNodeEstimator {
+            flatness_map: &flatness_map,
+        },
+        &flatness_map,
+    );
+
+    quarter_place_map
 }
