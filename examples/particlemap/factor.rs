@@ -1,52 +1,16 @@
-use crate::{
-    bands::Bands,
-    flatness::create_flatness_map,
-    places::{PlaceMap, PlaceNode, PlaceNodeEstimator},
-};
+use crate::{bands::Bands, flatness::create_flatness_map, places::PlaceMapCollection};
 use drainage_basin_builder::map::DrainageMap;
 use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{colormap::SimpleColorMap, geometry::FocusRange, window::Layer};
-use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
+use worley_particle::map::ParticleMap;
 
 pub struct FactorsMap {
     elevation_map: ParticleMap<f64>,
     drainage_map: DrainageMap,
     flatness_map: ParticleMap<f64>,
-    place_maps: Vec<PlaceMap>,
+    place_map_collection: PlaceMapCollection,
 
     elevation_bands: Bands,
-    flatness_bands: Bands,
-}
-
-struct QuarterPlaceNodeEstimator<'a> {
-    flatness_map: &'a ParticleMap<f64>,
-}
-
-impl<'a> PlaceNodeEstimator for QuarterPlaceNodeEstimator<'a> {
-    fn estimate(&self, place_particle: Particle) -> Option<PlaceNode> {
-        let flatness_params = self.flatness_map.params();
-        let flatness_particles = Particle::from_inside_particle(*flatness_params, place_particle);
-        let mut max_flatness = 0.0;
-        let mut flatness_core_particle = None;
-
-        for flatness_particle in flatness_particles {
-            let flatness = if let Some(flatness) = self.flatness_map.get(&flatness_particle) {
-                *flatness
-            } else {
-                continue;
-            };
-
-            if flatness_core_particle.is_none() || flatness > max_flatness {
-                max_flatness = flatness;
-                flatness_core_particle = Some(flatness_particle);
-            }
-        }
-
-        Some(PlaceNode {
-            core: flatness_core_particle?.site(),
-            evaluation: max_flatness,
-        })
-    }
 }
 
 impl FactorsMap {
@@ -61,42 +25,16 @@ impl FactorsMap {
 
         let elevation_bands = Bands::new(&elevation_map, 80, 300000.0, sea_level, 1.0);
 
-        let flatness_bands = Bands::new(&flatness_map, 5, 300000.0, 0.0, 1.0);
-
-        let place_map_base_params = ParticleParameters {
-            scale: elevation_map.params().scale * 2.0,
-            min_randomness: 0.8,
-            max_randomness: 0.8,
-            seed: 324,
-            ..Default::default()
-        };
-
-        let quarter_place_map = PlaceMap::new(
-            place_map_base_params,
-            [200, 0, 0, 100],
-            QuarterPlaceNodeEstimator {
-                flatness_map: &flatness_map,
-            },
-            &flatness_map,
-        );
+        let place_map_collection = PlaceMapCollection::new(&elevation_map, &flatness_map);
 
         Self {
             elevation_map,
             drainage_map,
             flatness_map,
-            place_maps: vec![quarter_place_map],
+            place_map_collection,
             elevation_bands,
-            flatness_bands,
         }
     }
-
-    // pub fn elevation_map(&self) -> &ParticleMap<f64> {
-    //     &self.elevation_map
-    // }
-
-    // pub fn drainage_map(&self) -> &DrainageMap {
-    //     &self.drainage_map
-    // }
 
     pub fn flatness_map(&self) -> &ParticleMap<f64> {
         &self.flatness_map
@@ -125,23 +63,8 @@ impl Layer for FactorsMap {
 
         DrainageMapLayer(&self.drainage_map).draw(drawing_area, cr, focus_range);
 
-        let flatness_color_map = SimpleColorMap::new(
-            vec![[255.0, 50.0, 50.0], [255.0, 150.0, 50.0]],
-            vec![0.0, 1.0],
-        );
-
-        self.flatness_bands.draw(
-            &self.flatness_map,
-            &flatness_color_map,
-            drawing_area,
-            cr,
-            focus_range,
-            0.3,
-        );
-
-        for place_map in &self.place_maps {
-            place_map.draw(drawing_area, cr, focus_range);
-        }
+        self.place_map_collection
+            .draw(drawing_area, cr, focus_range);
     }
 }
 
