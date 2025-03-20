@@ -1,4 +1,4 @@
-use crate::{bands::Bands, flatness::create_flatness_map, places::PlaceMapCollection};
+use crate::{bands::Bands, flatness::create_flatness_map, places::collection::PlaceMapCollection};
 use drainage_basin_builder::map::DrainageMap;
 use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{colormap::SimpleColorMap, geometry::FocusRange, window::Layer};
