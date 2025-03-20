@@ -32,7 +32,7 @@ impl<'a> RegionPlaceNodeEstimator<'a> {
             Self::RegionMap(region_map) => region_map
                 .map
                 .get(&particle)
-                .map(|node| node.map(|node| node.attributes.habitablity_rate))?,
+                .map(|node| node.attributes.habitablity_rate),
         }
     }
 }
@@ -52,27 +52,7 @@ impl<'a> PlaceNodeEstimator<RegionAttributes> for RegionPlaceNodeEstimator<'a> {
         let habitablity_rate = sum_score / len_score_particles as f64;
 
         match self {
-            Self::FlatnessMap(_) => {
-                let (sum_weighted_x, sum_weighted_y) = score_particles
-                    .iter()
-                    .filter_map(|score_particle| {
-                        let score = self.get_score(*score_particle)?;
-                        Some((
-                            score * score_particle.site().0,
-                            score * score_particle.site().1,
-                        ))
-                    })
-                    .fold((0.0, 0.0), |(sum_x, sum_y), (x, y)| (sum_x + x, sum_y + y));
-
-                let weighted_x = sum_weighted_x / sum_score;
-                let weighted_y = sum_weighted_y / sum_score;
-
-                Some(PlaceNode {
-                    core: (weighted_x, weighted_y),
-                    attributes: RegionAttributes { habitablity_rate },
-                })
-            }
-            Self::RegionMap(_) => {
+            Self::FlatnessMap(_) | Self::RegionMap(_) => {
                 let mut max_score = 0.0;
                 let mut core_particle = None;
 

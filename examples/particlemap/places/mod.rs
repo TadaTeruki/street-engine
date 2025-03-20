@@ -24,7 +24,7 @@ pub struct PlaceNode<T: PlaceNodeAttributes> {
 }
 
 pub struct PlaceMap<T: PlaceNodeAttributes> {
-    map: ParticleMap<Option<PlaceNode<T>>>,
+    map: ParticleMap<PlaceNode<T>>,
     color: [f64; 3],
 }
 
@@ -38,13 +38,13 @@ impl<T: PlaceNodeAttributes> PlaceMap<T> {
         let place_hashmap = base_map
             .iter()
             .par_bridge()
-            .map(|(base_particle, _)| {
+            .filter_map(|(base_particle, _)| {
                 let (x, y) = base_particle.site();
                 let place_particle = Particle::from(x, y, place_particle_param);
-                (
+                Some((
                     place_particle,
-                    place_node_estimator.estimate(place_particle),
-                )
+                    place_node_estimator.estimate(place_particle)?,
+                ))
             })
             .collect::<HashMap<_, _>>();
 
@@ -65,12 +65,6 @@ impl<T: PlaceNodeAttributes> Layer for PlaceMap<T> {
         let rect = focus_range.to_rect(area_width as f64, area_height as f64);
 
         for (_, node) in self.map.iter() {
-            let node = if let Some(node) = node {
-                node
-            } else {
-                continue;
-            };
-
             let x = rect.map_coord_x(node.core.0, 0.0, area_width as f64);
             let y = rect.map_coord_y(node.core.1, 0.0, area_height as f64);
 
