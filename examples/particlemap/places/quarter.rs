@@ -8,8 +8,8 @@ pub struct QuarterAttributes {
 }
 
 impl PlaceNodeAttributes for QuarterAttributes {
-    fn color(&self) -> [f64; 4] {
-        [0.8, 0.5, 0.0, self.flatness]
+    fn alpha(&self) -> f64 {
+        self.flatness
     }
 }
 
@@ -49,12 +49,12 @@ impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a>
 pub fn create_quarter_place_map(
     elevation_map: &ParticleMap<f64>,
     flatness_map: &ParticleMap<f64>,
+    color: [f64; 3],
 ) -> PlaceMap<QuarterAttributes> {
     let place_map_base_params = ParticleParameters {
         scale: elevation_map.params().scale * 2.0,
         min_randomness: 0.8,
         max_randomness: 0.8,
-        seed: 324,
         ..Default::default()
     };
 
@@ -64,6 +64,7 @@ pub fn create_quarter_place_map(
             flatness_map: &flatness_map,
         },
         &flatness_map,
+        color,
     );
 
     quarter_place_map
