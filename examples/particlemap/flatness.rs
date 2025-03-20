@@ -4,20 +4,20 @@ use worley_particle::map::{
     ParticleMap,
 };
 
-fn gradient_to_habitability(gradient: f64) -> Option<f64> {
-    let habitability = 1.0 - gradient.abs() / 5.0;
-    if habitability < 0.0 {
+fn gradient_to_flatness(gradient: f64) -> Option<f64> {
+    let flatness = 1.0 - gradient.abs() / 5.0;
+    if flatness < 0.0 {
         return None;
     }
-    Some(habitability.sqrt())
+    Some(flatness.sqrt())
 }
 
-pub fn create_habitability_map(
+pub fn create_flatness_map(
     elevation_map: &ParticleMap<f64>,
     minimum_neighbor_num: usize,
     sea_level: f64,
 ) -> ParticleMap<f64> {
-    let mut habitability_map = elevation_map
+    let mut flatness_map = elevation_map
         .iter()
         .filter_map(|(particle, elevation)| {
             if *elevation < sea_level {
@@ -35,26 +35,26 @@ pub fn create_habitability_map(
                 },
                 &InterpolationMethod::IDW(IDWStrategy::default_from_params(elevation_map.params())),
             )?;
-            let havitability = gradient_to_habitability(gradient.value)?;
+            let havitability = gradient_to_flatness(gradient.value)?;
             Some((*particle, havitability))
         })
         .collect::<ParticleMap<f64>>();
 
     if minimum_neighbor_num > 0 {
-        habitability_map = habitability_map
+        flatness_map = flatness_map
             .iter()
             .filter(|(particle, _)| {
                 let surrounding_particles = particle.calculate_voronoi().neighbors;
                 let count = surrounding_particles
                     .iter()
-                    .filter(|neighbor| habitability_map.get(neighbor).is_some())
+                    .filter(|neighbor| flatness_map.get(neighbor).is_some())
                     .count();
 
                 count >= minimum_neighbor_num
             })
-            .map(|(particle, habitability)| (*particle, *habitability))
+            .map(|(particle, flatness)| (*particle, *flatness))
             .collect::<ParticleMap<f64>>();
     }
 
-    habitability_map
+    flatness_map
 }

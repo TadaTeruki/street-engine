@@ -4,53 +4,38 @@ use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{geometry::FocusRange, window::Layer};
 use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
 
+pub trait PlaceNodeEstimator {
+    fn estimate(&self, particle: Particle) -> Option<PlaceNode>;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlaceNode {
-    core_particle: Option<Particle>,
-    habitability: f64,
+    pub core: (f64, f64),
+    pub evaluation: f64,
 }
 
 pub struct UnitPlaceMap {
-    map: ParticleMap<PlaceNode>,
+    map: ParticleMap<Option<PlaceNode>>,
     color: [u8; 4],
 }
 
 impl UnitPlaceMap {
-    pub fn new(
+    pub fn new<E: PlaceNodeEstimator>(
         place_particle_param: ParticleParameters,
         color: [u8; 4],
+        place_node_estimator: E,
         base_map: &ParticleMap<f64>,
-        habitability_map: &ParticleMap<f64>,
     ) -> Self {
         let mut place_hashmap = HashMap::new();
 
         base_map.iter().for_each(|(base_particle, _)| {
             let (x, y) = base_particle.site();
             let place_particle = Particle::from(x, y, place_particle_param);
-            place_hashmap.entry(place_particle).or_insert(PlaceNode {
-                core_particle: None,
-                habitability: 0.0,
-            });
+            place_hashmap.insert(
+                place_particle,
+                place_node_estimator.estimate(place_particle),
+            );
         });
-
-        habitability_map
-            .iter()
-            .for_each(|(habitability_particle, habitability)| {
-                let (x, y) = habitability_particle.site();
-                let place_particle = Particle::from(x, y, place_particle_param);
-                // if the habitability is higher than existing habitability or None, update the place particle
-                if let Some(node) = place_hashmap.get(&place_particle) {
-                    if *habitability > node.habitability {
-                        place_hashmap.insert(
-                            place_particle,
-                            PlaceNode {
-                                core_particle: Some(*habitability_particle),
-                                habitability: *habitability,
-                            },
-                        );
-                    }
-                }
-            });
 
         let particle_map = ParticleMap::new(place_particle_param, place_hashmap);
 
@@ -69,14 +54,14 @@ impl Layer for UnitPlaceMap {
         let rect = focus_range.to_rect(area_width as f64, area_height as f64);
 
         for (_, node) in self.map.iter() {
-            let core_particle = if let Some(particle) = node.core_particle {
-                particle
+            let node = if let Some(node) = node {
+                node
             } else {
                 continue;
             };
 
-            let x = rect.map_coord_x(core_particle.site().0, 0.0, area_width as f64);
-            let y = rect.map_coord_y(core_particle.site().1, 0.0, area_height as f64);
+            let x = rect.map_coord_x(node.core.0, 0.0, area_width as f64);
+            let y = rect.map_coord_y(node.core.1, 0.0, area_height as f64);
 
             cr.set_source_rgba(
                 self.color[0] as f64 / 255.0,
@@ -88,33 +73,5 @@ impl Layer for UnitPlaceMap {
 
             cr.fill().expect("Failed to draw place");
         }
-    }
-}
-
-pub struct PlaceMapCollection {
-    maps: Vec<UnitPlaceMap>,
-}
-
-impl PlaceMapCollection {
-    pub fn new(
-        place_particle_params: Vec<(ParticleParameters, [u8; 4])>,
-        base_map: &ParticleMap<f64>,
-        habitability_map: &ParticleMap<f64>,
-    ) -> Self {
-        let maps = place_particle_params
-            .iter()
-            .map(|(param, color)| {
-                UnitPlaceMap::new(param.clone(), color.clone(), base_map, habitability_map)
-            })
-            .collect::<Vec<UnitPlaceMap>>();
-        Self { maps }
-    }
-}
-
-impl Layer for PlaceMapCollection {
-    fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange) {
-        self.maps
-            .iter()
-            .for_each(|map| map.draw(drawing_area, cr, focus_range));
     }
 }

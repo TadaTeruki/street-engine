@@ -1,97 +1,92 @@
-use crate::{bands::Bands, habitability::create_habitability_map, places::PlaceMapCollection};
+use crate::{
+    bands::Bands,
+    flatness::create_flatness_map,
+    places::{PlaceNode, PlaceNodeEstimator, UnitPlaceMap},
+};
 use drainage_basin_builder::map::DrainageMap;
 use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{colormap::SimpleColorMap, geometry::FocusRange, window::Layer};
-use worley_particle::{map::ParticleMap, ParticleParameters};
+use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
 
 pub struct FactorsMap {
     elevation_map: ParticleMap<f64>,
     drainage_map: DrainageMap,
-    habitability_map: ParticleMap<f64>,
-    place_maps: PlaceMapCollection,
+    flatness_map: ParticleMap<f64>,
+    place_maps: Vec<UnitPlaceMap>,
 
     elevation_bands: Bands,
-    habitability_bands: Bands,
+    flatness_bands: Bands,
+}
+
+struct QuarterPlaceNodeEstimator<'a> {
+    flatness_map: &'a ParticleMap<f64>,
+}
+
+impl<'a> PlaceNodeEstimator for QuarterPlaceNodeEstimator<'a> {
+    fn estimate(&self, place_particle: Particle) -> Option<PlaceNode> {
+        let flatness_params = self.flatness_map.params();
+        let flatness_particles = Particle::from_inside_particle(*flatness_params, place_particle);
+        let mut max_flatness = 0.0;
+        let mut flatness_core_particle = None;
+
+        for flatness_particle in flatness_particles {
+            let flatness = if let Some(flatness) = self.flatness_map.get(&flatness_particle) {
+                *flatness
+            } else {
+                continue;
+            };
+
+            if flatness_core_particle.is_none() || flatness > max_flatness {
+                max_flatness = flatness;
+                flatness_core_particle = Some(flatness_particle);
+            }
+        }
+
+        Some(PlaceNode {
+            core: flatness_core_particle?.site(),
+            evaluation: max_flatness,
+        })
+    }
 }
 
 impl FactorsMap {
     pub fn new(
         elevation_map: ParticleMap<f64>,
         drainage_map: DrainageMap,
-        habitability_map: Option<ParticleMap<f64>>,
+        flatness_map: Option<ParticleMap<f64>>,
         sea_level: f64,
     ) -> Self {
-        let habitability_map = habitability_map
-            .unwrap_or_else(|| create_habitability_map(&elevation_map, 2, sea_level));
+        let flatness_map =
+            flatness_map.unwrap_or_else(|| create_flatness_map(&elevation_map, 2, sea_level));
 
         let elevation_bands = Bands::new(&elevation_map, 80, 300000.0, sea_level, 1.0);
 
-        let habitability_bands = Bands::new(&habitability_map, 5, 300000.0, 0.0, 1.0);
+        let flatness_bands = Bands::new(&flatness_map, 5, 300000.0, 0.0, 1.0);
 
-        let place_maps = PlaceMapCollection::new(
-            vec![
-                (
-                    ParticleParameters {
-                        scale: elevation_map.params().scale * 1.5,
-                        min_randomness: 0.5,
-                        max_randomness: 0.5,
-                        seed: 324,
-                        ..Default::default()
-                    },
-                    [200, 0, 0, 100],
-                ),
-                (
-                    ParticleParameters {
-                        scale: elevation_map.params().scale * 5.0,
-                        min_randomness: 0.5,
-                        max_randomness: 0.5,
-                        seed: 158,
-                        ..Default::default()
-                    },
-                    [0, 0, 200, 100],
-                ),
-                (
-                    ParticleParameters {
-                        scale: elevation_map.params().scale * 15.0,
-                        min_randomness: 0.8,
-                        max_randomness: 0.8,
-                        seed: 113,
-                        ..Default::default()
-                    },
-                    [200, 200, 0, 150],
-                ),
-                // (
-                //     ParticleParameters {
-                //         scale: elevation_map.params().scale * 35.0,
-                //         min_randomness: 0.8,
-                //         max_randomness: 0.8,
-                //         seed: 972,
-                //         ..Default::default()
-                //     },
-                //     [200, 200, 200, 150],
-                // ),
-                // (
-                //     ParticleParameters {
-                //         scale: elevation_map.params().scale * 100.0,
-                //         min_randomness: 0.8,
-                //         max_randomness: 0.8,
-                //         seed: 151,
-                //         ..Default::default()
-                //     },
-                //     [250, 200, 250, 250],
-                // ),
-            ],
-            &elevation_map,
-            &habitability_map,
+        let place_map_base_params = ParticleParameters {
+            scale: elevation_map.params().scale * 2.0,
+            min_randomness: 0.8,
+            max_randomness: 0.8,
+            seed: 324,
+            ..Default::default()
+        };
+
+        let quarter_place_map = UnitPlaceMap::new(
+            place_map_base_params,
+            [200, 0, 0, 100],
+            QuarterPlaceNodeEstimator {
+                flatness_map: &flatness_map,
+            },
+            &flatness_map,
         );
 
         Self {
             elevation_map,
             drainage_map,
-            habitability_map,
-            place_maps,
+            flatness_map,
+            place_maps: vec![quarter_place_map],
             elevation_bands,
-            habitability_bands,
+            flatness_bands,
         }
     }
 
@@ -103,8 +98,8 @@ impl FactorsMap {
     //     &self.drainage_map
     // }
 
-    pub fn habitability_map(&self) -> &ParticleMap<f64> {
-        &self.habitability_map
+    pub fn flatness_map(&self) -> &ParticleMap<f64> {
+        &self.flatness_map
     }
 }
 
@@ -130,21 +125,23 @@ impl Layer for FactorsMap {
 
         DrainageMapLayer(&self.drainage_map).draw(drawing_area, cr, focus_range);
 
-        let habitability_color_map = SimpleColorMap::new(
+        let flatness_color_map = SimpleColorMap::new(
             vec![[255.0, 50.0, 50.0], [255.0, 150.0, 50.0]],
             vec![0.0, 1.0],
         );
 
-        self.habitability_bands.draw(
-            &self.habitability_map,
-            &habitability_color_map,
+        self.flatness_bands.draw(
+            &self.flatness_map,
+            &flatness_color_map,
             drawing_area,
             cr,
             focus_range,
             0.3,
         );
 
-        self.place_maps.draw(drawing_area, cr, focus_range);
+        for place_map in &self.place_maps {
+            place_map.draw(drawing_area, cr, focus_range);
+        }
     }
 }
 
@@ -190,3 +187,60 @@ impl<'a> Layer for DrainageMapLayer<'a> {
         }
     }
 }
+
+// let place_maps = PlaceMapCollection::new(
+//     vec![
+//         (
+//             ParticleParameters {
+//                 scale: elevation_map.params().scale * 1.5,
+//                 min_randomness: 0.5,
+//                 max_randomness: 0.5,
+//                 seed: 324,
+//                 ..Default::default()
+//             },
+//             [200, 0, 0, 100],
+//         ),
+//         // (
+//         //     ParticleParameters {
+//         //         scale: elevation_map.params().scale * 5.0,
+//         //         min_randomness: 0.5,
+//         //         max_randomness: 0.5,
+//         //         seed: 158,
+//         //         ..Default::default()
+//         //     },
+//         //     [0, 0, 200, 100],
+//         // ),
+//         // (
+//         //     ParticleParameters {
+//         //         scale: elevation_map.params().scale * 15.0,
+//         //         min_randomness: 0.8,
+//         //         max_randomness: 0.8,
+//         //         seed: 113,
+//         //         ..Default::default()
+//         //     },
+//         //     [200, 200, 0, 150],
+//         // ),
+//         (
+//             ParticleParameters {
+//                 scale: elevation_map.params().scale * 35.0,
+//                 min_randomness: 0.8,
+//                 max_randomness: 0.8,
+//                 seed: 972,
+//                 ..Default::default()
+//             },
+//             [200, 200, 200, 150],
+//         ),
+//         // (
+//         //     ParticleParameters {
+//         //         scale: elevation_map.params().scale * 100.0,
+//         //         min_randomness: 0.8,
+//         //         max_randomness: 0.8,
+//         //         seed: 151,
+//         //         ..Default::default()
+//         //     },
+//         //     [250, 200, 250, 250],
+//         // ),
+//     ],
+//     &elevation_map,
+//     &flatness_map,
+// );

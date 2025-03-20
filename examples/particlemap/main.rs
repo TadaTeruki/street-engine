@@ -7,7 +7,7 @@ use worley_particle::map::ParticleMap;
 
 mod bands;
 mod factor;
-mod habitability;
+mod flatness;
 mod places;
 
 fn main() {
@@ -25,19 +25,19 @@ fn main() {
     let drainage_map = DrainageMap::load_from_file(&drainage_path, 1.0, 0.01);
 
     let habitablity_path = format!(
-        "{}/habitability-{}.particlemap",
+        "{}/flatness-{}.particlemap",
         particlemap_dir, particlemap_id
     );
-    let habitability_map = ParticleMap::<f64>::read_from_file(&habitablity_path).ok();
-    let habitability_map_is_none = habitability_map.is_none();
+    let flatness_map = ParticleMap::<f64>::read_from_file(&habitablity_path).ok();
+    let flatness_map_is_none = flatness_map.is_none();
 
-    let factors_map = FactorsMap::new(elevation_map, drainage_map, habitability_map, 1e-5);
+    let factors_map = FactorsMap::new(elevation_map, drainage_map, flatness_map, 1e-5);
 
-    if habitability_map_is_none {
+    if flatness_map_is_none {
         factors_map
-            .habitability_map()
+            .flatness_map()
             .write_to_file(&habitablity_path)
-            .expect("Error writing habitability map");
+            .expect("Error writing flatness map");
     }
 
     let mut visualizer = Visualizer::new(800, 600);
