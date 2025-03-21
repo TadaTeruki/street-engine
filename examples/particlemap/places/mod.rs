@@ -76,9 +76,9 @@ impl<T: PlaceNodeAttributes> Layer for PlaceMap<T> {
                 2.0 * std::f64::consts::PI,
             );
 
-            cr.set_source_rgba(self.color[0], self.color[1], self.color[2], 0.5);
-            cr.set_line_width(1.0);
-            cr.stroke_preserve().expect("Failed to draw edge");
+            // cr.set_source_rgba(self.color[0], self.color[1], self.color[2], 0.5);
+            // cr.set_line_width(1.0);
+            // cr.stroke_preserve().expect("Failed to draw edge");
 
             cr.set_source_rgba(
                 self.color[0],

@@ -1,7 +1,7 @@
 use worley_particle::map::{
     grad::{GradDifferenceType, GradDirectionType, GradStrategy},
-    lerp::{IDWStrategy, InterpolationMethod},
-    ParticleMap,
+    lerp::InterpolationMethod,
+    IDWStrategy, ParticleMap,
 };
 
 fn gradient_to_flatness(gradient: f64) -> Option<f64> {

@@ -12,8 +12,8 @@ mod places;
 
 fn main() {
     let particlemap_dir = "examples/particlemap/data";
-    // let particlemap_id = "10459088313066128168";
-    let particlemap_id = "11008264925851530191";
+    let particlemap_id = "10459088313066128168";
+    // let particlemap_id = "11008264925851530191";
 
     let elevation_path = format!("{}/{}.particlemap", particlemap_dir, particlemap_id);
     let elevation_map =

@@ -1,8 +1,8 @@
 use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use vislayers::{colormap::SimpleColorMap, geometry::FocusRange};
 use worley_particle::map::{
-    lerp::{vertorization::Band, IDWStrategy, InterpolationMethod},
-    ParticleMap,
+    lerp::{vertorization::Band, InterpolationMethod},
+    IDWStrategy, ParticleMap,
 };
 
 pub struct Bands {

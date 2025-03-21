@@ -15,10 +15,7 @@ pub struct PlaceMapCollection {
 
 impl PlaceMapCollection {
     pub fn new(elevation_map: &ParticleMap<f64>, flatness_map: &ParticleMap<f64>) -> Self {
-        let quarter_place_map =
-            create_quarter_place_map(elevation_map, flatness_map, [0.6, 0.4, 0.0]);
-
-        let region_params = (0..6)
+        let region_params = (0..4)
             .map(|i| ParticleParameters {
                 scale: elevation_map.params().scale * 2.0 * 2.0_f64.powi(i as i32),
                 min_randomness: 0.8,
@@ -55,6 +52,20 @@ impl PlaceMapCollection {
             }
         }
 
+        let quarter_params = ParticleParameters {
+            scale: elevation_map.params().scale,
+            min_randomness: 0.8,
+            max_randomness: 0.8,
+            ..Default::default()
+        };
+
+        let quarter_place_map = create_quarter_place_map(
+            quarter_params,
+            flatness_map,
+            &region_place_maps,
+            [0.6, 0.4, 0.0],
+        );
+
         Self {
             quarter: quarter_place_map,
             region: region_place_maps,
@@ -64,10 +75,12 @@ impl PlaceMapCollection {
 
 impl Layer for PlaceMapCollection {
     fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange) {
-        //self.quarter.draw(drawing_area, cr, focus_range);
+        self.quarter.draw(drawing_area, cr, focus_range);
 
-        for region in &self.region {
-            region.draw(drawing_area, cr, focus_range);
-        }
+        // for region in &self.region {
+        //     region.draw(drawing_area, cr, focus_range);
+        // }
+        let region = &self.region.last().unwrap();
+        region.draw(drawing_area, cr, focus_range);
     }
 }
