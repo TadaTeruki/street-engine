@@ -68,7 +68,13 @@ impl<T: PlaceNodeAttributes> Layer for PlaceMap<T> {
             let x = rect.map_coord_x(node.core.0, 0.0, area_width as f64);
             let y = rect.map_coord_y(node.core.1, 0.0, area_height as f64);
 
-            cr.arc(x, y, 5.0, 0.0, 2.0 * std::f64::consts::PI);
+            cr.arc(
+                x,
+                y,
+                self.map.params().scale * 30.0 + 3.0,
+                0.0,
+                2.0 * std::f64::consts::PI,
+            );
 
             cr.set_source_rgba(self.color[0], self.color[1], self.color[2], 0.5);
             cr.set_line_width(1.0);

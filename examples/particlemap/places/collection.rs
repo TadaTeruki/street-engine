@@ -18,9 +18,9 @@ impl PlaceMapCollection {
         let quarter_place_map =
             create_quarter_place_map(elevation_map, flatness_map, [0.6, 0.4, 0.0]);
 
-        let region_params = (0..4)
+        let region_params = (0..6)
             .map(|i| ParticleParameters {
-                scale: elevation_map.params().scale * 5.0 * 2.0_f64.powi(i as i32),
+                scale: elevation_map.params().scale * 2.0 * 2.0_f64.powi(i as i32),
                 min_randomness: 0.8,
                 max_randomness: 0.8,
                 ..Default::default()
@@ -34,6 +34,8 @@ impl PlaceMapCollection {
             [0.9, 0.9, 0.5],
             [0.0, 0.5, 0.6],
             [0.5, 0.0, 1.0],
+            [1.0, 0.0, 0.5],
+            [1.0, 1.0, 1.0],
         ];
 
         for (i, params) in region_params.iter().enumerate() {
@@ -47,6 +49,7 @@ impl PlaceMapCollection {
                 region_place_maps.push(create_region_map_from_region(
                     *params,
                     &region_place_maps[i - 1],
+                    elevation_map,
                     colors[i],
                 ));
             }
@@ -61,7 +64,7 @@ impl PlaceMapCollection {
 
 impl Layer for PlaceMapCollection {
     fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange) {
-        self.quarter.draw(drawing_area, cr, focus_range);
+        //self.quarter.draw(drawing_area, cr, focus_range);
 
         for region in &self.region {
             region.draw(drawing_area, cr, focus_range);
