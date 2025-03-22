@@ -1,10 +1,23 @@
-use super::PlaceMap;
+// use worley_particle::{map::ParticleMap, ParticleParameters};
 
-pub trait UsageDescriptor: FnOnce(Vec<PlaceMap<f64>>) -> f64 {}
+// use super::{section::SectionAttributes, PlaceMap};
 
-pub struct UsageProvider {
-    usage: Vec<PlaceMap<f64>>,
-}
+// pub struct UsageProvider<'a> {
+//     usage: Vec<(String, ParticleMap<f64>)>,
+//     params: ParticleParameters,
+//     sections: &'a Vec<PlaceMap<SectionAttributes>>,
+// }
 
-// impl UsageProvider {
+// impl<'a> UsageProvider<'a> {
+//     pub fn new(sections: &'a Vec<PlaceMap<SectionAttributes>>, params: ParticleParameters) -> Self {
+//         UsageProvider {
+//             usage: Vec::new(),
+//             params,
+//             sections,
+//         }
+//     }
+
+//     pub fn push_usage<D: FnOnce(f64, f64, &Vec<PlaceMap<SectionAttributes>>) -> f64>(&mut self, name: String, descriptor: D) {
+//         // let map = ParticleMap
+//     }
 // }

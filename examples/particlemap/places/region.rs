@@ -3,7 +3,7 @@ use worley_particle::{
     Particle, ParticleParameters,
 };
 
-use super::{PlaceMap, PlaceNode, PlaceNodeAttributes, PlaceNodeEstimator};
+use super::{create_place_map, PlaceNode, PlaceNodeAttributes, PlaceNodeEstimator};
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct RegionAttributes {
@@ -26,7 +26,7 @@ impl PlaceNodeAttributes for RegionAttributes {
 pub enum RegionPlaceNodeEstimator<'a> {
     FlatnessMap(&'a ParticleMap<f64>),
     RegionMap {
-        child_region_map: &'a PlaceMap<RegionAttributes>,
+        child_region_map: &'a ParticleMap<PlaceNode<RegionAttributes>>,
         elevation_map: &'a ParticleMap<f64>,
     },
 }
@@ -37,7 +37,7 @@ impl<'a> RegionPlaceNodeEstimator<'a> {
             Self::FlatnessMap(flatness_map) => *flatness_map.params(),
             Self::RegionMap {
                 child_region_map, ..
-            } => *child_region_map.map.params(),
+            } => *child_region_map.params(),
         }
     }
 
@@ -47,7 +47,7 @@ impl<'a> RegionPlaceNodeEstimator<'a> {
             Self::RegionMap {
                 child_region_map, ..
             } => {
-                let child_region_node = child_region_map.map.get(&particle)?;
+                let child_region_node = child_region_map.get(&particle)?;
                 Some(child_region_node.attributes.habitablity_rate)
             }
         }
@@ -58,7 +58,7 @@ impl<'a> RegionPlaceNodeEstimator<'a> {
             Self::FlatnessMap(_) => Some(particle.site()),
             Self::RegionMap {
                 child_region_map, ..
-            } => Some(child_region_map.map.get(&particle)?.core),
+            } => Some(child_region_map.get(&particle)?.core),
         }
     }
 }
@@ -151,8 +151,8 @@ impl<'a> PlaceNodeEstimator<RegionAttributes> for RegionPlaceNodeEstimator<'a> {
 pub fn create_region_map_from_flatness(
     params: ParticleParameters,
     flatness_map: &ParticleMap<f64>,
-) -> PlaceMap<RegionAttributes> {
-    let region_place_map = PlaceMap::new(
+) -> ParticleMap<PlaceNode<RegionAttributes>> {
+    let region_place_map = create_place_map(
         params,
         RegionPlaceNodeEstimator::FlatnessMap(flatness_map),
         &flatness_map,
@@ -163,10 +163,19 @@ pub fn create_region_map_from_flatness(
 
 pub fn create_region_map_from_region(
     params: ParticleParameters,
-    child_region_map: &PlaceMap<RegionAttributes>,
+    child_region_map: &ParticleMap<PlaceNode<RegionAttributes>>,
     elevation_map: &ParticleMap<f64>,
-) -> PlaceMap<RegionAttributes> {
-    let region_place_map = PlaceMap::new(
+) -> ParticleMap<PlaceNode<RegionAttributes>> {
+    // let region_place_map = PlaceMap::new(
+    //     params,
+    //     RegionPlaceNodeEstimator::RegionMap {
+    //         child_region_map,
+    //         elevation_map,
+    //     },
+    //     &elevation_map,
+    // );
+
+    let region_place_map = create_place_map(
         params,
         RegionPlaceNodeEstimator::RegionMap {
             child_region_map,

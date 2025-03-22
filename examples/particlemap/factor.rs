@@ -80,8 +80,13 @@ impl Layer for FactorsMap {
 
         DrainageMapLayer(&self.drainage_map).draw(drawing_area, cr, focus_range);
 
-        self.place_map_collection
-            .draw(drawing_area, cr, focus_range, &["32".to_string()], &["32".to_string()]);
+        self.place_map_collection.draw(
+            drawing_area,
+            cr,
+            focus_range,
+            &["32".to_string()],
+            &["32".to_string()],
+        );
     }
 }
 

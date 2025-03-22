@@ -4,7 +4,7 @@ use worley_particle::{
 };
 
 use super::{
-    region::RegionAttributes, PlaceMap, PlaceNode, PlaceNodeAttributes, PlaceNodeEstimator,
+    create_place_map, region::RegionAttributes, PlaceNode, PlaceNodeAttributes, PlaceNodeEstimator,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -19,7 +19,7 @@ impl PlaceNodeAttributes for SectionAttributes {
 }
 
 pub struct SectionPlaceNodeEstimator<'a> {
-    pub region_map: &'a PlaceMap<RegionAttributes>,
+    pub region_map: &'a ParticleMap<PlaceNode<RegionAttributes>>,
 }
 
 fn dot(a: (f64, f64), b: (f64, f64)) -> f64 {
@@ -53,24 +53,23 @@ impl<'a> SectionPlaceNodeEstimator<'a> {
     fn estimate_dist_evaluation(
         &self,
         point: (f64, f64),
-        region_map: &PlaceMap<RegionAttributes>,
+        region_map: &ParticleMap<PlaceNode<RegionAttributes>>,
         idw_weights: &Vec<(Particle, f64)>,
     ) -> Option<f64> {
-        let region_particle = Particle::from(point.0, point.1, *region_map.map.params());
+        let region_particle = Particle::from(point.0, point.1, *region_map.params());
         let cell_weight = idw_weights
             .iter()
             .filter(|(particle, _)| particle == &region_particle)
             .map(|(_, w)| w)
             .sum::<f64>();
 
-        let region_node = region_map.map.get(&region_particle)?;
+        let region_node = region_map.get(&region_particle)?;
         let dist = ((point.0 - region_node.core.0).powi(2)
             + (point.1 - region_node.core.1).powi(2))
         .sqrt();
 
-        let dist_evaluation = (region_node.attributes.habitablity_rate
-            - (dist / region_map.map.params().scale))
-            .max(0.0);
+        let dist_evaluation =
+            (region_node.attributes.habitablity_rate - (dist / region_map.params().scale)).max(0.0);
 
         Some(dist_evaluation * cell_weight)
     }
@@ -78,14 +77,14 @@ impl<'a> SectionPlaceNodeEstimator<'a> {
     fn estimate_dot_evaluation(
         &self,
         point: (f64, f64),
-        region_map: &PlaceMap<RegionAttributes>,
+        region_map: &ParticleMap<PlaceNode<RegionAttributes>>,
         idw_weights: &Vec<(Particle, f64)>,
     ) -> Option<f64> {
         let mut dot_evaluation = 0.0;
         let mut mean_neighbors_len = 0.0;
 
         for (region_particle, weight) in idw_weights.iter() {
-            let region_node = if let Some(node) = region_map.map.get(region_particle) {
+            let region_node = if let Some(node) = region_map.get(region_particle) {
                 node
             } else {
                 continue;
@@ -95,7 +94,7 @@ impl<'a> SectionPlaceNodeEstimator<'a> {
                 .calculate_voronoi()
                 .neighbors
                 .iter()
-                .filter_map(|neighbor| Some(region_map.map.get(neighbor)?))
+                .filter_map(|neighbor| Some(region_map.get(neighbor)?))
                 .collect::<Vec<_>>();
 
             mean_neighbors_len += neighbors.len() as f64 * weight;
@@ -120,10 +119,10 @@ impl<'a> SectionPlaceNodeEstimator<'a> {
 impl<'a> PlaceNodeEstimator<SectionAttributes> for SectionPlaceNodeEstimator<'a> {
     fn estimate(&self, place_particle: Particle) -> Option<PlaceNode<SectionAttributes>> {
         let point = place_particle.site();
-        let idw_weights = self.region_map.map.calculate_idw_weights(
+        let idw_weights = self.region_map.calculate_idw_weights(
             point.0,
             point.1,
-            &IDWStrategy::default_from_params(self.region_map.map.params()),
+            &IDWStrategy::default_from_params(self.region_map.params()),
         )?;
 
         let dot_evaluation = self.estimate_dot_evaluation(point, self.region_map, &idw_weights)?;
@@ -143,9 +142,15 @@ impl<'a> PlaceNodeEstimator<SectionAttributes> for SectionPlaceNodeEstimator<'a>
 pub fn create_section_place_map(
     params: ParticleParameters,
     flatness_map: &ParticleMap<f64>,
-    region_map: &PlaceMap<RegionAttributes>,
-) -> PlaceMap<SectionAttributes> {
-    let section_place_map = PlaceMap::new(
+    region_map: &ParticleMap<PlaceNode<RegionAttributes>>,
+) -> ParticleMap<PlaceNode<SectionAttributes>> {
+    // let section_place_map = PlaceMap::new(
+    //     params,
+    //     SectionPlaceNodeEstimator { region_map },
+    //     &flatness_map,
+    // );
+
+    let section_place_map = create_place_map(
         params,
         SectionPlaceNodeEstimator { region_map },
         &flatness_map,

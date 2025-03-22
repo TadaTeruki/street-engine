@@ -5,14 +5,15 @@ use vislayers::geometry::FocusRange;
 use worley_particle::{map::ParticleMap, ParticleParameters};
 
 use super::{
+    draw_place_map,
     region::{create_region_map_from_flatness, create_region_map_from_region, RegionAttributes},
     section::{create_section_place_map, SectionAttributes},
-    PlaceMap,
+    PlaceNode,
 };
 
 pub struct PlaceMapCollection {
-    section: HashMap<String, PlaceMap<SectionAttributes>>,
-    region: HashMap<String, PlaceMap<RegionAttributes>>,
+    section: HashMap<String, ParticleMap<PlaceNode<SectionAttributes>>>,
+    region: HashMap<String, ParticleMap<PlaceNode<RegionAttributes>>>,
 }
 
 impl PlaceMapCollection {
@@ -21,7 +22,7 @@ impl PlaceMapCollection {
         flatness_map: &ParticleMap<f64>,
         region_scales: &[(String, f64)],
         section_scale: f64,
-        //usage_fns: Vec<&dyn FnOnce(Vec<PlaceMap<SectionAttributes>>) -> f64>, 
+        //usage_fns: Vec<&dyn FnOnce(Vec<PlaceMap<SectionAttributes>>) -> f64>,
     ) -> Self {
         let region_params = region_scales
             .iter()
@@ -61,7 +62,10 @@ impl PlaceMapCollection {
 
         //let usage_maps = usage_fns.iter().map(|f| f(section_place_maps)).collect::<Vec<_>>();
 
-        let scale_names = region_scales.iter().map(|(name, _)| name.clone()).collect::<Vec<_>>();
+        let scale_names = region_scales
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect::<Vec<_>>();
 
         Self {
             section: scale_names
@@ -78,10 +82,25 @@ impl PlaceMapCollection {
         }
     }
 
-    pub fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange, draw_sections: &[String], draw_regions: &[String]) {
+    pub fn draw(
+        &self,
+        drawing_area: &DrawingArea,
+        cr: &Context,
+        focus_range: &FocusRange,
+        draw_sections: &[String],
+        draw_regions: &[String],
+    ) {
         let section_color = [0.6, 0.4, 0.0];
-        draw_sections.iter().filter_map(|name| self.section.get(name)).for_each(|section| section.draw(drawing_area, cr, focus_range, section_color));
+        draw_sections
+            .iter()
+            .filter_map(|name| self.section.get(name))
+            .for_each(|section| {
+                draw_place_map(section, drawing_area, cr, focus_range, section_color)
+            });
         let region_color = [1.0, 1.0, 1.0];
-        draw_regions.iter().filter_map(|name| self.region.get(name)).for_each(|region| region.draw(drawing_area, cr, focus_range, region_color));
+        draw_regions
+            .iter()
+            .filter_map(|name| self.region.get(name))
+            .for_each(|region| draw_place_map(region, drawing_area, cr, focus_range, region_color));
     }
 }
