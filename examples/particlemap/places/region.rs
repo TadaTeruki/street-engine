@@ -172,7 +172,7 @@ pub fn create_region_map_from_region(
             child_region_map,
             elevation_map,
         },
-        &child_region_map.map,
+        &elevation_map,
     );
 
     region_place_map

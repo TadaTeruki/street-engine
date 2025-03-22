@@ -1,4 +1,7 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+};
 
 use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -33,15 +36,22 @@ impl<T: PlaceNodeAttributes> PlaceMap<T> {
         place_node_estimator: E,
         base_map: &ParticleMap<U>,
     ) -> Self {
-        let place_hashmap = base_map
+        let places = base_map
             .iter()
             .par_bridge()
-            .flat_map(|(base_particle, _)| {
-                Particle::from_inside_particle(place_particle_param, *base_particle)
+            .map(|(base_particle, _)| {
+                let site = base_particle.site();
+                Particle::from(site.0, site.1, place_particle_param)
             })
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        let place_hashmap = places
+            .iter()
             .filter_map(|particle| {
-                let node = place_node_estimator.estimate(particle)?;
-                Some((particle, node))
+                let node = place_node_estimator.estimate(*particle)?;
+                Some((*particle, node))
             })
             .collect::<HashMap<_, _>>();
 
@@ -76,9 +86,9 @@ impl<T: PlaceNodeAttributes> PlaceMap<T> {
                 2.0 * std::f64::consts::PI,
             );
 
-            // cr.set_source_rgba(self.color[0], self.color[1], self.color[2], 0.5);
-            // cr.set_line_width(1.0);
-            // cr.stroke_preserve().expect("Failed to draw edge");
+            cr.set_source_rgba(color[0], color[1], color[2], 0.2);
+            cr.set_line_width(1.0);
+            cr.stroke_preserve().expect("Failed to draw edge");
 
             cr.set_source_rgba(color[0], color[1], color[2], node.attributes.alpha());
 

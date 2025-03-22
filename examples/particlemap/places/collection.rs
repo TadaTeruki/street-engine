@@ -67,7 +67,7 @@ impl Layer for PlaceMapCollection {
     fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange) {
         let section_color = [0.6, 0.4, 0.0];
 
-        let section = &self.section[1];
+        let section = &self.section[4];
         section.draw(drawing_area, cr, focus_range, section_color);
 
         let region_colors = [

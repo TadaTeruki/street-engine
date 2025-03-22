@@ -35,7 +35,7 @@ pub fn create_flatness_map(
                 },
                 &InterpolationMethod::IDW(IDWStrategy::default_from_params(elevation_map.params())),
             )?;
-            let havitability = gradient_to_flatness(gradient.value)?;
+            let havitability = gradient_to_flatness(gradient.value).unwrap_or(0.0);
             Some((*particle, havitability))
         })
         .collect::<ParticleMap<f64>>();
