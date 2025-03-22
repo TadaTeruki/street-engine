@@ -25,10 +25,17 @@ impl FactorsMap {
 
         let elevation_bands = Bands::new(&elevation_map, 80, 300000.0, sea_level, 1.0);
 
-        let region_scales = vec![2.0, 4.0, 8.0, 16.0, 32.0, 64.0]
-            .iter()
-            .map(|scale| elevation_map.params().scale * scale)
-            .collect::<Vec<_>>();
+        let region_scales = vec![
+            ("2".to_string(), 2.0),
+            ("4".to_string(), 4.0),
+            ("8".to_string(), 8.0),
+            ("16".to_string(), 16.0),
+            ("32".to_string(), 32.0),
+            ("64".to_string(), 64.0),
+        ]
+        .iter()
+        .map(|(name, scale)| (name.to_string(), elevation_map.params().scale * scale))
+        .collect::<Vec<_>>();
 
         let place_map_collection = PlaceMapCollection::new(
             &elevation_map,
@@ -74,7 +81,7 @@ impl Layer for FactorsMap {
         DrainageMapLayer(&self.drainage_map).draw(drawing_area, cr, focus_range);
 
         self.place_map_collection
-            .draw(drawing_area, cr, focus_range);
+            .draw(drawing_area, cr, focus_range, &["32".to_string()], &["32".to_string()]);
     }
 }
 

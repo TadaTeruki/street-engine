@@ -9,11 +9,18 @@ use vislayers::geometry::FocusRange;
 use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
 
 pub mod collection;
+mod usage;
 mod region;
 mod section;
 
 pub trait PlaceNodeAttributes: Debug + Clone + Copy + PartialEq + Send + Sync {
     fn alpha(&self) -> f64;
+}
+
+impl PlaceNodeAttributes for f64 {
+    fn alpha(&self) -> f64 {
+        return *self
+    }
 }
 
 pub trait PlaceNodeEstimator<T: PlaceNodeAttributes>: Sync {

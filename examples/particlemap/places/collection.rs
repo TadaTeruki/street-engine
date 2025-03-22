@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use gtk4::{cairo::Context, DrawingArea};
-use vislayers::{geometry::FocusRange, window::Layer};
+use vislayers::geometry::FocusRange;
 use worley_particle::{map::ParticleMap, ParticleParameters};
 
 use super::{
@@ -9,20 +11,21 @@ use super::{
 };
 
 pub struct PlaceMapCollection {
-    section: Vec<PlaceMap<SectionAttributes>>,
-    region: Vec<PlaceMap<RegionAttributes>>,
+    section: HashMap<String, PlaceMap<SectionAttributes>>,
+    region: HashMap<String, PlaceMap<RegionAttributes>>,
 }
 
 impl PlaceMapCollection {
     pub fn new(
         elevation_map: &ParticleMap<f64>,
         flatness_map: &ParticleMap<f64>,
-        region_scales: &[f64],
+        region_scales: &[(String, f64)],
         section_scale: f64,
+        //usage_fns: Vec<&dyn FnOnce(Vec<PlaceMap<SectionAttributes>>) -> f64>, 
     ) -> Self {
         let region_params = region_scales
             .iter()
-            .map(|&scale| ParticleParameters {
+            .map(|&(_, scale)| ParticleParameters {
                 scale,
                 min_randomness: 0.8,
                 max_randomness: 0.8,
@@ -56,30 +59,29 @@ impl PlaceMapCollection {
             .map(|region_map| create_section_place_map(section_params, flatness_map, region_map))
             .collect::<Vec<_>>();
 
+        //let usage_maps = usage_fns.iter().map(|f| f(section_place_maps)).collect::<Vec<_>>();
+
+        let scale_names = region_scales.iter().map(|(name, _)| name.clone()).collect::<Vec<_>>();
+
         Self {
-            section: section_place_maps,
-            region: region_place_maps,
+            section: scale_names
+                .iter()
+                .cloned()
+                .zip(section_place_maps.into_iter())
+                .collect::<HashMap<_, _>>(),
+            region: scale_names
+                .iter()
+                .cloned()
+                .zip(region_place_maps.into_iter())
+                .collect::<HashMap<_, _>>(),
+            //usage: usage_maps,
         }
     }
-}
 
-impl Layer for PlaceMapCollection {
-    fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange) {
+    pub fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange, draw_sections: &[String], draw_regions: &[String]) {
         let section_color = [0.6, 0.4, 0.0];
-
-        let section = &self.section[4];
-        section.draw(drawing_area, cr, focus_range, section_color);
-
-        let region_colors = [
-            [0.9, 0.5, 0.3],
-            [0.9, 0.9, 0.5],
-            [0.0, 0.5, 0.6],
-            [0.5, 0.0, 1.0],
-            [1.0, 0.0, 0.5],
-            [1.0, 1.0, 1.0],
-        ];
-
-        let region = &self.region[3];
-        region.draw(drawing_area, cr, focus_range, region_colors[3]);
+        draw_sections.iter().filter_map(|name| self.section.get(name)).for_each(|section| section.draw(drawing_area, cr, focus_range, section_color));
+        let region_color = [1.0, 1.0, 1.0];
+        draw_regions.iter().filter_map(|name| self.region.get(name)).for_each(|region| region.draw(drawing_area, cr, focus_range, region_color));
     }
 }
