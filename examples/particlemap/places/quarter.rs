@@ -38,17 +38,22 @@ fn normalize(a: (f64, f64)) -> (f64, f64) {
     (a.0 / norm, a.1 / norm)
 }
 
-fn calculate_dot_evaluation(from: (f64, f64), to: (f64, f64), to_neighbor: (f64, f64)) -> f64 {
+fn calculate_dot_evaluation(
+    from: (f64, f64),
+    to: (f64, f64),
+    to_neighbor: (f64, f64),
+    range_cos: f64,
+) -> f64 {
     let vec_from = normalize((to.0 - from.0, to.1 - from.1));
 
     let neighbor = normalize((to.0 - to_neighbor.0, to.1 - to_neighbor.1));
-    let x = (dot_linearized(vec_from, neighbor) - 0.5).max(0.0) * 2.0;
-    x.powi(4)
+    (dot_linearized(vec_from, neighbor) - (1.0 - range_cos)).max(0.0) / range_cos
 }
 
 impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a> {
     fn estimate(&self, place_particle: Particle) -> Option<PlaceNode<QuarterAttributes>> {
         let region_map = self.region_maps.last()?;
+
         let site = place_particle.site();
         let region_idw_weights = region_map.map.calculate_idw_weights(
             site.0,
@@ -56,8 +61,9 @@ impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a>
             &IDWStrategy::default_from_params(region_map.map.params()),
         )?;
 
-        let mut sum_evaluation = 0.0;
-        let mut sum_weight = 0.0;
+        let mut dot_evaluation = 0.0;
+        let mut mean_neighbors_len = 0.0;
+
         for (region_particle, weight) in region_idw_weights.iter() {
             let region_node = if let Some(node) = region_map.map.get(region_particle) {
                 node
@@ -72,18 +78,22 @@ impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a>
                 .filter_map(|neighbor| Some(region_map.map.get(neighbor)?))
                 .collect::<Vec<_>>();
 
-            let dot_evaluation = neighbors
+            mean_neighbors_len += neighbors.len() as f64 * weight;
+
+            let unit_dot_evaluation = neighbors
                 .iter()
-                .map(|neighbor| calculate_dot_evaluation(site, region_node.core, neighbor.core))
+                .map(|neighbor| {
+                    calculate_dot_evaluation(site, region_node.core, neighbor.core, 0.1)
+                        * neighbor.attributes.habitablity_rate
+                })
                 .sum::<f64>()
                 / neighbors.len() as f64;
 
-            sum_evaluation += dot_evaluation * region_node.attributes.habitablity_rate * weight;
-
-            sum_weight += weight;
+            dot_evaluation +=
+                unit_dot_evaluation * region_node.attributes.habitablity_rate * weight;
         }
 
-        let evaluation = sum_evaluation / sum_weight;
+        let evaluation = dot_evaluation * mean_neighbors_len;
 
         Some(PlaceNode {
             core: site,

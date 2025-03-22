@@ -1,10 +1,20 @@
-use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
+use worley_particle::{
+    map::{lerp::ParticleMapAttributeLerp, ParticleMap},
+    Particle, ParticleParameters,
+};
 
 use super::{PlaceMap, PlaceNode, PlaceNodeAttributes, PlaceNodeEstimator};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct RegionAttributes {
     pub habitablity_rate: f64,
+}
+impl ParticleMapAttributeLerp for RegionAttributes {
+    fn lerp(&self, other: &Self, t: f64) -> Self {
+        Self {
+            habitablity_rate: self.habitablity_rate * (1.0 - t) + other.habitablity_rate * t,
+        }
+    }
 }
 
 impl PlaceNodeAttributes for RegionAttributes {
