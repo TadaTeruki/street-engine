@@ -36,13 +36,12 @@ impl<T: PlaceNodeAttributes> PlaceMap<T> {
         let place_hashmap = base_map
             .iter()
             .par_bridge()
-            .filter_map(|(base_particle, _)| {
-                let (x, y) = base_particle.site();
-                let place_particle = Particle::from(x, y, place_particle_param);
-                Some((
-                    place_particle,
-                    place_node_estimator.estimate(place_particle)?,
-                ))
+            .flat_map(|(base_particle, _)| {
+                Particle::from_inside_particle(place_particle_param, *base_particle)
+            })
+            .filter_map(|particle| {
+                let node = place_node_estimator.estimate(particle)?;
+                Some((particle, node))
             })
             .collect::<HashMap<_, _>>();
 

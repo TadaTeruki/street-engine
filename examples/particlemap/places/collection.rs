@@ -44,29 +44,6 @@ impl PlaceMapCollection {
             }
         }
 
-        // let section_params = ParticleParameters {
-        //     scale: elevation_map.params().scale,
-        //     min_randomness: 0.8,
-        //     max_randomness: 0.8,
-        //     ..Default::default()
-        // };
-
-        // let evaluation_weights = vec![
-        //     0.0,
-        //     1.0,
-        //     0.0,
-        //     0.0,
-        //     0.0,
-        //     0.0,
-        // ];
-        // let section_place_map = create_section_place_map(
-        //     section_params,
-        //     flatness_map,
-        //     &region_place_maps,
-        //     evaluation_weights,
-        //     [0.6, 0.4, 0.0],
-        // );
-
         let section_params = ParticleParameters {
             scale: section_scale,
             min_randomness: 0.8,
@@ -90,7 +67,7 @@ impl Layer for PlaceMapCollection {
     fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange) {
         let section_color = [0.6, 0.4, 0.0];
 
-        let section = &self.section[3];
+        let section = &self.section[1];
         section.draw(drawing_area, cr, focus_range, section_color);
 
         let region_colors = [
