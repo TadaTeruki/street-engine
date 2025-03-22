@@ -25,7 +25,17 @@ impl FactorsMap {
 
         let elevation_bands = Bands::new(&elevation_map, 80, 300000.0, sea_level, 1.0);
 
-        let place_map_collection = PlaceMapCollection::new(&elevation_map, &flatness_map);
+        let region_scales = vec![2.0, 4.0, 8.0, 16.0, 32.0, 64.0]
+            .iter()
+            .map(|scale| elevation_map.params().scale * scale)
+            .collect::<Vec<_>>();
+
+        let place_map_collection = PlaceMapCollection::new(
+            &elevation_map,
+            &flatness_map,
+            &region_scales,
+            elevation_map.params().scale,
+        );
 
         Self {
             elevation_map,

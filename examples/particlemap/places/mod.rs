@@ -2,12 +2,12 @@ use std::{collections::HashMap, fmt::Debug};
 
 use gtk4::{cairo::Context, prelude::WidgetExt, DrawingArea};
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use vislayers::{geometry::FocusRange, window::Layer};
+use vislayers::geometry::FocusRange;
 use worley_particle::{map::ParticleMap, Particle, ParticleParameters};
 
 pub mod collection;
-mod quarter;
 mod region;
+mod section;
 
 pub trait PlaceNodeAttributes: Debug + Clone + Copy + PartialEq + Send + Sync {
     fn alpha(&self) -> f64;
@@ -25,7 +25,6 @@ pub struct PlaceNode<T: PlaceNodeAttributes> {
 
 pub struct PlaceMap<T: PlaceNodeAttributes> {
     map: ParticleMap<PlaceNode<T>>,
-    color: [f64; 3],
 }
 
 impl<T: PlaceNodeAttributes> PlaceMap<T> {
@@ -33,7 +32,6 @@ impl<T: PlaceNodeAttributes> PlaceMap<T> {
         place_particle_param: ParticleParameters,
         place_node_estimator: E,
         base_map: &ParticleMap<U>,
-        color: [f64; 3],
     ) -> Self {
         let place_hashmap = base_map
             .iter()
@@ -50,15 +48,18 @@ impl<T: PlaceNodeAttributes> PlaceMap<T> {
 
         let particle_map = ParticleMap::new(place_particle_param, place_hashmap);
 
-        Self {
-            map: particle_map,
-            color,
-        }
+        Self { map: particle_map }
     }
 }
 
-impl<T: PlaceNodeAttributes> Layer for PlaceMap<T> {
-    fn draw(&self, drawing_area: &DrawingArea, cr: &Context, focus_range: &FocusRange) {
+impl<T: PlaceNodeAttributes> PlaceMap<T> {
+    fn draw(
+        &self,
+        drawing_area: &DrawingArea,
+        cr: &Context,
+        focus_range: &FocusRange,
+        color: [f64; 3],
+    ) {
         let area_width = drawing_area.width();
         let area_height = drawing_area.height();
 
@@ -80,12 +81,7 @@ impl<T: PlaceNodeAttributes> Layer for PlaceMap<T> {
             // cr.set_line_width(1.0);
             // cr.stroke_preserve().expect("Failed to draw edge");
 
-            cr.set_source_rgba(
-                self.color[0],
-                self.color[1],
-                self.color[2],
-                node.attributes.alpha(),
-            );
+            cr.set_source_rgba(color[0], color[1], color[2], node.attributes.alpha());
 
             cr.fill().expect("Failed to draw place");
         }

@@ -151,13 +151,11 @@ impl<'a> PlaceNodeEstimator<RegionAttributes> for RegionPlaceNodeEstimator<'a> {
 pub fn create_region_map_from_flatness(
     params: ParticleParameters,
     flatness_map: &ParticleMap<f64>,
-    color: [f64; 3],
 ) -> PlaceMap<RegionAttributes> {
     let region_place_map = PlaceMap::new(
         params,
         RegionPlaceNodeEstimator::FlatnessMap(flatness_map),
         &flatness_map,
-        color,
     );
 
     region_place_map
@@ -167,7 +165,6 @@ pub fn create_region_map_from_region(
     params: ParticleParameters,
     child_region_map: &PlaceMap<RegionAttributes>,
     elevation_map: &ParticleMap<f64>,
-    color: [f64; 3],
 ) -> PlaceMap<RegionAttributes> {
     let region_place_map = PlaceMap::new(
         params,
@@ -176,7 +173,6 @@ pub fn create_region_map_from_region(
             elevation_map,
         },
         &child_region_map.map,
-        color,
     );
 
     region_place_map

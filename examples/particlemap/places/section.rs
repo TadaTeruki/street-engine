@@ -1,5 +1,5 @@
 use worley_particle::{
-    map::{network::ParticleNetwork, IDWStrategy, ParticleMap},
+    map::{IDWStrategy, ParticleMap},
     Particle, ParticleParameters,
 };
 
@@ -8,19 +8,18 @@ use super::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct QuarterAttributes {
+pub struct SectionAttributes {
     pub evaluation: f64,
 }
 
-impl PlaceNodeAttributes for QuarterAttributes {
+impl PlaceNodeAttributes for SectionAttributes {
     fn alpha(&self) -> f64 {
         self.evaluation
     }
 }
 
-pub struct QuarterPlaceNodeEstimator<'a> {
-    pub region_maps: &'a Vec<PlaceMap<RegionAttributes>>,
-    pub networks: Vec<ParticleNetwork>,
+pub struct SectionPlaceNodeEstimator<'a> {
+    pub region_map: &'a PlaceMap<RegionAttributes>,
 }
 
 fn dot(a: (f64, f64), b: (f64, f64)) -> f64 {
@@ -50,7 +49,7 @@ fn calculate_dot_evaluation(
     (dot_linearized(vec_from, neighbor) - (1.0 - range_cos)).max(0.0) / range_cos
 }
 
-impl<'a> QuarterPlaceNodeEstimator<'a> {
+impl<'a> SectionPlaceNodeEstimator<'a> {
     fn estimate_dist_evaluation(
         &self,
         point: (f64, f64),
@@ -118,51 +117,39 @@ impl<'a> QuarterPlaceNodeEstimator<'a> {
     }
 }
 
-impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a> {
-    fn estimate(&self, place_particle: Particle) -> Option<PlaceNode<QuarterAttributes>> {
+impl<'a> PlaceNodeEstimator<SectionAttributes> for SectionPlaceNodeEstimator<'a> {
+    fn estimate(&self, place_particle: Particle) -> Option<PlaceNode<SectionAttributes>> {
         let point = place_particle.site();
-
-        let region_map = self.region_maps.last()?;
-
-        let idw_weights = region_map.map.calculate_idw_weights(
+        let idw_weights = self.region_map.map.calculate_idw_weights(
             point.0,
             point.1,
-            &IDWStrategy::default_from_params(region_map.map.params()),
+            &IDWStrategy::default_from_params(self.region_map.map.params()),
         )?;
 
-        let dot_evaluation = self.estimate_dot_evaluation(point, region_map, &idw_weights)?;
+        let dot_evaluation = self.estimate_dot_evaluation(point, self.region_map, &idw_weights)?;
 
-        let dist_evaluation = self.estimate_dist_evaluation(point, region_map, &idw_weights)?;
-
-        let evaluation = dot_evaluation * (1.0 - dist_evaluation) + dist_evaluation;
+        let dist_evaluation =
+            self.estimate_dist_evaluation(point, self.region_map, &idw_weights)?;
 
         Some(PlaceNode {
             core: point,
-            attributes: QuarterAttributes { evaluation },
+            attributes: SectionAttributes {
+                evaluation: dot_evaluation * (1.0 - dist_evaluation) + dist_evaluation,
+            },
         })
     }
 }
 
-pub fn create_quarter_place_map(
+pub fn create_section_place_map(
     params: ParticleParameters,
     flatness_map: &ParticleMap<f64>,
-    region_maps: &Vec<PlaceMap<RegionAttributes>>,
-    color: [f64; 3],
-) -> PlaceMap<QuarterAttributes> {
-    let networks = region_maps
-        .iter()
-        .map(|region_map| ParticleNetwork::new(&region_map.map))
-        .collect::<Vec<_>>();
-
-    let quarter_place_map = PlaceMap::new(
+    region_map: &PlaceMap<RegionAttributes>,
+) -> PlaceMap<SectionAttributes> {
+    let section_place_map = PlaceMap::new(
         params,
-        QuarterPlaceNodeEstimator {
-            region_maps,
-            networks,
-        },
+        SectionPlaceNodeEstimator { region_map },
         &flatness_map,
-        color,
     );
 
-    quarter_place_map
+    section_place_map
 }
