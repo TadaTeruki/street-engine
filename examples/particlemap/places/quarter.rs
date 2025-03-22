@@ -50,21 +50,42 @@ fn calculate_dot_evaluation(
     (dot_linearized(vec_from, neighbor) - (1.0 - range_cos)).max(0.0) / range_cos
 }
 
-impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a> {
-    fn estimate(&self, place_particle: Particle) -> Option<PlaceNode<QuarterAttributes>> {
-        let region_map = self.region_maps.last()?;
+impl<'a> QuarterPlaceNodeEstimator<'a> {
+    fn estimate_dist_evaluation(
+        &self,
+        point: (f64, f64),
+        region_map: &PlaceMap<RegionAttributes>,
+        idw_weights: &Vec<(Particle, f64)>,
+    ) -> Option<f64> {
+        let region_particle = Particle::from(point.0, point.1, *region_map.map.params());
+        let cell_weight = idw_weights
+            .iter()
+            .filter(|(particle, _)| particle == &region_particle)
+            .map(|(_, w)| w)
+            .sum::<f64>();
 
-        let site = place_particle.site();
-        let region_idw_weights = region_map.map.calculate_idw_weights(
-            site.0,
-            site.1,
-            &IDWStrategy::default_from_params(region_map.map.params()),
-        )?;
+        let region_node = region_map.map.get(&region_particle)?;
+        let dist = ((point.0 - region_node.core.0).powi(2)
+            + (point.1 - region_node.core.1).powi(2))
+        .sqrt();
 
+        let dist_evaluation = (region_node.attributes.habitablity_rate
+            - (dist / region_map.map.params().scale))
+            .max(0.0);
+
+        Some(dist_evaluation * cell_weight)
+    }
+
+    fn estimate_dot_evaluation(
+        &self,
+        point: (f64, f64),
+        region_map: &PlaceMap<RegionAttributes>,
+        idw_weights: &Vec<(Particle, f64)>,
+    ) -> Option<f64> {
         let mut dot_evaluation = 0.0;
         let mut mean_neighbors_len = 0.0;
 
-        for (region_particle, weight) in region_idw_weights.iter() {
+        for (region_particle, weight) in idw_weights.iter() {
             let region_node = if let Some(node) = region_map.map.get(region_particle) {
                 node
             } else {
@@ -83,7 +104,7 @@ impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a>
             let unit_dot_evaluation = neighbors
                 .iter()
                 .map(|neighbor| {
-                    calculate_dot_evaluation(site, region_node.core, neighbor.core, 0.1)
+                    calculate_dot_evaluation(point, region_node.core, neighbor.core, 0.1)
                         * neighbor.attributes.habitablity_rate
                 })
                 .sum::<f64>()
@@ -93,10 +114,30 @@ impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a>
                 unit_dot_evaluation * region_node.attributes.habitablity_rate * weight;
         }
 
-        let evaluation = dot_evaluation * mean_neighbors_len;
+        Some(dot_evaluation * mean_neighbors_len)
+    }
+}
+
+impl<'a> PlaceNodeEstimator<QuarterAttributes> for QuarterPlaceNodeEstimator<'a> {
+    fn estimate(&self, place_particle: Particle) -> Option<PlaceNode<QuarterAttributes>> {
+        let point = place_particle.site();
+
+        let region_map = self.region_maps.last()?;
+
+        let idw_weights = region_map.map.calculate_idw_weights(
+            point.0,
+            point.1,
+            &IDWStrategy::default_from_params(region_map.map.params()),
+        )?;
+
+        let dot_evaluation = self.estimate_dot_evaluation(point, region_map, &idw_weights)?;
+
+        let dist_evaluation = self.estimate_dist_evaluation(point, region_map, &idw_weights)?;
+
+        let evaluation = dot_evaluation * (1.0 - dist_evaluation) + dist_evaluation;
 
         Some(PlaceNode {
-            core: site,
+            core: point,
             attributes: QuarterAttributes { evaluation },
         })
     }

@@ -15,7 +15,7 @@ pub struct PlaceMapCollection {
 
 impl PlaceMapCollection {
     pub fn new(elevation_map: &ParticleMap<f64>, flatness_map: &ParticleMap<f64>) -> Self {
-        let region_params = (0..4)
+        let region_params = (0..6)
             .map(|i| ParticleParameters {
                 scale: elevation_map.params().scale * 2.0 * 2.0_f64.powi(i as i32),
                 min_randomness: 0.8,
